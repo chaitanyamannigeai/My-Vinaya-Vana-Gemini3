@@ -1,0 +1,5 @@
+{
+  "name": "Vinaya Vana Farmhouse",
+  "description": "A complete farmhouse booking and management system with public facing website, cab service booking, and a comprehensive admin panel. Uses LocalStorage to simulate a full backend database.",
+  "requestFramePermissions": []
+}
