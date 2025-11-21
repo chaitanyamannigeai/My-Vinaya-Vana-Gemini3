@@ -105,7 +105,19 @@ app.delete('/api/rooms/:id', async (req, res) => {
 app.get('/api/bookings', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM bookings ORDER BY created_at DESC');
-    res.json(rows);
+    // Map snake_case DB columns to camelCase frontend properties
+    const bookings = rows.map(b => ({
+        id: b.id,
+        roomId: b.room_id,
+        guestName: b.guest_name,
+        guestPhone: b.guest_phone,
+        checkIn: b.check_in,
+        checkOut: b.check_out,
+        totalAmount: b.total_amount,
+        status: b.status,
+        createdAt: b.created_at
+    }));
+    res.json(bookings);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -131,7 +143,12 @@ app.put('/api/bookings/:id', async (req, res) => {
 app.get('/api/drivers', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM drivers');
-        const drivers = rows.map(d => ({ ...d, isDefault: !!d.is_default, active: !!d.active }));
+        const drivers = rows.map(d => ({ 
+            ...d, 
+            isDefault: !!d.is_default, 
+            active: !!d.active,
+            vehicleInfo: d.vehicle_info 
+        }));
         res.json(drivers);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -164,7 +181,15 @@ app.delete('/api/drivers/:id', async (req, res) => {
 app.get('/api/locations', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM cab_locations');
-        const locs = rows.map(l => ({...l, active: !!l.active}));
+        const locs = rows.map(l => ({
+            id: l.id,
+            name: l.name,
+            description: l.description,
+            imageUrl: l.image_url,
+            price: l.price,
+            driverId: l.driver_id,
+            active: !!l.active
+        }));
         res.json(locs);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -243,7 +268,16 @@ app.delete('/api/gallery/:id', async (req, res) => {
 app.get('/api/reviews', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM reviews');
-        const reviews = rows.map(r => ({...r, showOnHome: !!r.show_on_home}));
+        // FIX: Explicitly map guest_name to guestName
+        const reviews = rows.map(r => ({
+            id: r.id,
+            guestName: r.guest_name,
+            location: r.location,
+            rating: r.rating,
+            comment: r.comment,
+            date: r.date,
+            showOnHome: !!r.show_on_home
+        }));
         res.json(reviews);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -273,7 +307,15 @@ app.delete('/api/reviews/:id', async (req, res) => {
 app.get('/api/pricing', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM pricing_rules');
-        res.json(rows);
+        // Map snake_case to camelCase
+        const rules = rows.map(r => ({
+            id: r.id,
+            name: r.name,
+            startDate: r.start_date,
+            endDate: r.end_date,
+            multiplier: r.multiplier
+        }));
+        res.json(rules);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

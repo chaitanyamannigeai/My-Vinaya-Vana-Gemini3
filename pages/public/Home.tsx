@@ -146,7 +146,7 @@ const Home = () => {
                             <p className="text-gray-700 mb-6 italic leading-relaxed">"{review.comment}"</p>
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-nature-100 rounded-full flex items-center justify-center font-bold text-nature-700">
-                                    {review.guestName.charAt(0)}
+                                    {(review.guestName || 'Guest').charAt(0)}
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-nature-900 text-sm">{review.guestName}</h4>
