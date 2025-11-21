@@ -5,19 +5,19 @@
 
 I have created the following files in your **Main Project Folder**:
 
-1.  **`database.sql`**: The SQL code to create your database tables.
-2.  **`server.js`**: The backend server code for Render.
+1.  **`database.sql`**: The SQL code to create your database tables (Rooms, Bookings, Drivers, Cabs, Gallery, Settings, etc.).
+2.  **`server.js`**: The complete backend server code handling ALL features.
 3.  **`package.json`**: Configuration file that tells Render how to run your site.
+4.  **`.env`**: A template file for your database password.
 
 ---
 
-## ⚠️ CRITICAL LIMITATION
+## ⚠️ CRITICAL LIMITATION (Current Mode)
 
-**Current Mode:** Demo / Single-User
+**Current Mode:** Demo / Single-User (using `mockDb.ts`)
 **Data Storage:** Local Browser Storage
 
-This means if a customer books on their phone, YOU WILL NOT SEE IT on your computer. Data is not shared between devices.
-To fix this, a developer must connect this code to a cloud database (Firebase/SQL).
+The website currently runs in the browser. To make it "Real" (Multi-user), you must switch to using `server.js` and a real database.
 
 ---
 
@@ -51,11 +51,13 @@ To fix this, a developer must connect this code to a cloud database (Firebase/SQ
 
 ## 2. DATABASE SETUP
 
-**Current Status:** This website uses a "Local Database" (LocalStorage). 
-**Action Required:** NONE. It works out of the box!
+**For Local Storage Mode:** No action required.
 
-**Future Upgrade:**
-Use the `database.sql` file found in the root folder to create your tables in PostgreSQL.
+**For Real Server Mode:**
+1. Create a PostgreSQL database (e.g., on Render or Neon.tech).
+2. Copy the contents of **`database.sql`**.
+3. Run that SQL in your database console to create the tables.
+4. Paste your Database Connection URL into the `.env` file or Render Environment Variables.
 
 ---
 
