@@ -77,10 +77,10 @@ app.get('/api/rooms', async (req, res) => {
         id: r.id,
         name: r.name,
         description: r.description,
-        basePrice: r.base_price, // Map base_price -> basePrice
-        capacity: r.capacity,
-        amenities: parseJSON(r.amenities),
-        images: parseJSON(r.images)
+        basePrice: r.base_price || 0, // Fallback to 0 to avoid UI errors
+        capacity: r.capacity || 0,
+        amenities: parseJSON(r.amenities) || [],
+        images: parseJSON(r.images) || []
     }));
     res.json(rooms);
   } catch (err) { 
@@ -92,6 +92,14 @@ app.get('/api/rooms', async (req, res) => {
 app.post('/api/rooms', async (req, res) => {
   const { id, name, description, basePrice, capacity, amenities, images } = req.body;
   try {
+    // Safety Fallbacks: Ensure no value is undefined/null before sending to DB
+    const safeName = name || 'New Room';
+    const safeDesc = description || '';
+    const safePrice = basePrice || 0;
+    const safeCap = capacity || 1;
+    const safeAm = JSON.stringify(amenities || []);
+    const safeImg = JSON.stringify(images || []);
+
     // MySQL 8 compatible syntax: AS new_vals
     const sql = `INSERT INTO rooms (id, name, description, base_price, capacity, amenities, images) 
                  VALUES (?, ?, ?, ?, ?, ?, ?) 
@@ -100,7 +108,7 @@ app.post('/api/rooms', async (req, res) => {
                  name=new_vals.name, description=new_vals.description, base_price=new_vals.base_price, 
                  capacity=new_vals.capacity, amenities=new_vals.amenities, images=new_vals.images`;
     
-    await pool.query(sql, [id, name, description, basePrice, capacity, JSON.stringify(amenities), JSON.stringify(images)]);
+    await pool.query(sql, [id, safeName, safeDesc, safePrice, safeCap, safeAm, safeImg]);
     res.json({ success: true });
   } catch (err) { 
       console.error('Error saving room:', err);
@@ -292,10 +300,10 @@ app.get('/api/reviews', async (req, res) => {
         // FIX: Explicitly map guest_name to guestName
         const reviews = rows.map(r => ({
             id: r.id,
-            guestName: r.guest_name,
-            location: r.location,
-            rating: r.rating,
-            comment: r.comment,
+            guestName: r.guest_name || 'Guest',
+            location: r.location || '',
+            rating: r.rating || 5,
+            comment: r.comment || '',
             date: r.date,
             showOnHome: !!r.show_on_home
         }));
