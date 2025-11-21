@@ -1,20 +1,33 @@
 
 import React, { useState, useEffect } from 'react';
-import { db } from '../../services/mockDb';
+import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { CabLocation, Driver } from '../../types';
 import { MapPin, Phone, MessageCircle, User, Car, Compass, ArrowRight, X } from 'lucide-react';
 
 const Cabs = () => {
   const [locations, setLocations] = useState<CabLocation[]>([]);
-  const [settings, setSettings] = useState(db.settings.get());
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [selectedLocation, setSelectedLocation] = useState<CabLocation | null>(null);
   const [assignedDriver, setAssignedDriver] = useState<Driver | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    // Filter only active locations
-    const allLocs = db.locations.getAll();
-    setLocations(allLocs.filter(l => l.active));
+    const fetchData = async () => {
+      try {
+        const [fetchedLocs, fetchedDrivers, fetchedSettings] = await Promise.all([
+            api.locations.getAll(),
+            api.drivers.getAll(),
+            api.settings.get()
+        ]);
+        setLocations(fetchedLocs.filter(l => l.active));
+        setDrivers(fetchedDrivers);
+        setSettings(fetchedSettings);
+      } catch (err) {
+          console.error(err);
+      }
+    };
+    fetchData();
   }, []);
 
   const handleLocationClick = (loc: CabLocation) => {
@@ -23,11 +36,15 @@ const Cabs = () => {
     // Determine driver: Specific > Default
     let driver: Driver | undefined;
     if (loc.driverId) {
-      driver = db.drivers.getById(loc.driverId);
+      driver = drivers.find(d => d.id === loc.driverId);
     } 
     
     if (!driver) {
-      driver = db.drivers.getDefault();
+      driver = drivers.find(d => d.isDefault);
+    }
+    // Fallback to first active driver if no default
+    if (!driver) {
+      driver = drivers.find(d => d.active);
     }
 
     setAssignedDriver(driver || null);

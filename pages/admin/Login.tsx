@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { db } from '../../services/mockDb';
+import { api } from '../../services/api';
 import { Lock } from 'lucide-react';
 
 const Login = () => {
@@ -8,15 +9,19 @@ const Login = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const settings = db.settings.get();
-    // Simple equality check for demo. In real app, use bcrypt comparison on server.
-    if (password === settings.adminPasswordHash) {
-      localStorage.setItem('vv_admin_auth', 'true');
-      navigate('/admin');
-    } else {
-      setError('Invalid password');
+    try {
+        const settings = await api.settings.get();
+        // Simple equality check. In real app, use server-side validation.
+        if (password === settings.adminPasswordHash) {
+          localStorage.setItem('vv_admin_auth', 'true');
+          navigate('/admin');
+        } else {
+          setError('Invalid password');
+        }
+    } catch (err) {
+        setError('Failed to verify password. Check connection.');
     }
   };
 

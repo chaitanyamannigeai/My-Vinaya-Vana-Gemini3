@@ -1,5 +1,6 @@
+
 import React, { useEffect, useState } from 'react';
-import { db } from '../../services/mockDb';
+import { api } from '../../services/api';
 import { Review } from '../../types';
 import { Star, Quote, User } from 'lucide-react';
 
@@ -7,7 +8,7 @@ const Reviews = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
 
   useEffect(() => {
-    setReviews(db.reviews.getAll());
+    api.reviews.getAll().then(setReviews).catch(console.error);
   }, []);
 
   return (

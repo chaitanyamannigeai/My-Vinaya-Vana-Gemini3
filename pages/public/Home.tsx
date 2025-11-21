@@ -1,23 +1,37 @@
+
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { db } from '../../services/mockDb';
+import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { ArrowRight, Coffee, Wifi, Wind, Palmtree, Star, Play, Quote } from 'lucide-react';
-import { Review } from '../../types';
+import { Review, Room } from '../../types';
 
 const Home = () => {
-  const [rooms, setRooms] = useState(db.rooms.getAll());
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [settings, setSettings] = useState(db.settings.get());
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const featuredRoom = rooms[0];
 
   useEffect(() => {
-    setReviews(db.reviews.getHomeReviews());
+    const fetchData = async () => {
+      try {
+        const [fetchedRooms, fetchedReviews, fetchedSettings] = await Promise.all([
+            api.rooms.getAll(),
+            api.reviews.getAll(),
+            api.settings.get()
+        ]);
+        setRooms(fetchedRooms);
+        setReviews(fetchedReviews.filter(r => r.showOnHome));
+        setSettings(fetchedSettings);
+      } catch (err) {
+          console.error(err);
+      }
+    };
+    fetchData();
   }, []);
 
   // Extract YouTube Video ID robustly
   const getYoutubeEmbedUrl = (url: string) => {
     if (!url) return null;
-    // Handle standard watch URLs, short URLs, embed URLs, etc.
     const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
     const match = url.match(regExp);
     const id = (match && match[1]) ? match[1] : null;

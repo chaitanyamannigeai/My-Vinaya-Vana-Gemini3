@@ -1,11 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
-import { db } from '../../services/mockDb';
-import { Room, Booking, PaymentStatus } from '../../types';
+import { api, DEFAULT_SETTINGS } from '../../services/api';
+import { Room, Booking, PaymentStatus, PricingRule } from '../../types';
 import { CheckCircle, Users, Home, Utensils, Monitor, Droplet, Calendar as CalendarIcon, XCircle, MessageCircle, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 
 const Accommodation = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [pricingRules, setPricingRules] = useState<PricingRule[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  
   const [bookingForm, setBookingForm] = useState({
     roomId: '',
     guestName: '',
@@ -19,35 +22,78 @@ const Accommodation = () => {
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [pricingBreakdown, setPricingBreakdown] = useState<{avgPrice: number, days: number, discountApplied: number} | null>(null);
-  
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+
   // Calendar State
   const [viewDate, setViewDate] = useState(new Date());
-  const [roomBookings, setRoomBookings] = useState<Booking[]>([]);
-
-  const settings = db.settings.get();
 
   useEffect(() => {
-    const allRooms = db.rooms.getAll();
-    setRooms(allRooms);
-    if (allRooms.length > 0) {
-      setBookingForm(prev => ({ ...prev, roomId: allRooms[0].id }));
-      setSelectedRoom(allRooms[0]);
-    }
+    const fetchData = async () => {
+      try {
+        const [fetchedRooms, fetchedSettings, fetchedRules, fetchedBookings] = await Promise.all([
+            api.rooms.getAll(),
+            api.settings.get(),
+            api.pricing.getAll(),
+            api.bookings.getAll()
+        ]);
+        
+        setRooms(fetchedRooms);
+        setSettings(fetchedSettings);
+        setPricingRules(fetchedRules);
+        setBookings(fetchedBookings);
+
+        if (fetchedRooms.length > 0) {
+            setBookingForm(prev => ({ ...prev, roomId: fetchedRooms[0].id }));
+            setSelectedRoom(fetchedRooms[0]);
+        }
+      } catch (err) {
+          console.error("Failed to load initial data", err);
+      }
+    };
+    fetchData();
   }, []);
 
   useEffect(() => {
     if (bookingForm.roomId) {
       const r = rooms.find(rm => rm.id === bookingForm.roomId);
       setSelectedRoom(r || null);
-      
-      // Fetch bookings for this room for the calendar
-      const allBookings = db.bookings.getAll();
-      const relevantBookings = allBookings.filter(b => 
-        b.roomId === bookingForm.roomId && b.status !== PaymentStatus.FAILED
-      );
-      setRoomBookings(relevantBookings);
     }
   }, [bookingForm.roomId, rooms]);
+
+  // --- Availability Logic ---
+  const checkAvailability = (roomId: string, checkIn: string, checkOut: string): boolean => {
+      const start = new Date(checkIn).getTime();
+      const end = new Date(checkOut).getTime();
+
+      // Filter bookings for this room that are not FAILED
+      const roomBookings = bookings.filter(b => b.roomId === roomId && b.status !== PaymentStatus.FAILED);
+
+      for (const b of roomBookings) {
+          const bStart = new Date(b.checkIn).getTime();
+          const bEnd = new Date(b.checkOut).getTime();
+          // Check overlap
+          if (start < bEnd && end > bStart) {
+              return false; 
+          }
+      }
+      return true;
+  };
+
+  const getMultiplierForDate = (date: string): number => {
+        const d = new Date(date).getTime();
+        let maxMultiplier = 1;
+
+        pricingRules.forEach(rule => {
+            const start = new Date(rule.startDate).getTime();
+            const end = new Date(rule.endDate).getTime();
+            if (d >= start && d <= end) {
+                if (rule.multiplier > maxMultiplier) {
+                    maxMultiplier = rule.multiplier;
+                }
+            }
+        });
+        return maxMultiplier;
+  };
 
   // Price Calculation & Availability Check
   useEffect(() => {
@@ -63,7 +109,7 @@ const Accommodation = () => {
       }
 
       // 1. Availability Check
-      const isAvailable = db.bookings.checkAvailability(
+      const isAvailable = checkAvailability(
           selectedRoom.id, 
           bookingForm.checkIn, 
           bookingForm.checkOut
@@ -82,7 +128,7 @@ const Accommodation = () => {
 
       while (currentDate < endDate) {
           const dateStr = currentDate.toISOString().split('T')[0];
-          const multiplier = db.pricing.getMultiplierForDate(dateStr);
+          const multiplier = getMultiplierForDate(dateStr);
           calculatedTotal += (selectedRoom.basePrice * multiplier);
           
           days++;
@@ -106,7 +152,7 @@ const Accommodation = () => {
         });
       }
     }
-  }, [bookingForm.checkIn, bookingForm.checkOut, bookingForm.roomId, selectedRoom]);
+  }, [bookingForm.checkIn, bookingForm.checkOut, bookingForm.roomId, selectedRoom, bookings, pricingRules, settings]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -131,9 +177,9 @@ const Accommodation = () => {
       return `https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent(msg)}`;
   };
 
-  const confirmPayment = () => {
+  const confirmPayment = async () => {
     // Double check availability before confirming
-    const isAvailable = db.bookings.checkAvailability(
+    const isAvailable = checkAvailability(
         bookingForm.roomId, 
         bookingForm.checkIn, 
         bookingForm.checkOut
@@ -157,22 +203,27 @@ const Accommodation = () => {
       createdAt: new Date().toISOString()
     };
 
-    db.bookings.add(newBooking);
-    
-    // Update local state immediately for calendar
-    setRoomBookings([...roomBookings, newBooking]);
+    try {
+        await api.bookings.add(newBooking);
+        
+        // Refresh bookings to update local state
+        const updatedBookings = await api.bookings.getAll();
+        setBookings(updatedBookings);
 
-    setShowPayment(false);
-    setBookingSuccess(true);
-    
-    setBookingForm({
-      roomId: rooms[0]?.id || '',
-      guestName: '',
-      guestPhone: '',
-      checkIn: '',
-      checkOut: ''
-    });
-    setTotalPrice(0);
+        setShowPayment(false);
+        setBookingSuccess(true);
+        
+        setBookingForm({
+          roomId: rooms[0]?.id || '',
+          guestName: '',
+          guestPhone: '',
+          checkIn: '',
+          checkOut: ''
+        });
+        setTotalPrice(0);
+    } catch (err) {
+        alert("Booking failed. Please try again.");
+    }
   };
 
   // --- Calendar Logic ---
@@ -192,7 +243,9 @@ const Accommodation = () => {
 
   const isDateBooked = (dateStr: string) => {
     const target = new Date(dateStr).getTime();
-    return roomBookings.some(b => {
+    const currentRoomBookings = bookings.filter(b => b.roomId === bookingForm.roomId && b.status !== PaymentStatus.FAILED);
+
+    return currentRoomBookings.some(b => {
       const start = new Date(b.checkIn).getTime();
       const end = new Date(b.checkOut).getTime(); 
       return target >= start && target < end; 
@@ -533,7 +586,7 @@ const Accommodation = () => {
             
             <div className="bg-blue-50 p-4 rounded-lg mb-6 text-sm text-blue-800 text-left">
               <p className="font-bold mb-1">Simulated Razorpay</p>
-              <p>In a production environment, this would open the official Razorpay payment gateway using Key ID: <span className="font-mono bg-blue-100 px-1 rounded">{db.settings.get().razorpayKey}</span></p>
+              <p>In a production environment, this would open the official Razorpay payment gateway using Key ID: <span className="font-mono bg-blue-100 px-1 rounded">{settings.razorpayKey}</span></p>
             </div>
             <div className="flex gap-4 justify-center">
               <button onClick={() => setShowPayment(false)} className="px-4 py-3 text-gray-600 hover:bg-gray-100 rounded-lg w-1/3 font-medium">Cancel</button>

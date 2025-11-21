@@ -2,16 +2,16 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Palmtree, Facebook, Instagram } from 'lucide-react';
-import { db } from '../../services/mockDb';
+import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { SiteSettings } from '../../types';
 
 const Footer = () => {
   const location = useLocation();
-  const [settings, setSettings] = useState<SiteSettings>(db.settings.get());
+  const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
 
   // Refresh settings whenever route changes (e.g. returning from Admin)
   useEffect(() => {
-    setSettings(db.settings.get());
+    api.settings.get().then(setSettings).catch(console.error);
   }, [location]);
 
   return (

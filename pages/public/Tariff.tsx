@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { db } from '../../services/mockDb';
+import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { Room } from '../../types';
 
 const Tariff = () => {
@@ -8,8 +8,19 @@ const Tariff = () => {
   const [houseRules, setHouseRules] = useState('');
 
   useEffect(() => {
-    setRooms(db.rooms.getAll());
-    setHouseRules(db.settings.get().houseRules);
+    const fetchData = async () => {
+        try {
+            const [fetchedRooms, fetchedSettings] = await Promise.all([
+                api.rooms.getAll(),
+                api.settings.get()
+            ]);
+            setRooms(fetchedRooms);
+            setHouseRules(fetchedSettings.houseRules || DEFAULT_SETTINGS.houseRules);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+    fetchData();
   }, []);
 
   return (

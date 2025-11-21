@@ -1,10 +1,14 @@
 
-import React from 'react';
-import { db } from '../../services/mockDb';
+import React, { useState, useEffect } from 'react';
+import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { Phone, MapPin, Mail, MessageCircle } from 'lucide-react';
 
 const Contact = () => {
-  const settings = db.settings.get();
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+
+  useEffect(() => {
+    api.settings.get().then(setSettings).catch(console.error);
+  }, []);
 
   return (
     <div className="min-h-screen bg-nature-50 flex flex-col">

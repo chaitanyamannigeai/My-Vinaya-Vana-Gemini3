@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { db } from '../../services/mockDb';
+import { api } from '../../services/api';
 import { GalleryItem } from '../../types';
 
 const Gallery = () => {
@@ -8,7 +9,15 @@ const Gallery = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
-    setImages(db.gallery.getAll());
+    const fetchGallery = async () => {
+        try {
+            const data = await api.gallery.getAll();
+            setImages(data);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+    fetchGallery();
   }, []);
 
   const categories = ['All', ...Array.from(new Set(images.map(img => img.category)))];

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { db } from '../../services/mockDb';
+import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { Room, Booking, Driver, CabLocation, SiteSettings, PaymentStatus, PricingRule, GalleryItem, Review } from '../../types';
 import { Settings, Calendar, Truck, Map, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent, Download, MessageCircle } from 'lucide-react';
 import ImageUploader from '../../components/ui/ImageUploader';
@@ -18,18 +18,32 @@ const AdminDashboard = () => {
   const [pricingRules, setPricingRules] = useState<PricingRule[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [settings, setSettings] = useState<SiteSettings>(db.settings.get());
+  const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
 
   // Refresh data
-  const refreshData = () => {
-    setBookings(db.bookings.getAll().reverse());
-    setRooms(db.rooms.getAll());
-    setDrivers(db.drivers.getAll());
-    setLocations(db.locations.getAll());
-    setPricingRules(db.pricing.getAll());
-    setGallery(db.gallery.getAll());
-    setReviews(db.reviews.getAll());
-    setSettings(db.settings.get());
+  const refreshData = async () => {
+    try {
+        const [b, r, d, l, p, g, rev, s] = await Promise.all([
+            api.bookings.getAll(),
+            api.rooms.getAll(),
+            api.drivers.getAll(),
+            api.locations.getAll(),
+            api.pricing.getAll(),
+            api.gallery.getAll(),
+            api.reviews.getAll(),
+            api.settings.get()
+        ]);
+        setBookings(b);
+        setRooms(r);
+        setDrivers(d);
+        setLocations(l);
+        setPricingRules(p);
+        setGallery(g);
+        setReviews(rev);
+        setSettings(s);
+    } catch (e) {
+        console.error("Failed to refresh data", e);
+    }
   };
 
   useEffect(() => {
@@ -48,8 +62,8 @@ const AdminDashboard = () => {
 
   // --- Handlers ---
   
-  const updateBookingStatus = (id: string, status: PaymentStatus) => {
-    db.bookings.updateStatus(id, status);
+  const updateBookingStatus = async (id: string, status: PaymentStatus) => {
+    await api.bookings.updateStatus(id, status);
     refreshData();
   };
 
@@ -95,7 +109,7 @@ const AdminDashboard = () => {
   };
 
   // Room Handlers
-  const addRoom = () => {
+  const addRoom = async () => {
     const newRoom: Room = {
         id: `r${Date.now()}`,
         name: 'New Room',
@@ -105,31 +119,32 @@ const AdminDashboard = () => {
         amenities: ['Wifi', 'AC'],
         images: ['https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&q=80&w=800']
     };
-    db.rooms.save([...rooms, newRoom]);
+    await api.rooms.save(newRoom);
     refreshData();
   };
 
-  const updateRoom = (id: string, field: keyof Room, value: any) => {
-      const updated = rooms.map(r => r.id === id ? { ...r, [field]: value } : r);
-      db.rooms.save(updated);
-      refreshData();
+  const updateRoom = async (id: string, field: keyof Room, value: any) => {
+      const room = rooms.find(r => r.id === id);
+      if (room) {
+          await api.rooms.save({ ...room, [field]: value });
+          refreshData();
+      }
   };
 
-  const updateRoomAmenities = (id: string, amenitiesStr: string) => {
+  const updateRoomAmenities = async (id: string, amenitiesStr: string) => {
       const arr = amenitiesStr.split(',').map(s => s.trim());
-      updateRoom(id, 'amenities', arr);
+      await updateRoom(id, 'amenities', arr);
   };
 
-  const deleteRoom = (id: string) => {
+  const deleteRoom = async (id: string) => {
       if(window.confirm("Are you sure you want to delete this room?")) {
-          const updated = rooms.filter(r => r.id !== id);
-          db.rooms.save(updated);
+          await api.rooms.delete(id);
           refreshData();
       }
   }
 
   // Driver Handlers
-  const addDriver = () => {
+  const addDriver = async () => {
     const newDriver: Driver = {
       id: Date.now().toString(),
       name: 'New Driver',
@@ -139,26 +154,30 @@ const AdminDashboard = () => {
       active: true,
       vehicleInfo: ''
     };
-    db.drivers.save([...drivers, newDriver]);
+    await api.drivers.save(newDriver);
     refreshData();
   };
 
-  const updateDriver = (id: string, field: keyof Driver, value: any) => {
-    const updated = drivers.map(d => {
-      if (d.id === id) {
-        return { ...d, [field]: value };
-      }
-      if (field === 'isDefault' && value === true && d.id !== id) {
-        return { ...d, isDefault: false };
-      }
-      return d;
-    });
-    db.drivers.save(updated);
-    refreshData();
+  const updateDriver = async (id: string, field: keyof Driver, value: any) => {
+    const driver = drivers.find(d => d.id === id);
+    if (driver) {
+        const updated = { ...driver, [field]: value };
+        // Handle logic for default driver switch if needed, or server can handle it?
+        // Server handles `isDefault` toggle automatically in the POST endpoint.
+        await api.drivers.save(updated);
+        refreshData();
+    }
   };
+  
+  const deleteDriver = async (id: string) => {
+      if (window.confirm("Delete driver?")) {
+          await api.drivers.delete(id);
+          refreshData();
+      }
+  }
 
   // Location Handlers
-  const addLocation = () => {
+  const addLocation = async () => {
      const newLoc: CabLocation = {
          id: Date.now().toString(),
          name: 'New Location',
@@ -167,18 +186,27 @@ const AdminDashboard = () => {
          active: true,
          driverId: null
      };
-     db.locations.save([...locations, newLoc]);
+     await api.locations.save(newLoc);
      refreshData();
   };
 
-  const updateLocation = (id: string, field: keyof CabLocation, value: any) => {
-    const updated = locations.map(l => l.id === id ? { ...l, [field]: value } : l);
-    db.locations.save(updated);
-    refreshData();
+  const updateLocation = async (id: string, field: keyof CabLocation, value: any) => {
+    const loc = locations.find(l => l.id === id);
+    if (loc) {
+        await api.locations.save({ ...loc, [field]: value });
+        refreshData();
+    }
   };
 
+  const deleteLocation = async (id: string) => {
+      if (window.confirm("Delete location?")) {
+          await api.locations.delete(id);
+          refreshData();
+      }
+  }
+
   // Pricing Rules Handlers
-  const addPricingRule = () => {
+  const addPricingRule = async () => {
       const newRule: PricingRule = {
           id: `pr${Date.now()}`,
           name: 'New Season',
@@ -186,48 +214,50 @@ const AdminDashboard = () => {
           endDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
           multiplier: 1.2
       };
-      db.pricing.save([...pricingRules, newRule]);
+      await api.pricing.save(newRule);
       refreshData();
   };
 
-  const updatePricingRule = (id: string, field: keyof PricingRule, value: any) => {
-      const updated = pricingRules.map(p => p.id === id ? {...p, [field]: value} : p);
-      db.pricing.save(updated);
-      refreshData();
+  const updatePricingRule = async (id: string, field: keyof PricingRule, value: any) => {
+      const rule = pricingRules.find(r => r.id === id);
+      if (rule) {
+          await api.pricing.save({ ...rule, [field]: value });
+          refreshData();
+      }
   };
 
-  const deletePricingRule = (id: string) => {
-      const updated = pricingRules.filter(p => p.id !== id);
-      db.pricing.save(updated);
+  const deletePricingRule = async (id: string) => {
+      await api.pricing.delete(id);
       refreshData();
   };
 
   // Gallery Handlers
-  const addGalleryItem = () => {
+  const addGalleryItem = async () => {
       const newItem: GalleryItem = {
           id: `g${Date.now()}`,
           url: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&q=80&w=800',
           category: 'Property',
           caption: ''
       };
-      db.gallery.save([...gallery, newItem]);
+      await api.gallery.save(newItem);
       refreshData();
   };
 
-  const updateGalleryItem = (id: string, field: keyof GalleryItem, value: any) => {
-      const updated = gallery.map(g => g.id === id ? {...g, [field]: value} : g);
-      db.gallery.save(updated);
-      refreshData();
+  const updateGalleryItem = async (id: string, field: keyof GalleryItem, value: any) => {
+      const item = gallery.find(g => g.id === id);
+      if (item) {
+          await api.gallery.save({ ...item, [field]: value });
+          refreshData();
+      }
   };
 
-  const deleteGalleryItem = (id: string) => {
-      const updated = gallery.filter(g => g.id !== id);
-      db.gallery.save(updated);
+  const deleteGalleryItem = async (id: string) => {
+      await api.gallery.delete(id);
       refreshData();
   };
 
   // Review Handlers
-  const addReview = () => {
+  const addReview = async () => {
     const newReview: Review = {
         id: `rev${Date.now()}`,
         guestName: 'Guest Name',
@@ -237,24 +267,25 @@ const AdminDashboard = () => {
         date: new Date().toISOString().split('T')[0],
         showOnHome: false
     };
-    db.reviews.save([...reviews, newReview]);
+    await api.reviews.save(newReview);
     refreshData();
   };
 
-  const updateReview = (id: string, field: keyof Review, value: any) => {
-    const updated = reviews.map(r => r.id === id ? { ...r, [field]: value } : r);
-    db.reviews.save(updated);
-    refreshData();
+  const updateReview = async (id: string, field: keyof Review, value: any) => {
+    const review = reviews.find(r => r.id === id);
+    if (review) {
+        await api.reviews.save({ ...review, [field]: value });
+        refreshData();
+    }
   };
 
-  const deleteReview = (id: string) => {
-    const updated = reviews.filter(r => r.id !== id);
-    db.reviews.save(updated);
+  const deleteReview = async (id: string) => {
+    await api.reviews.delete(id);
     refreshData();
   }
 
-  const saveSettings = () => {
-    db.settings.save(settings);
+  const saveSettings = async () => {
+    await api.settings.save(settings);
     alert('Settings Saved!');
   };
 
@@ -418,11 +449,7 @@ const AdminDashboard = () => {
             {locations.map(loc => (
                 <div key={loc.id} className="bg-white p-4 rounded-lg shadow relative border border-gray-100">
                      <button 
-                        onClick={() => { 
-                            const filtered = locations.filter(l => l.id !== loc.id);
-                            db.locations.save(filtered);
-                            refreshData();
-                        }} 
+                        onClick={() => deleteLocation(loc.id)} 
                         className="absolute top-2 right-2 text-red-500 hover:bg-red-50 p-1 rounded z-10 bg-white shadow-sm"
                     >
                         <Trash2 size={16}/>
@@ -813,11 +840,7 @@ const AdminDashboard = () => {
             {drivers.map(d => (
                 <div key={d.id} className="bg-white p-4 rounded-lg shadow border-l-4 border-nature-500 relative">
                     <button 
-                        onClick={() => {
-                            const filtered = drivers.filter(dr => dr.id !== d.id);
-                            db.drivers.save(filtered);
-                            refreshData();
-                        }} 
+                        onClick={() => deleteDriver(d.id)} 
                         className="absolute top-2 right-2 text-gray-400 hover:text-red-500"
                     >
                         <X size={16}/>
