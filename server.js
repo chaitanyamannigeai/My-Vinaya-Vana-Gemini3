@@ -20,6 +20,15 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); // Increased limit for base64 images
 
+// --- CRITICAL FIX: DISABLE CACHING ---
+// This forces the browser to fetch fresh data from the DB every single time
+app.use((req, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    next();
+});
+
 // Database Connection Pool (MySQL)
 const pool = mysql.createPool(process.env.DATABASE_URL || '');
 
@@ -220,11 +229,15 @@ app.get('/api/settings', async (req, res) => {
     try {
         const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
         if (rows.length > 0) {
-            res.json(JSON.parse(rows[0].value));
+            // Use helper to safely parse (handles double parsing)
+            res.json(parseJSON(rows[0].value));
         } else {
             res.json({}); 
         }
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) { 
+        console.error("Settings fetch error:", err);
+        res.status(500).json({ error: err.message }); 
+    }
 });
 
 app.post('/api/settings', async (req, res) => {

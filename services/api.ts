@@ -32,9 +32,12 @@ const handleResponse = async (response: Response) => {
     return response.json();
 };
 
+// Cache Buster Helper: Appends ?t=timestamp to URLs to force fresh fetch
+const getUrl = (endpoint: string) => `${API_URL}${endpoint}?_t=${Date.now()}`;
+
 export const api = {
     rooms: {
-        getAll: async (): Promise<Room[]> => handleResponse(await fetch(`${API_URL}/rooms`)),
+        getAll: async (): Promise<Room[]> => handleResponse(await fetch(getUrl('/rooms'))),
         save: async (room: Room) => handleResponse(await fetch(`${API_URL}/rooms`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -43,7 +46,7 @@ export const api = {
         delete: async (id: string) => handleResponse(await fetch(`${API_URL}/rooms/${id}`, { method: 'DELETE' }))
     },
     bookings: {
-        getAll: async (): Promise<Booking[]> => handleResponse(await fetch(`${API_URL}/bookings`)),
+        getAll: async (): Promise<Booking[]> => handleResponse(await fetch(getUrl('/bookings'))),
         add: async (booking: Booking) => handleResponse(await fetch(`${API_URL}/bookings`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -56,7 +59,7 @@ export const api = {
         }))
     },
     drivers: {
-        getAll: async (): Promise<Driver[]> => handleResponse(await fetch(`${API_URL}/drivers`)),
+        getAll: async (): Promise<Driver[]> => handleResponse(await fetch(getUrl('/drivers'))),
         save: async (driver: Driver) => handleResponse(await fetch(`${API_URL}/drivers`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -65,7 +68,7 @@ export const api = {
         delete: async (id: string) => handleResponse(await fetch(`${API_URL}/drivers/${id}`, { method: 'DELETE' }))
     },
     locations: {
-        getAll: async (): Promise<CabLocation[]> => handleResponse(await fetch(`${API_URL}/locations`)),
+        getAll: async (): Promise<CabLocation[]> => handleResponse(await fetch(getUrl('/locations'))),
         save: async (location: CabLocation) => handleResponse(await fetch(`${API_URL}/locations`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -76,7 +79,7 @@ export const api = {
     settings: {
         get: async (): Promise<SiteSettings> => {
              try {
-                const settings = await handleResponse(await fetch(`${API_URL}/settings`));
+                const settings = await handleResponse(await fetch(getUrl('/settings')));
                 // Merge with defaults in case DB is partial or empty
                 return { ...DEFAULT_SETTINGS, ...settings, longStayDiscount: { ...DEFAULT_SETTINGS.longStayDiscount, ...(settings.longStayDiscount || {}) } };
              } catch (e) {
@@ -91,7 +94,7 @@ export const api = {
         }))
     },
     gallery: {
-        getAll: async (): Promise<GalleryItem[]> => handleResponse(await fetch(`${API_URL}/gallery`)),
+        getAll: async (): Promise<GalleryItem[]> => handleResponse(await fetch(getUrl('/gallery'))),
         save: async (item: GalleryItem) => handleResponse(await fetch(`${API_URL}/gallery`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -100,7 +103,7 @@ export const api = {
         delete: async (id: string) => handleResponse(await fetch(`${API_URL}/gallery/${id}`, { method: 'DELETE' }))
     },
     reviews: {
-        getAll: async (): Promise<Review[]> => handleResponse(await fetch(`${API_URL}/reviews`)),
+        getAll: async (): Promise<Review[]> => handleResponse(await fetch(getUrl('/reviews'))),
         save: async (review: Review) => handleResponse(await fetch(`${API_URL}/reviews`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -109,7 +112,7 @@ export const api = {
         delete: async (id: string) => handleResponse(await fetch(`${API_URL}/reviews/${id}`, { method: 'DELETE' }))
     },
     pricing: {
-        getAll: async (): Promise<PricingRule[]> => handleResponse(await fetch(`${API_URL}/pricing`)),
+        getAll: async (): Promise<PricingRule[]> => handleResponse(await fetch(getUrl('/pricing'))),
         save: async (rule: PricingRule) => handleResponse(await fetch(`${API_URL}/pricing`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
