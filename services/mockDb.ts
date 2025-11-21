@@ -1,3 +1,4 @@
+
 import { Room, Booking, Driver, CabLocation, SiteSettings, GalleryItem, PaymentStatus, PricingRule, Review } from '../types';
 
 // Initial Data Seeding
@@ -30,8 +31,11 @@ const INITIAL_SETTINGS: SiteSettings = {
   razorpayKey: 'rzp_test_123456789',
   enableOnlinePayments: true,
   adminPasswordHash: 'admin123',
-  heroImageUrl: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&q=80&w=1920',
-  youtubeVideoUrl: 'https://www.youtube.com/watch?v=LXb3EKWsInQ' // Example nature video
+  heroImageUrl: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&q=80&w=1920', // Coconut/Nature theme
+  youtubeVideoUrl: 'https://www.youtube.com/watch?v=LXb3EKWsInQ', // Example nature video
+  facebookUrl: 'https://www.facebook.com/',
+  instagramUrl: 'https://www.instagram.com/',
+  googleMapUrl: 'https://maps.google.com/maps?q=14.519306,74.327528&z=15&output=embed'
 };
 
 const INITIAL_GALLERY: GalleryItem[] = [

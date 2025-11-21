@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../../services/mockDb';
@@ -574,6 +575,50 @@ const AdminDashboard = () => {
                         placeholder="stay@vinayavana.com"
                     />
                 </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700">Facebook Page URL</label>
+                    <input 
+                        type="text" 
+                        value={settings.facebookUrl || ''}
+                        onChange={(e) => setSettings({...settings, facebookUrl: e.target.value})}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                        placeholder="https://www.facebook.com/..."
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700">Instagram Profile URL</label>
+                    <input 
+                        type="text" 
+                        value={settings.instagramUrl || ''}
+                        onChange={(e) => setSettings({...settings, instagramUrl: e.target.value})}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                        placeholder="https://www.instagram.com/..."
+                    />
+                </div>
+                
+                {/* Map URL Section */}
+                <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+                     <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <Map size={16}/> Google Map Embed URL
+                     </label>
+                    <input 
+                        type="text" 
+                        value={settings.googleMapUrl || ''}
+                        onChange={(e) => setSettings({...settings, googleMapUrl: e.target.value})}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm"
+                        placeholder="https://www.google.com/maps/embed?..."
+                    />
+                    <div className="mt-2 text-xs text-gray-500">
+                        <strong>How to get this:</strong>
+                        <ol className="list-decimal list-inside ml-1 mt-1 space-y-1">
+                            <li>Go to Google Maps and find your property.</li>
+                            <li>Click <strong>Share</strong> button.</li>
+                            <li>Click <strong>Embed a map</strong> tab.</li>
+                            <li>Copy the text inside <code>src="..."</code> (starts with <code>https://www.google.com/maps/embed...</code>)</li>
+                        </ol>
+                    </div>
+                </div>
+
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Razorpay Key ID</label>
                     <input 

@@ -1,3 +1,4 @@
+
 export enum PaymentStatus {
   PENDING = 'PENDING',
   PAID = 'PAID',
@@ -48,12 +49,15 @@ export interface CabLocation {
 
 export interface SiteSettings {
   whatsappNumber: string;
-  contactEmail: string; // Added email field
+  contactEmail: string;
   razorpayKey: string;
   enableOnlinePayments: boolean;
   adminPasswordHash: string;
   heroImageUrl: string;
   youtubeVideoUrl: string;
+  facebookUrl: string;
+  instagramUrl: string;
+  googleMapUrl: string;
 }
 
 export interface GalleryItem {

@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Book, Code, Settings, Key, Map, Users, ArrowLeft } from 'lucide-react';
+import { Book, Code, Settings, Key, Map, Users, ArrowLeft, Globe, Rocket, AlertTriangle } from 'lucide-react';
 
 const Docs = () => {
   return (
@@ -19,6 +20,98 @@ const Docs = () => {
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-12">
             
+            {/* HOSTING GUIDE (NEW) */}
+            <section id="hosting-guide" className="bg-white p-8 rounded-2xl shadow-sm border border-nature-100 border-l-4 border-l-nature-600">
+                <div className="flex items-center gap-3 mb-6 text-nature-800">
+                    <Rocket size={32} />
+                    <h2 className="text-2xl font-serif font-bold">Hosting Guide (Step-by-Step)</h2>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-lg text-blue-800 text-sm mb-6">
+                    <strong>For Beginners:</strong> Follow these steps to put your website online using Render (Free). 
+                </div>
+
+                <div className="space-y-8 text-gray-700">
+                    <div>
+                        <h3 className="font-bold text-lg mb-2 flex items-center gap-2"><span className="bg-nature-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">1</span> Get the Code</h3>
+                        <p>Download the project code from your editor (click the Download button at the top right if available, or ask the developer for the ZIP file). Unzip it on your computer.</p>
+                    </div>
+
+                    <div>
+                        <h3 className="font-bold text-lg mb-2 flex items-center gap-2"><span className="bg-nature-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">2</span> Put it on GitHub</h3>
+                        <ol className="list-decimal list-inside ml-2 space-y-2">
+                            <li>Go to <a href="https://github.com" target="_blank" className="text-blue-600 underline">GitHub.com</a> and create an account.</li>
+                            <li>Click the "+" icon top-right -> "New Repository".</li>
+                            <li>Name it <code>vinaya-vana</code>. Click "Create".</li>
+                            <li>Upload your code files to this repository (drag and drop or use Git Desktop).</li>
+                        </ol>
+                    </div>
+
+                    <div>
+                         <h3 className="font-bold text-lg mb-2 flex items-center gap-2"><span className="bg-nature-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">3</span> Connect to Render</h3>
+                         <ol className="list-decimal list-inside ml-2 space-y-2">
+                            <li>Go to <a href="https://render.com" target="_blank" className="text-blue-600 underline">Render.com</a> and log in with GitHub.</li>
+                            <li>Click "New +" button -> select <strong>Static Site</strong>.</li>
+                            <li>Select your <code>vinaya-vana</code> repository from the list.</li>
+                        </ol>
+                    </div>
+
+                    <div className="bg-gray-100 p-6 rounded-lg border border-gray-300">
+                         <h3 className="font-bold text-lg mb-4 text-gray-900">⚙️ The Important Settings</h3>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div>
+                                 <label className="text-xs text-gray-500 block">Name</label>
+                                 <div className="font-mono font-bold text-nature-700">vinaya-vana-website</div>
+                             </div>
+                             <div>
+                                 <label className="text-xs text-gray-500 block">Branch</label>
+                                 <div className="font-mono font-bold text-nature-700">main</div>
+                             </div>
+                             <div>
+                                 <label className="text-xs text-gray-500 block">Build Command</label>
+                                 <div className="font-mono font-bold text-nature-700 bg-white p-2 rounded border">npm install && npm run build</div>
+                             </div>
+                             <div>
+                                 <label className="text-xs text-gray-500 block">Publish Directory</label>
+                                 <div className="font-mono font-bold text-nature-700 bg-white p-2 rounded border">dist</div>
+                             </div>
+                         </div>
+                         <p className="text-sm mt-4 text-gray-600">Click <strong>Create Static Site</strong>.</p>
+                    </div>
+
+                    <div>
+                        <h3 className="font-bold text-lg mb-2 flex items-center gap-2"><span className="bg-nature-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">4</span> Go Live!</h3>
+                        <p>Render will think for 2-3 minutes. When it says "Live", click the URL (e.g., <code>https://vinaya-vana.onrender.com</code>).</p>
+                        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mt-4 text-sm text-yellow-800">
+                            <strong>Important Note on Data:</strong> This version uses your browser's memory (LocalStorage) to store bookings and admin changes. 
+                            This means if you change a price on your laptop, it won't show on your phone. 
+                            <br/><br/>
+                            <strong>To make it real (Centralized Database):</strong> You will need a backend developer to connect this to a database like Firebase or Supabase.
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            {/* Troubleshooting Section */}
+            <section id="troubleshooting" className="bg-white p-8 rounded-2xl shadow-sm border border-red-100 border-l-4 border-l-red-500">
+                 <div className="flex items-center gap-3 mb-6 text-red-800">
+                    <AlertTriangle size={32} />
+                    <h2 className="text-2xl font-serif font-bold">Troubleshooting</h2>
+                </div>
+                <div className="space-y-4 text-gray-700">
+                    <div>
+                        <h3 className="font-bold text-md text-gray-900">Language Selector "Refused to Connect"</h3>
+                        <p className="text-sm mt-1">
+                            If you see a "Refused to connect" error when selecting a language while testing in the Preview window (AI Studio/StackBlitz), don't worry.
+                        </p>
+                        <p className="text-sm mt-2 bg-gray-100 p-3 rounded">
+                            <strong>Why?</strong> The preview runs inside a restricted "iframe". Google Translate tries to reload the page to apply the language, but the preview blocks this for security.
+                            <br/><br/>
+                            <strong>Solution:</strong> This will work perfectly once you deploy the site to a real URL (like Render or Netlify).
+                        </p>
+                    </div>
+                </div>
+            </section>
+
             {/* For Owners */}
             <section id="owner-manual" className="bg-white p-8 rounded-2xl shadow-sm border border-nature-100">
                 <div className="flex items-center gap-3 mb-6 text-nature-800">
@@ -62,16 +155,6 @@ const Docs = () => {
                             <li><strong>Important:</strong> Check "Default" if you want this driver to be assigned automatically to new locations.</li>
                         </ol>
                     </div>
-
-                     <div className="border-b border-gray-100 pb-4">
-                        <h3 className="font-bold text-lg mb-2 text-nature-700">4. Changing Admin Password</h3>
-                        <ol className="list-decimal list-inside space-y-2 ml-2">
-                            <li>Go to <strong>Settings</strong> tab.</li>
-                            <li>Find "Update Admin Password" section.</li>
-                            <li>Type your new password and click Save.</li>
-                            <li>You will need to use this new password next time you login.</li>
-                        </ol>
-                    </div>
                 </div>
             </section>
 
@@ -101,17 +184,6 @@ const Docs = () => {
                         <p className="mb-2">Located in <code>services/mockDb.ts</code> -> <code>checkAvailability</code>.</p>
                         <p>It iterates through all bookings for a specific room. If a new request's start time is before an existing booking's end time AND the new request's end time is after the existing start time, it returns false (overlap).</p>
                     </div>
-
-                    <div className="border-b border-gray-100 pb-4">
-                        <h3 className="font-bold text-lg mb-2 text-nature-700">Pricing Logic</h3>
-                        <p className="mb-2">Located in <code>Accommodation.tsx</code> inside the <code>useEffect</code> hook.</p>
-                        <p>It iterates through every day of the requested stay. For each day, it calls <code>db.pricing.getMultiplierForDate(date)</code>. It sums up <code>BasePrice * Multiplier</code> for all days to get the total.</p>
-                    </div>
-
-                    <div>
-                        <h3 className="font-bold text-lg mb-2 text-nature-700">Data Persistence</h3>
-                        <p>The app uses <code>localStorage</code> to simulate a database. Keys are prefixed with <code>vv_</code> (e.g., <code>vv_bookings</code>). To reset the app completely, clear the browser's local storage.</p>
-                    </div>
                 </div>
             </section>
 
@@ -122,6 +194,16 @@ const Docs = () => {
             <div className="bg-white p-6 rounded-xl shadow-md sticky top-24">
                 <h3 className="font-bold text-gray-900 mb-4">Quick Navigation</h3>
                 <ul className="space-y-3">
+                    <li>
+                        <a href="#hosting-guide" className="flex items-center gap-2 text-gray-600 hover:text-nature-600 hover:underline font-bold text-nature-700">
+                            <Rocket size={18} /> Hosting Guide
+                        </a>
+                    </li>
+                    <li>
+                         <a href="#troubleshooting" className="flex items-center gap-2 text-gray-600 hover:text-red-600 hover:underline">
+                            <AlertTriangle size={18} /> Troubleshooting
+                        </a>
+                    </li>
                     <li>
                         <a href="#owner-manual" className="flex items-center gap-2 text-gray-600 hover:text-nature-600 hover:underline">
                             <Users size={18} /> Owner's Manual

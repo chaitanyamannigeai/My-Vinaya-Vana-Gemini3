@@ -1,10 +1,17 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Palmtree, Facebook, Instagram, Twitter } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Palmtree, Facebook, Instagram } from 'lucide-react';
 import { db } from '../../services/mockDb';
+import { SiteSettings } from '../../types';
 
 const Footer = () => {
-  const settings = db.settings.get();
+  const location = useLocation();
+  const [settings, setSettings] = useState<SiteSettings>(db.settings.get());
+
+  // Refresh settings whenever route changes (e.g. returning from Admin)
+  useEffect(() => {
+    setSettings(db.settings.get());
+  }, [location]);
 
   return (
     <footer className="bg-nature-900 text-nature-100">
@@ -36,25 +43,35 @@ const Footer = () => {
             <h3 className="text-sm font-semibold text-white tracking-wider uppercase mb-4">Contact</h3>
             <ul className="space-y-2 text-sm">
               <li>Gokarna, Karnataka</li>
-              <li>+91 {settings.whatsappNumber}</li>
-              <li>{settings.contactEmail}</li>
+              <li className="flex items-center gap-2">
+                  <span className="text-nature-500">Tel:</span> +91 {settings.whatsappNumber}
+              </li>
+              <li className="flex items-center gap-2">
+                  <span className="text-nature-500">Email:</span> {settings.contactEmail}
+              </li>
             </ul>
           </div>
 
           <div>
             <h3 className="text-sm font-semibold text-white tracking-wider uppercase mb-4">Social</h3>
             <div className="flex space-x-6">
-              <a href="#" className="text-nature-400 hover:text-white">
+              <a 
+                href={settings.facebookUrl || '#'} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-nature-400 hover:text-white transition-colors"
+              >
                 <span className="sr-only">Facebook</span>
                 <Facebook className="h-6 w-6" />
               </a>
-              <a href="#" className="text-nature-400 hover:text-white">
+              <a 
+                href={settings.instagramUrl || '#'} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-nature-400 hover:text-white transition-colors"
+              >
                 <span className="sr-only">Instagram</span>
                 <Instagram className="h-6 w-6" />
-              </a>
-              <a href="#" className="text-nature-400 hover:text-white">
-                <span className="sr-only">Twitter</span>
-                <Twitter className="h-6 w-6" />
               </a>
             </div>
             <div className="mt-6">

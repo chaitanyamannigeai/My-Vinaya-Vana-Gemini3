@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../../services/mockDb';
-import { ArrowRight, Coffee, Wifi, Wind, Palmtree, Star, Play, Quote, Globe } from 'lucide-react';
+import { ArrowRight, Coffee, Wifi, Wind, Palmtree, Star, Play, Quote } from 'lucide-react';
 import { Review } from '../../types';
 
 const Home = () => {
@@ -54,23 +54,6 @@ const Home = () => {
             Check Availability <ArrowRight size={20} />
           </Link>
         </div>
-      </div>
-
-      {/* Language & Welcome Section */}
-      <div className="bg-nature-50 border-b border-nature-200">
-          <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-2 text-nature-800">
-                  <Globe size={20} />
-                  <span className="font-medium">International Guests:</span>
-                  <span className="text-sm text-gray-600">Select your language to translate the entire website.</span>
-              </div>
-              {/* Placeholder that Google Translate injects into. Navbar also has one for persistence */}
-              <div className="bg-white px-4 py-1 rounded-full shadow-sm border border-nature-200">
-                   <div className="text-xs text-gray-500 mb-1">Language / Sprache / Langue</div>
-                   {/* Google Translate Element will act here if configured, otherwise falls back to Navbar */}
-                   <div className="text-sm font-bold text-nature-700">Use the selector in the menu bar ↑</div>
-              </div>
-          </div>
       </div>
 
       {/* Features/Intro */}

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { db } from '../../services/mockDb';
 import { Phone, MapPin, Mail, MessageCircle } from 'lucide-react';
@@ -65,9 +66,8 @@ const Contact = () => {
 
           {/* Google Map Embed */}
           <div className="bg-gray-200 rounded-2xl overflow-hidden shadow-lg min-h-[400px]">
-            {/* Using specific coordinates for Vinaya Vana Farmhouse Gokarna: 14.519306, 74.327528 */}
              <iframe 
-                src="https://maps.google.com/maps?q=14.519306,74.327528&z=15&output=embed" 
+                src={settings.googleMapUrl} 
                 width="100%" 
                 height="100%" 
                 style={{border:0, minHeight: '400px'}} 
