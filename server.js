@@ -22,6 +22,34 @@ app.use(express.json({ limit: '50mb' })); // Increased limit for base64 images
 // Database Connection Pool (MySQL)
 const pool = mysql.createPool(process.env.DATABASE_URL || '');
 
+// --- DATABASE CONNECTION TEST ---
+const testDbConnection = async () => {
+    try {
+        const connection = await pool.getConnection();
+        console.log('----------------------------------------');
+        console.log('✅ DATABASE CONNECTED SUCCESSFULLY');
+        console.log('----------------------------------------');
+        connection.release();
+    } catch (err) {
+        console.error('----------------------------------------');
+        console.error('❌ DATABASE CONNECTION FAILED');
+        console.error(err.message);
+        console.error('----------------------------------------');
+    }
+};
+testDbConnection();
+
+// --- HEALTH CHECK ENDPOINT ---
+app.get('/api/health', async (req, res) => {
+    try {
+        const connection = await pool.getConnection();
+        connection.release();
+        res.json({ status: 'OK', database: 'Connected', timestamp: new Date().toISOString() });
+    } catch (err) {
+        res.status(500).json({ status: 'ERROR', database: 'Disconnected', error: err.message });
+    }
+});
+
 // Helper to parse JSON from DB text columns
 const parseJSON = (data) => {
     if (typeof data === 'string') {
