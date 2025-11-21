@@ -180,12 +180,12 @@ const Docs = () => {
                         <div className="bg-gray-100 p-3 rounded-lg text-gray-800 text-sm mb-4 inline-block font-bold">
                             Path A: Static Hosting (Demo Mode)
                         </div>
-                        <p className="text-gray-600 mb-4 text-sm">Use this if you just want to see the design. <strong>Data will not be synced between users.</strong></p>
+                        <p className="text-gray-600 mb-4 text-sm">Use this if you just want to show the design. <strong>Data will not be synced between users.</strong></p>
                         <div className="space-y-4 text-gray-700 pl-4 border-l-2 border-gray-100">
                              <div>
                                 <h3 className="font-bold text-md mb-1">Hosting on Render</h3>
                                 <ul className="list-disc list-inside ml-2 space-y-1 text-sm">
-                                    <li>Create New -> <strong>Static Site</strong>.</li>
+                                    <li>Create New &rarr; <strong>Static Site</strong>.</li>
                                     <li>Build Command: <code>npm install && npm run build</code></li>
                                     <li>Publish Directory: <code>dist</code></li>
                                 </ul>
@@ -209,7 +209,7 @@ const Docs = () => {
                             <div>
                                 <h3 className="font-bold text-md mb-1">2. Create Web Service</h3>
                                 <ul className="list-disc list-inside ml-2 space-y-1 text-sm">
-                                    <li>Go to Render -> Create New -> <strong>Web Service</strong>.</li>
+                                    <li>Go to Render &rarr; Create New &rarr; <strong>Web Service</strong>.</li>
                                     <li><strong>Build Command:</strong> <code>npm install && npm run build</code></li>
                                     <li><strong>Start Command:</strong> <code>node server.js</code></li>
                                     <li><strong>Environment Variables:</strong> Add <code>DATABASE_URL</code> with your database connection string.</li>
@@ -245,7 +245,7 @@ const Docs = () => {
                     <div>
                         <h3 className="font-bold text-lg mb-2">Step 3: Run the Commands</h3>
                         <ol className="list-decimal list-inside ml-2 space-y-2">
-                            <li>Open that folder. Right-click in empty space -> <strong>"Open in Terminal"</strong> (or Command Prompt).</li>
+                            <li>Open that folder. Right-click in empty space &rarr; <strong>"Open in Terminal"</strong> (or Command Prompt).</li>
                             <li>Type this exact command and press Enter:
                                 <div className="bg-black text-green-400 font-mono p-2 rounded mt-1">npm install</div>
                                 <span className="text-sm text-gray-500 italic">(Wait for it to finish downloading files...)</span>
