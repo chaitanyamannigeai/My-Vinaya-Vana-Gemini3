@@ -26,7 +26,7 @@ const GoogleTranslate: React.FC<GoogleTranslateProps> = ({ mobile }) => {
                 pageLanguage: 'en',
                 layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
                 autoDisplay: false,
-                includedLanguages: 'en,fr,de,es,it,ru,nl,pt,ja'
+                includedLanguages: 'en,fr,de,es,it,ru,nl,pt,ja,he' // Added 'he' for Hebrew
               },
               'google_translate_element'
             );
@@ -40,7 +40,7 @@ const GoogleTranslate: React.FC<GoogleTranslateProps> = ({ mobile }) => {
                 pageLanguage: 'en',
                 layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
                 autoDisplay: false,
-                includedLanguages: 'en,fr,de,es,it,ru,nl,pt,ja'
+                includedLanguages: 'en,fr,de,es,it,ru,nl,pt,ja,he' // Added 'he' for Hebrew
               },
               'google_translate_element_mobile'
             );
