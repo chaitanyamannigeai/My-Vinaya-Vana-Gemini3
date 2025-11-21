@@ -1,6 +1,16 @@
 
 # VINAYA VANA FARMHOUSE - SYSTEM DOCUMENTATION
 
+## 📂 WHERE ARE THE SCRIPTS?
+
+I have created the following files in your **Main Project Folder**:
+
+1.  **`database.sql`**: The SQL code to create your database tables.
+2.  **`server.js`**: The backend server code for Render.
+3.  **`package.json`**: Configuration file that tells Render how to run your site.
+
+---
+
 ## ⚠️ CRITICAL LIMITATION
 
 **Current Mode:** Demo / Single-User
@@ -16,12 +26,13 @@ To fix this, a developer must connect this code to a cloud database (Firebase/SQ
 ### Option A: Hosting on Cloud (Render.com) - Recommended
 1. Create a GitHub account.
 2. Upload this code to a new repository.
-3. Go to Render.com -> New Static Site -> Connect Repo.
-4. Build Command: `npm install && npm run build`
-5. Publish Directory: `dist`
-6. Click Create. Done!
+3. Go to Render.com -> New Web Service -> Connect Repo.
+4. **Environment Variables:** You must add `DATABASE_URL` pointing to your Postgres DB.
+5. **Build Command:** `npm install && npm run build`
+6. **Start Command:** `node server.js`
+7. Click Create. Done!
 
-### Option B: Hosting on GitHub Pages (Free)
+### Option B: Hosting on GitHub Pages (Free - Frontend Only)
 1. On your PC, run command: `npm run build`
 2. This creates a 'dist' folder.
 3. Create a NEW repository on GitHub (e.g., 'my-website').
@@ -43,67 +54,8 @@ To fix this, a developer must connect this code to a cloud database (Firebase/SQ
 **Current Status:** This website uses a "Local Database" (LocalStorage). 
 **Action Required:** NONE. It works out of the box!
 
-**Future Upgrade (SQL Script):**
-If you hire a developer to move this to a real server (MySQL/PostgreSQL), give them this script to create the tables:
-
-```sql
--- 1. ROOMS
-CREATE TABLE rooms (
-    id VARCHAR(50) PRIMARY KEY,
-    name VARCHAR(100),
-    description TEXT,
-    base_price DECIMAL(10,2),
-    capacity INT,
-    amenities JSON,
-    images JSON
-);
-
--- 2. BOOKINGS
-CREATE TABLE bookings (
-    id VARCHAR(50) PRIMARY KEY,
-    room_id VARCHAR(50),
-    guest_name VARCHAR(100),
-    guest_phone VARCHAR(20),
-    check_in DATE,
-    check_out DATE,
-    total_amount DECIMAL(10,2),
-    status VARCHAR(20), -- PENDING, PAID, FAILED
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- 3. DRIVERS
-CREATE TABLE drivers (
-    id VARCHAR(50) PRIMARY KEY,
-    name VARCHAR(100),
-    phone VARCHAR(20),
-    whatsapp VARCHAR(20),
-    is_default BOOLEAN DEFAULT FALSE,
-    active BOOLEAN DEFAULT TRUE,
-    vehicle_info VARCHAR(100)
-);
-
--- 4. CAB LOCATIONS
-CREATE TABLE cab_locations (
-    id VARCHAR(50) PRIMARY KEY,
-    name VARCHAR(100),
-    description TEXT,
-    image_url TEXT,
-    price DECIMAL(10,2),
-    driver_id VARCHAR(50),
-    active BOOLEAN DEFAULT TRUE
-);
-
--- 5. REVIEWS
-CREATE TABLE reviews (
-    id VARCHAR(50) PRIMARY KEY,
-    guest_name VARCHAR(100),
-    location VARCHAR(100),
-    rating INT,
-    comment TEXT,
-    date DATE,
-    show_on_home BOOLEAN DEFAULT FALSE
-);
-```
+**Future Upgrade:**
+Use the `database.sql` file found in the root folder to create your tables in PostgreSQL.
 
 ---
 
@@ -122,12 +74,3 @@ CREATE TABLE reviews (
 ### Login
 - URL: /admin
 - Default Password: admin123
-
-### Managing Prices
-- Go to "Pricing Rules" in Admin.
-- Add rules for seasons (e.g., Dec 20 - Jan 5, Multiplier 1.5x).
-
-### Managing Cabs
-- Go to "Cabs" tab to add locations.
-- Go to "Drivers" tab to add driver details.
-- Assign drivers to specific locations or use default.
