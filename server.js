@@ -296,6 +296,11 @@ app.delete('/api/pricing/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// --- Handle 404 for API routes explicitly ---
+app.use('/api/*', (req, res) => {
+    res.status(404).json({ error: `API endpoint not found: ${req.method} ${req.originalUrl}` });
+});
+
 // --- SERVE REACT APP ---
 app.use(express.static(path.join(__dirname, 'dist')));
 
