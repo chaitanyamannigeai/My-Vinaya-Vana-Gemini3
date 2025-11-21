@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../../services/mockDb';
 import { Room, Booking, Driver, CabLocation, SiteSettings, PaymentStatus, PricingRule, GalleryItem, Review } from '../../types';
-import { Settings, Calendar, Truck, Map, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent } from 'lucide-react';
+import { Settings, Calendar, Truck, Map, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent, Download, MessageCircle } from 'lucide-react';
 import ImageUploader from '../../components/ui/ImageUploader';
 
 const AdminDashboard = () => {
@@ -51,6 +51,47 @@ const AdminDashboard = () => {
   const updateBookingStatus = (id: string, status: PaymentStatus) => {
     db.bookings.updateStatus(id, status);
     refreshData();
+  };
+
+  // CSV Export Handler
+  const downloadBookingsCSV = () => {
+    if (bookings.length === 0) {
+        alert("No bookings to export.");
+        return;
+    }
+
+    // Define Headers
+    const headers = ["Booking ID", "Guest Name", "Phone", "Room ID", "Check In", "Check Out", "Total Amount", "Status", "Booked Date"];
+    
+    // Map Data
+    const rows = bookings.map(b => [
+        b.id,
+        `"${b.guestName}"`, // Quote strings to handle commas
+        `"${b.guestPhone}"`,
+        b.roomId,
+        b.checkIn,
+        b.checkOut,
+        b.totalAmount,
+        b.status,
+        b.createdAt.split('T')[0]
+    ]);
+
+    // Combine
+    const csvContent = [
+        headers.join(","),
+        ...rows.map(r => r.join(","))
+    ].join("\n");
+
+    // Create Download Link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `VinayaVana_Bookings_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Room Handlers
@@ -221,6 +262,15 @@ const AdminDashboard = () => {
 
   const renderBookings = () => (
     <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+          <h3 className="font-bold text-gray-700">Guest Reservations</h3>
+          <button 
+            onClick={downloadBookingsCSV}
+            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 shadow-sm"
+          >
+              <Download size={16} /> Export CSV Report
+          </button>
+      </div>
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
@@ -228,6 +278,7 @@ const AdminDashboard = () => {
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dates</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
@@ -254,11 +305,22 @@ const AdminDashboard = () => {
                   <option value="FAILED">Failed</option>
                 </select>
               </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                  <a 
+                    href={`https://wa.me/${b.guestPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${b.guestName}, greeting from Vinaya Vana Farmhouse! Regarding your booking...`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-green-600 hover:text-green-800 flex items-center gap-1 text-sm font-medium"
+                    title="Send WhatsApp Message"
+                  >
+                      <MessageCircle size={18} /> Chat
+                  </a>
+              </td>
             </tr>
           ))}
           {bookings.length === 0 && (
               <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-gray-500">No bookings found.</td>
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">No bookings found.</td>
               </tr>
           )}
         </tbody>
