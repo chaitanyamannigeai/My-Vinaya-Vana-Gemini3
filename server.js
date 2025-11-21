@@ -4,6 +4,7 @@ import mysql from 'mysql2/promise';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 // Load environment variables
 dotenv.config();
@@ -302,11 +303,19 @@ app.use('/api/*', (req, res) => {
 });
 
 // --- SERVE REACT APP ---
-app.use(express.static(path.join(__dirname, 'dist')));
+const distPath = path.join(__dirname, 'dist');
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
+if (fs.existsSync(distPath)) {
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+} else {
+    console.warn('WARNING: "dist" folder not found. Frontend will not be served. Please run "npm run build".');
+    app.get('/', (req, res) => {
+        res.send('<h1>Backend Running</h1><p>Frontend not built. Please run <code>npm run build</code> to generate the dist folder.</p>');
+    });
+}
 
 // Start Server
 app.listen(PORT, () => {
