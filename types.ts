@@ -50,6 +50,7 @@ export interface CabLocation {
 export interface SiteSettings {
   whatsappNumber: string;
   contactEmail: string;
+  address: string;
   razorpayKey: string;
   enableOnlinePayments: boolean;
   adminPasswordHash: string;

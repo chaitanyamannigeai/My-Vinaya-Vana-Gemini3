@@ -25,7 +25,9 @@ const Contact = () => {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">Address</h3>
-                    <p className="text-gray-600">Vinaya Vana Farmhouse<br/>Gokarna, Karnataka 581326</p>
+                    <div className="text-gray-600 whitespace-pre-line">
+                        {settings.address}
+                    </div>
                   </div>
                 </div>
 

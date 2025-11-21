@@ -28,6 +28,7 @@ const INITIAL_LOCATIONS: CabLocation[] = [
 const INITIAL_SETTINGS: SiteSettings = {
   whatsappNumber: '919999999999',
   contactEmail: 'stay@vinayavana.com',
+  address: 'Vinaya Vana Farmhouse\nGokarna, Karnataka 581326',
   razorpayKey: 'rzp_test_123456789',
   enableOnlinePayments: true,
   adminPasswordHash: 'admin123',

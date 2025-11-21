@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Palmtree, Facebook, Instagram } from 'lucide-react';
@@ -42,7 +43,7 @@ const Footer = () => {
           <div>
             <h3 className="text-sm font-semibold text-white tracking-wider uppercase mb-4">Contact</h3>
             <ul className="space-y-2 text-sm">
-              <li>Gokarna, Karnataka</li>
+              <li className="whitespace-pre-line mb-2">{settings.address}</li>
               <li className="flex items-center gap-2">
                   <span className="text-nature-500">Tel:</span> +91 {settings.whatsappNumber}
               </li>

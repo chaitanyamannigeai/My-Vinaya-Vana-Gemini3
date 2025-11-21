@@ -646,6 +646,15 @@ const AdminDashboard = () => {
                     />
                 </div>
                 <div>
+                    <label className="block text-sm font-medium text-gray-700">Property Address</label>
+                    <textarea
+                        value={settings.address}
+                        onChange={(e) => setSettings({...settings, address: e.target.value})}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 h-20 text-sm"
+                        placeholder="Enter property address here..."
+                    />
+                </div>
+                <div>
                     <label className="block text-sm font-medium text-gray-700">Facebook Page URL</label>
                     <input 
                         type="text" 
