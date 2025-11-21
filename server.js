@@ -20,7 +20,6 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' })); // Increased limit for base64 images
 
 // Database Connection Pool (MySQL)
-// We use a pool to manage multiple connections automatically
 const pool = mysql.createPool(process.env.DATABASE_URL || '');
 
 // Helper to parse JSON from DB text columns
@@ -50,11 +49,13 @@ app.get('/api/rooms', async (req, res) => {
 app.post('/api/rooms', async (req, res) => {
   const { id, name, description, basePrice, capacity, amenities, images } = req.body;
   try {
+    // MySQL 8 compatible syntax: AS new_vals
     const sql = `INSERT INTO rooms (id, name, description, base_price, capacity, amenities, images) 
                  VALUES (?, ?, ?, ?, ?, ?, ?) 
+                 AS new_vals 
                  ON DUPLICATE KEY UPDATE 
-                 name=VALUES(name), description=VALUES(description), base_price=VALUES(base_price), 
-                 capacity=VALUES(capacity), amenities=VALUES(amenities), images=VALUES(images)`;
+                 name=new_vals.name, description=new_vals.description, base_price=new_vals.base_price, 
+                 capacity=new_vals.capacity, amenities=new_vals.amenities, images=new_vals.images`;
     
     await pool.query(sql, [id, name, description, basePrice, capacity, JSON.stringify(amenities), JSON.stringify(images)]);
     res.json({ success: true });
@@ -114,9 +115,10 @@ app.post('/api/drivers', async (req, res) => {
         }
         const sql = `INSERT INTO drivers (id, name, phone, whatsapp, is_default, active, vehicle_info) 
                      VALUES (?, ?, ?, ?, ?, ?, ?) 
+                     AS new_vals 
                      ON DUPLICATE KEY UPDATE 
-                     name=VALUES(name), phone=VALUES(phone), whatsapp=VALUES(whatsapp), 
-                     is_default=VALUES(is_default), active=VALUES(active), vehicle_info=VALUES(vehicle_info)`;
+                     name=new_vals.name, phone=new_vals.phone, whatsapp=new_vals.whatsapp, 
+                     is_default=new_vals.is_default, active=new_vals.active, vehicle_info=new_vals.vehicle_info`;
         await pool.query(sql, [id, name, phone, whatsapp, isDefault, active, vehicleInfo]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -143,9 +145,10 @@ app.post('/api/locations', async (req, res) => {
     try {
         const sql = `INSERT INTO cab_locations (id, name, description, image_url, price, driver_id, active) 
                      VALUES (?, ?, ?, ?, ?, ?, ?) 
+                     AS new_vals 
                      ON DUPLICATE KEY UPDATE 
-                     name=VALUES(name), description=VALUES(description), image_url=VALUES(image_url), 
-                     price=VALUES(price), driver_id=VALUES(driver_id), active=VALUES(active)`;
+                     name=new_vals.name, description=new_vals.description, image_url=new_vals.image_url, 
+                     price=new_vals.price, driver_id=new_vals.driver_id, active=new_vals.active`;
         await pool.query(sql, [id, name, description, imageUrl, price, driverId, active]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -173,7 +176,8 @@ app.get('/api/settings', async (req, res) => {
 app.post('/api/settings', async (req, res) => {
     const settings = req.body;
     try {
-        const sql = "INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)";
+        // For settings, we just overwrite the JSON value
+        const sql = "INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) AS new_vals ON DUPLICATE KEY UPDATE value=new_vals.value";
         await pool.query(sql, [JSON.stringify(settings)]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -192,7 +196,8 @@ app.post('/api/gallery', async (req, res) => {
     try {
         const sql = `INSERT INTO gallery (id, url, category, caption) 
                      VALUES (?, ?, ?, ?) 
-                     ON DUPLICATE KEY UPDATE url=VALUES(url), category=VALUES(category), caption=VALUES(caption)`;
+                     AS new_vals 
+                     ON DUPLICATE KEY UPDATE url=new_vals.url, category=new_vals.category, caption=new_vals.caption`;
         await pool.query(sql, [id, url, category, caption]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -219,9 +224,10 @@ app.post('/api/reviews', async (req, res) => {
     try {
         const sql = `INSERT INTO reviews (id, guest_name, location, rating, comment, date, show_on_home) 
                      VALUES (?, ?, ?, ?, ?, ?, ?) 
+                     AS new_vals 
                      ON DUPLICATE KEY UPDATE 
-                     guest_name=VALUES(guest_name), location=VALUES(location), rating=VALUES(rating), 
-                     comment=VALUES(comment), date=VALUES(date), show_on_home=VALUES(show_on_home)`;
+                     guest_name=new_vals.guest_name, location=new_vals.location, rating=new_vals.rating, 
+                     comment=new_vals.comment, date=new_vals.date, show_on_home=new_vals.show_on_home`;
         await pool.query(sql, [id, guestName, location, rating, comment, date, showOnHome]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -247,8 +253,9 @@ app.post('/api/pricing', async (req, res) => {
     try {
         const sql = `INSERT INTO pricing_rules (id, name, start_date, end_date, multiplier) 
                      VALUES (?, ?, ?, ?, ?) 
+                     AS new_vals 
                      ON DUPLICATE KEY UPDATE 
-                     name=VALUES(name), start_date=VALUES(start_date), end_date=VALUES(end_date), multiplier=VALUES(multiplier)`;
+                     name=new_vals.name, start_date=new_vals.start_date, end_date=new_vals.end_date, multiplier=new_vals.multiplier`;
         await pool.query(sql, [id, name, startDate, endDate, multiplier]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
