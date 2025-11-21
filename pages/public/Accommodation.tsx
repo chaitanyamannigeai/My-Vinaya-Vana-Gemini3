@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../services/mockDb';
 import { Room, Booking, PaymentStatus } from '../../types';
-import { CheckCircle, Users, Home, Utensils, Monitor, Droplet, Calendar as CalendarIcon, XCircle, MessageCircle, ChevronLeft, ChevronRight, Percent } from 'lucide-react';
+import { CheckCircle, Users, Home, Utensils, Monitor, Droplet, Calendar as CalendarIcon, XCircle, MessageCircle, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 
 const Accommodation = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -194,9 +194,6 @@ const Accommodation = () => {
     const target = new Date(dateStr).getTime();
     return roomBookings.some(b => {
       const start = new Date(b.checkIn).getTime();
-      // Bookings are usually CheckIn (12PM) to CheckOut (11AM).
-      // If a guest checks out on the 5th, the 5th is technically available for check-in.
-      // So we treat end date as exclusive for full-day blocking logic roughly
       const end = new Date(b.checkOut).getTime(); 
       return target >= start && target < end; 
     });
@@ -205,9 +202,7 @@ const Accommodation = () => {
   const handleDateClick = (day: number) => {
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
-    // Create local date string YYYY-MM-DD
     const date = new Date(year, month, day);
-    // Offset for timezone to ensure YYYY-MM-DD matches local selection
     const offset = date.getTimezoneOffset();
     const adjustedDate = new Date(date.getTime() - (offset*60*1000));
     const dateStr = adjustedDate.toISOString().split('T')[0];
@@ -217,18 +212,12 @@ const Accommodation = () => {
     const currentIn = bookingForm.checkIn ? new Date(bookingForm.checkIn) : null;
     const currentOut = bookingForm.checkOut ? new Date(bookingForm.checkOut) : null;
 
-    // Logic: 
-    // 1. If no CheckIn, set CheckIn.
-    // 2. If CheckIn exists but no CheckOut, set CheckOut (if valid).
-    // 3. If both exist, reset and start new CheckIn.
-    
     if (!currentIn || (currentIn && currentOut)) {
       setBookingForm(prev => ({ ...prev, checkIn: dateStr, checkOut: '' }));
     } else if (currentIn && !currentOut) {
       if (new Date(dateStr) > currentIn) {
         setBookingForm(prev => ({ ...prev, checkOut: dateStr }));
       } else {
-        // If clicked date is before CheckIn, reset to new CheckIn
         setBookingForm(prev => ({ ...prev, checkIn: dateStr, checkOut: '' }));
       }
     }
@@ -243,15 +232,12 @@ const Accommodation = () => {
     today.setHours(0,0,0,0);
 
     const days = [];
-    // Empty slots
     for (let i = 0; i < firstDay; i++) {
       days.push(<div key={`empty-${i}`} className="h-10"></div>);
     }
 
-    // Days
     for (let day = 1; day <= daysInMonth; day++) {
       const dateObj = new Date(year, month, day);
-      // Adjust for comparison string
       const offset = dateObj.getTimezoneOffset();
       const adjusted = new Date(dateObj.getTime() - (offset*60*1000));
       const dateStr = adjusted.toISOString().split('T')[0];
@@ -259,7 +245,6 @@ const Accommodation = () => {
       const booked = isDateBooked(dateStr);
       const isPast = dateObj < today;
       
-      // Selection Logic
       const isCheckIn = bookingForm.checkIn === dateStr;
       const isCheckOut = bookingForm.checkOut === dateStr;
       const isInRange = bookingForm.checkIn && bookingForm.checkOut && 
@@ -270,7 +255,7 @@ const Accommodation = () => {
       if (isPast) {
         bgClass = "bg-gray-100 text-gray-300 cursor-not-allowed";
       } else if (booked) {
-        bgClass = "bg-red-50 text-red-300 cursor-not-allowed decoration-red-300"; // Booked
+        bgClass = "bg-red-50 text-red-300 cursor-not-allowed decoration-red-300"; 
       } else if (isCheckIn || isCheckOut) {
         bgClass = "bg-nature-600 text-white font-bold";
       } else if (isInRange) {
@@ -333,7 +318,6 @@ const Accommodation = () => {
                     </div>
                   </div>
 
-                  {/* Property Details Icons for visual appeal */}
                    <div className="flex gap-4 border-t pt-4 text-gray-500 text-sm">
                       <div className="flex flex-col items-center gap-1"><Home size={20}/><span>2BHK</span></div>
                       <div className="flex flex-col items-center gap-1"><Utensils size={20}/><span>Kitchen</span></div>
@@ -411,7 +395,7 @@ const Accommodation = () => {
                         value={bookingForm.checkIn}
                         onChange={handleInputChange}
                         required
-                        readOnly // Encourage calendar use, but still visible
+                        readOnly 
                         className="w-full p-2 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-nature-500"
                       />
                     </div>
@@ -463,26 +447,40 @@ const Accommodation = () => {
                       </div>
                   )}
 
-                  {/* Price Display */}
+                  {/* Price Display & Awesome Discount Message */}
                   {totalPrice > 0 && !availabilityError && pricingBreakdown && (
                     <div className="bg-nature-50 p-4 rounded-lg border border-nature-200 mt-4 animate-fade-in">
-                      <div className="flex justify-between text-sm text-gray-600 mb-1">
-                        <span>{pricingBreakdown.days} Nights</span>
-                      </div>
                       
-                      {/* Discount Badge */}
+                      {/* AWESOME DISCOUNT CARD */}
                       {pricingBreakdown.discountApplied > 0 && (
-                        <div className="flex justify-between items-center text-sm text-green-700 bg-green-100 p-2 rounded my-2">
-                             <span className="flex items-center gap-1 font-semibold"><Percent size={14}/> Long Stay Discount</span>
-                             <span>-₹{pricingBreakdown.discountApplied}</span>
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4 animate-fade-in relative overflow-hidden shadow-sm">
+                            <div className="absolute -right-4 -top-4 bg-green-100 w-16 h-16 rounded-full opacity-50"></div>
+                            <div className="relative z-10">
+                                <div className="flex items-center gap-2 text-nature-800 font-bold mb-2">
+                                    <Sparkles size={18} className="text-yellow-500 fill-yellow-500 animate-pulse" />
+                                    <span>You unlocked our Best Value Deal!</span>
+                                </div>
+                                <p className="text-xs text-nature-700 mb-3 leading-relaxed">
+                                    Because you booked for <span className="font-bold text-nature-900">{pricingBreakdown.days} nights</span>, we've applied a special <span className="font-bold">{settings.longStayDiscount.percentage}%</span> long-stay discount just for you.
+                                </p>
+                                <div className="flex justify-between items-center bg-white/80 p-2 rounded border border-green-100">
+                                    <span className="text-xs font-bold text-nature-600 uppercase tracking-wide">Total Savings</span>
+                                    <span className="text-lg font-extrabold text-green-700">-₹{pricingBreakdown.discountApplied}</span>
+                                </div>
+                            </div>
                         </div>
                       )}
 
-                      <div className="flex justify-between font-bold text-xl text-nature-900 pt-2 border-t border-nature-200">
-                        <span>Total</span>
+                      <div className="flex justify-between text-sm text-gray-600 mb-1 px-1">
+                        <span>Stay Duration</span>
+                        <span>{pricingBreakdown.days} Nights</span>
+                      </div>
+
+                      <div className="flex justify-between font-bold text-xl text-nature-900 pt-3 border-t border-nature-200 px-1">
+                        <span>Final Total</span>
                         <span>₹{totalPrice}</span>
                       </div>
-                      <p className="text-xs text-nature-500 mt-1 text-right italic">Includes seasonal pricing</p>
+                      <p className="text-xs text-nature-500 mt-1 text-right italic">Includes taxes & fees</p>
                     </div>
                   )}
 
@@ -498,7 +496,6 @@ const Accommodation = () => {
                     {availabilityError ? 'Unavailable' : 'Book Now'}
                   </button>
 
-                  {/* WhatsApp Alternative */}
                    <div className="relative flex py-2 items-center">
                       <div className="flex-grow border-t border-gray-200"></div>
                       <span className="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase">Or</span>
