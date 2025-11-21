@@ -48,11 +48,13 @@
       .google-translate-container {
           display: inline-block;
           vertical-align: middle;
+          min-width: 120px; /* Force width so it doesn't collapse */
+          min-height: 40px;
       }
 
       /* The Button Itself */
       .goog-te-gadget-simple {
-        background-color: transparent !important;
+        background-color: rgba(255, 255, 255, 0.1) !important;
         border: 1px solid rgba(255, 255, 255, 0.3) !important;
         padding: 8px 12px !important;
         border-radius: 9999px !important; /* Full pill shape */
@@ -60,12 +62,14 @@
         transition: all 0.3s ease;
         display: flex !important;
         align-items: center;
+        justify-content: center;
         gap: 6px;
         cursor: pointer;
+        text-decoration: none !important;
       }
       
       .goog-te-gadget-simple:hover {
-        background-color: rgba(255, 255, 255, 0.1) !important;
+        background-color: rgba(255, 255, 255, 0.2) !important;
         border-color: rgba(255, 255, 255, 0.8) !important;
       }
 
@@ -74,16 +78,18 @@
         color: #e0f7e9 !important; /* nature-100 */
         font-weight: 500;
         font-size: 14px;
+        margin: 0 !important;
       }
       
       .goog-te-gadget-simple .goog-te-menu-value span {
         color: #e0f7e9 !important;
-        border-left: none !important; /* Remove the default pipe separator */
+        border-left: none !important; 
+        text-decoration: none !important;
       }
       
       /* Hide inner clutter */
       .goog-te-gadget-simple .goog-te-menu-value span:last-child {
-          display: none !important; /* Hides the 'Select Language' duplicate text sometimes */
+          display: none !important;
       }
 
       /* Hide Google Logo & Icon */
@@ -98,6 +104,7 @@
       .goog-te-menu-frame {
           box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
           border-radius: 12px !important;
+          z-index: 10000 !important;
       }
 
       /* Hide Top Banner completely */
@@ -133,17 +140,17 @@
 <script type="importmap">
 {
   "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.6",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
     "express": "https://aistudiocdn.com/express@^5.1.0",
     "path": "https://aistudiocdn.com/path@^0.12.7",
     "pg": "https://aistudiocdn.com/pg@^8.16.3",
     "cors": "https://aistudiocdn.com/cors@^2.8.5",
     "dotenv": "https://aistudiocdn.com/dotenv@^17.2.3",
-    "url": "https://aistudiocdn.com/url@^0.11.4",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
-    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.6"
+    "url": "https://aistudiocdn.com/url@^0.11.4"
   }
 }
 </script>
