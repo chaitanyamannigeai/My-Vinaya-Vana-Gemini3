@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Book, Code, Settings, Key, Map, Users, ArrowLeft, Globe, Rocket, AlertTriangle, Lock, Download, Database, Monitor, Github, ServerCrash } from 'lucide-react';
+import { Book, Code, Settings, Key, Map, Users, ArrowLeft, Globe, Rocket, AlertTriangle, Lock, Download, Database, Monitor, Github, ServerCrash, Layers } from 'lucide-react';
 import { db } from '../../services/mockDb';
 
 const Docs = () => {
@@ -37,116 +37,44 @@ const Docs = () => {
       const file = new Blob([
 `# VINAYA VANA FARMHOUSE - SYSTEM DOCUMENTATION
 
-## 1. HOSTING GUIDE
+## 1. TERMINOLOGY: STATIC VS DYNAMIC
 
-### Option A: Cloud Hosting (Render.com) - Easiest & Best
-1. Create a GitHub account.
-2. Upload this code to a new repository.
-3. Go to Render.com -> New Static Site -> Connect Repo.
-4. Build Command: npm install && npm run build
-5. Publish Directory: dist
-6. Click Create. Done!
+**Static Website (Demo Mode)**
+- Uses 'mockDb' (LocalStorage).
+- Runs entirely in the browser.
+- Hosting: GitHub Pages, Render Static Site.
 
-### Option B: GitHub Pages (Free)
-1. On your PC, run command: npm run build
-2. This creates a 'dist' folder.
-3. Create a NEW repository on GitHub (e.g., 'my-website').
-4. Upload ONLY the files inside the 'dist' folder to this repo.
-5. Go to Repo Settings -> Pages -> Source: 'main' branch -> Save.
-
-### Option C: Hosting on Home PC (Standalone)
-1. Install Node.js from nodejs.org (LTS version).
-2. Open the folder containing this code.
-3. Right-click inside the folder -> "Open in Terminal" (or Command Prompt).
-4. Type: npm install (and press Enter).
-5. Type: npm run dev (and press Enter).
-6. Open your browser to: http://localhost:5173
+**Dynamic Web App (Real Business Mode)**
+- Uses 'server.js' + PostgreSQL Database.
+- Runs on a server.
+- Hosting: Render Web Service.
 
 ---
 
-## 2. DATABASE SETUP
+## 2. HOSTING GUIDE
 
-**Current Status:** This website uses a "Local Database" (LocalStorage). 
-**Action Required:** NONE. It works out of the box!
+### Path A: The "Easy Demo" (Static)
+*Use this if you just want to show the design to friends/family.*
+1. Upload code to GitHub.
+2. Go to Render -> New **Static Site**.
+3. Build Command: npm install && npm run build
+4. Publish Directory: dist
 
-**Future Upgrade (SQL Script):**
-If you hire a developer to move this to a real server (MySQL/PostgreSQL), give them this script to create the tables:
-
-\`\`\`sql
-CREATE TABLE rooms (
-    id VARCHAR(50) PRIMARY KEY,
-    name VARCHAR(100),
-    description TEXT,
-    base_price DECIMAL(10,2),
-    capacity INT,
-    amenities JSON,
-    images JSON
-);
-
-CREATE TABLE bookings (
-    id VARCHAR(50) PRIMARY KEY,
-    room_id VARCHAR(50),
-    guest_name VARCHAR(100),
-    guest_phone VARCHAR(20),
-    check_in DATE,
-    check_out DATE,
-    total_amount DECIMAL(10,2),
-    status VARCHAR(20), -- PENDING, PAID, FAILED
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE drivers (
-    id VARCHAR(50) PRIMARY KEY,
-    name VARCHAR(100),
-    phone VARCHAR(20),
-    whatsapp VARCHAR(20),
-    is_default BOOLEAN DEFAULT FALSE,
-    active BOOLEAN DEFAULT TRUE,
-    vehicle_info VARCHAR(100)
-);
-
-CREATE TABLE cab_locations (
-    id VARCHAR(50) PRIMARY KEY,
-    name VARCHAR(100),
-    description TEXT,
-    image_url TEXT,
-    price DECIMAL(10,2),
-    driver_id VARCHAR(50),
-    active BOOLEAN DEFAULT TRUE
-);
-
-CREATE TABLE reviews (
-    id VARCHAR(50) PRIMARY KEY,
-    guest_name VARCHAR(100),
-    location VARCHAR(100),
-    rating INT,
-    comment TEXT,
-    date DATE,
-    show_on_home BOOLEAN DEFAULT FALSE
-);
-
-CREATE TABLE site_settings (
-    key_name VARCHAR(50) PRIMARY KEY,
-    value TEXT -- Stores JSON config
-);
-\`\`\`
+### Path B: The "Real Business" (Dynamic)
+*Use this if you want to take real bookings and save data.*
+1. Create a PostgreSQL Database (e.g., on Render Dashboard).
+2. Go to Render -> New **Web Service** (NOT Static Site).
+3. Connect your Repo.
+4. **Build Command:** npm install && npm run build
+5. **Start Command:** node server.js
+6. **Environment Variables:** Add 'DATABASE_URL' (from step 1).
 
 ---
 
-## 3. OWNER'S MANUAL
+## 3. DATABASE SETUP (For Path B)
 
-### Login
-- URL: /admin
-- Default Password: admin123
-
-### Managing Prices
-- Go to "Pricing Rules" in Admin.
-- Add rules for seasons (e.g., Dec 20 - Jan 5, Multiplier 1.5x).
-
-### Managing Cabs
-- Go to "Cabs" tab to add locations.
-- Go to "Drivers" tab to add driver details.
-- Assign drivers to specific locations or use default.
+1. Create table script provided in 'database.sql'.
+2. Run SQL in your database console.
 `
       ], {type: 'text/markdown'});
       element.href = URL.createObjectURL(file);
@@ -216,83 +144,50 @@ CREATE TABLE site_settings (
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-12">
             
-            {/* CRITICAL WARNING */}
-             <div className="bg-red-50 border-l-4 border-red-600 p-6 rounded-r-lg shadow-sm">
-                <div className="flex items-start gap-3">
-                    <div className="bg-red-100 p-2 rounded-full text-red-600">
-                         <ServerCrash size={24} />
+             {/* Terminology Section */}
+             <div className="bg-white p-8 rounded-2xl shadow-sm border border-nature-100">
+                <div className="flex items-center gap-3 mb-6 text-nature-800">
+                    <Layers size={32} />
+                    <h2 className="text-2xl font-serif font-bold">1. Important Terminology</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <h3 className="font-bold text-gray-800 mb-2">Static Website</h3>
+                        <div className="text-xs text-gray-500 mb-2 uppercase tracking-wider font-semibold">What you have right now</div>
+                        <p className="text-sm text-gray-600 mb-3">A simple "Brochure". It runs only in the browser. Data is saved in the browser (LocalStorage).</p>
+                        <div className="text-xs font-mono bg-white p-2 rounded border">Render: "Static Site"</div>
                     </div>
-                    <div>
-                        <h3 className="font-bold text-red-900 text-lg mb-2">CRITICAL: System Limitations</h3>
-                        <p className="text-red-800 text-sm leading-relaxed mb-3">
-                            Currently, this website is running in <strong>Demo Mode (Local Storage)</strong>. 
-                            This means all bookings, drivers, and settings are saved <strong>inside your browser</strong> only.
-                        </p>
-                        <ul className="list-disc list-inside text-red-800 text-sm space-y-1 mb-4">
-                            <li>If a guest books on their Phone, <strong>you won't see it</strong> on your Admin Laptop.</li>
-                            <li>If you clear your browser history, <strong>all data will be lost</strong>.</li>
-                        </ul>
-                        <div className="bg-white/50 p-3 rounded border border-red-200 text-xs font-medium text-red-900">
-                            <strong>Solution:</strong> To use this for real customers, you must hire a developer to connect this code to a real cloud database (like Firebase, Supabase, or MySQL). The code is ready for this upgrade!
-                        </div>
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <h3 className="font-bold text-blue-900 mb-2">Dynamic Web App</h3>
+                        <div className="text-xs text-blue-500 mb-2 uppercase tracking-wider font-semibold">With Database Connected</div>
+                        <p className="text-sm text-blue-800 mb-3">A "Smart System". It runs on a server (`server.js`). Data is saved in a real Database.</p>
+                        <div className="text-xs font-mono bg-white p-2 rounded border text-blue-800">Render: "Web Service"</div>
                     </div>
                 </div>
-            </div>
-
-            {/* TROUBLESHOOTING NOTICE */}
-             <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r-lg">
-                <div className="flex items-center gap-2 font-bold text-orange-800 mb-1">
-                    <AlertTriangle size={18} />
-                    <span>Language Translation Issue?</span>
-                </div>
-                <p className="text-sm text-orange-800">
-                    If you see "Refused to connect" when changing language, don't worry! 
-                    Google Translate blocks running inside the "Preview" window. 
-                    It will work perfectly once you host the website using one of the methods below.
-                </p>
             </div>
 
             {/* CLOUD HOSTING */}
             <section id="hosting-guide" className="bg-white p-8 rounded-2xl shadow-sm border border-nature-100 border-l-4 border-l-nature-600">
                 <div className="flex items-center gap-3 mb-6 text-nature-800">
                     <Rocket size={32} />
-                    <h2 className="text-2xl font-serif font-bold">1. Hosting Guides</h2>
+                    <h2 className="text-2xl font-serif font-bold">2. Hosting Guides</h2>
                 </div>
                 
                 <div className="space-y-10">
                     
-                    {/* Option A */}
+                    {/* PATH A */}
                     <div>
-                        <div className="bg-blue-50 p-3 rounded-lg text-blue-800 text-sm mb-4 inline-block font-bold">
-                            Option A: Render.com (Recommended)
+                        <div className="bg-gray-100 p-3 rounded-lg text-gray-800 text-sm mb-4 inline-block font-bold">
+                            Path A: Static Hosting (Demo Mode)
                         </div>
-                        <p className="text-gray-600 mb-4 text-sm">Best for simplicity. Render handles the building process for you.</p>
+                        <p className="text-gray-600 mb-4 text-sm">Use this if you just want to see the design. <strong>Data will not be synced between users.</strong></p>
                         <div className="space-y-4 text-gray-700 pl-4 border-l-2 border-gray-100">
-                            <div>
-                                <h3 className="font-bold text-md mb-1 flex items-center gap-2">1. Get the Code</h3>
-                                <p className="text-sm">Download the project code (ZIP file) and unzip it.</p>
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-md mb-1 flex items-center gap-2">2. Put it on GitHub</h3>
+                             <div>
+                                <h3 className="font-bold text-md mb-1">Hosting on Render</h3>
                                 <ul className="list-disc list-inside ml-2 space-y-1 text-sm">
-                                    <li>Create a <a href="https://github.com" target="_blank" className="text-blue-600 hover:underline">GitHub account</a>.</li>
-                                    <li>Create a "New Repository" named <code>vinaya-vana</code>.</li>
-                                    <li>Upload all files to this repository.</li>
-                                </ul>
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-md mb-1 flex items-center gap-2">3. Connect to Render</h3>
-                                <ul className="list-disc list-inside ml-2 space-y-1 text-sm">
-                                    <li>Go to <a href="https://render.com" target="_blank" className="text-blue-600 hover:underline">Render.com</a> -> Login with GitHub.</li>
-                                    <li>Click "New +" -> <strong>Static Site</strong>.</li>
-                                    <li>Select your <code>vinaya-vana</code> repository.</li>
-                                    <li><strong>Settings (Important):</strong>
-                                        <ul className="list-disc list-inside ml-6 font-mono text-xs bg-gray-100 p-2 mt-1 rounded">
-                                            <li>Build Command: npm install && npm run build</li>
-                                            <li>Publish Directory: dist</li>
-                                        </ul>
-                                    </li>
-                                    <li>Click <strong>Create Static Site</strong>. Done!</li>
+                                    <li>Create New -> <strong>Static Site</strong>.</li>
+                                    <li>Build Command: <code>npm install && npm run build</code></li>
+                                    <li>Publish Directory: <code>dist</code></li>
                                 </ul>
                             </div>
                         </div>
@@ -300,25 +195,25 @@ CREATE TABLE site_settings (
 
                     <hr className="border-gray-100" />
 
-                    {/* Option B */}
+                    {/* PATH B */}
                     <div>
-                        <div className="bg-gray-800 p-3 rounded-lg text-white text-sm mb-4 inline-flex items-center gap-2 font-bold">
-                            <Github size={16} /> Option B: GitHub Pages
+                        <div className="bg-blue-600 p-3 rounded-lg text-white text-sm mb-4 inline-flex items-center gap-2 font-bold shadow-md">
+                            <Database size={16} /> Path B: Dynamic Hosting (Real Database)
                         </div>
-                        <p className="text-gray-600 mb-4 text-sm">Great if you want everything on GitHub. Requires one manual step on your PC.</p>
-                        <div className="space-y-4 text-gray-700 pl-4 border-l-2 border-gray-100">
-                             <div>
-                                <h3 className="font-bold text-md mb-1">1. Build on your PC</h3>
-                                <p className="text-sm">Open terminal in project folder and run: <code className="bg-gray-100 px-1">npm run build</code></p>
-                                <p className="text-sm text-gray-500 italic">This creates a new folder named <strong>dist</strong>.</p>
+                        <p className="text-gray-600 mb-4 text-sm">Use this if you want to take real bookings. <strong>Requires `database.sql` setup.</strong></p>
+                        <div className="space-y-4 text-gray-700 pl-4 border-l-2 border-blue-100">
+                            <div>
+                                <h3 className="font-bold text-md mb-1">1. Create Database</h3>
+                                <p className="text-sm">Create a PostgreSQL database (Render offers a free one).</p>
                             </div>
                             <div>
-                                <h3 className="font-bold text-md mb-1">2. Upload 'dist' content</h3>
-                                <p className="text-sm">Create a NEW GitHub repository. Upload <strong>ONLY</strong> the files inside the <code>dist</code> folder to it.</p>
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-md mb-1">3. Enable Pages</h3>
-                                <p className="text-sm">Go to Repo Settings -> Pages -> Source: <strong>main</strong> branch -> Save.</p>
+                                <h3 className="font-bold text-md mb-1">2. Create Web Service</h3>
+                                <ul className="list-disc list-inside ml-2 space-y-1 text-sm">
+                                    <li>Go to Render -> Create New -> <strong>Web Service</strong>.</li>
+                                    <li><strong>Build Command:</strong> <code>npm install && npm run build</code></li>
+                                    <li><strong>Start Command:</strong> <code>node server.js</code></li>
+                                    <li><strong>Environment Variables:</strong> Add <code>DATABASE_URL</code> with your database connection string.</li>
+                                </ul>
                             </div>
                         </div>
                     </div>
@@ -330,7 +225,7 @@ CREATE TABLE site_settings (
             <section id="home-hosting" className="bg-white p-8 rounded-2xl shadow-sm border border-purple-100 border-l-4 border-l-purple-600">
                 <div className="flex items-center gap-3 mb-6 text-purple-800">
                     <Monitor size={32} />
-                    <h2 className="text-2xl font-serif font-bold">2. Host on Home PC</h2>
+                    <h2 className="text-2xl font-serif font-bold">3. Host on Home PC</h2>
                 </div>
                 <div className="bg-purple-50 p-4 rounded-lg text-purple-800 text-sm mb-6">
                     <strong>Local Mode:</strong> Use this if you want to run the website on a standalone computer at home (e.g., at the reception desk) without using the internet.
@@ -373,22 +268,14 @@ CREATE TABLE site_settings (
             <section id="database-setup" className="bg-white p-8 rounded-2xl shadow-sm border border-green-100 border-l-4 border-l-green-600">
                  <div className="flex items-center gap-3 mb-6 text-green-800">
                     <Database size={32} />
-                    <h2 className="text-2xl font-serif font-bold">3. Database Setup</h2>
+                    <h2 className="text-2xl font-serif font-bold">4. Database Schema</h2>
                 </div>
                 
-                <div className="bg-green-50 p-4 rounded-lg text-green-900 text-sm mb-6 font-medium">
-                    ✅ GOOD NEWS: You do NOT need to set up a database for this version.
-                </div>
                 <p className="text-gray-700 mb-4">
-                    This website uses a technology called <strong>LocalStorage</strong>. It creates a database automatically inside your browser's memory the moment you open the site.
+                    Use the code below (or the file <code>database.sql</code>) to create your tables in a real PostgreSQL/MySQL database.
                 </p>
 
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                    <h3 className="font-bold text-gray-900 mb-2">For Future Upgrade (SQL Script)</h3>
-                    <p className="text-gray-600 text-sm mb-4">
-                        If you later hire a developer to connect this to a MySQL or PostgreSQL server, give them this script to create the tables:
-                    </p>
-                    <div className="bg-gray-800 text-gray-200 p-4 rounded-lg font-mono text-xs overflow-x-auto">
+                <div className="bg-gray-800 text-gray-200 p-4 rounded-lg font-mono text-xs overflow-x-auto h-64 overflow-y-auto">
 <pre>{`-- 1. ROOMS
 CREATE TABLE rooms (
     id VARCHAR(50) PRIMARY KEY,
@@ -445,8 +332,30 @@ CREATE TABLE reviews (
     date DATE,
     show_on_home BOOLEAN DEFAULT FALSE
 );
+
+-- 6. SETTINGS
+CREATE TABLE site_settings (
+    key_name VARCHAR(50) PRIMARY KEY,
+    value TEXT
+);
+
+-- 7. GALLERY
+CREATE TABLE gallery (
+    id VARCHAR(50) PRIMARY KEY,
+    url TEXT,
+    category VARCHAR(50),
+    caption TEXT
+);
+
+-- 8. PRICING RULES
+CREATE TABLE pricing_rules (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100),
+    start_date DATE,
+    end_date DATE,
+    multiplier DECIMAL(3,2)
+);
 `}</pre>
-                    </div>
                 </div>
             </section>
 
@@ -454,7 +363,7 @@ CREATE TABLE reviews (
             <section id="owner-manual" className="bg-white p-8 rounded-2xl shadow-sm border border-nature-100">
                 <div className="flex items-center gap-3 mb-6 text-nature-800">
                     <Users size={32} />
-                    <h2 className="text-2xl font-serif font-bold">4. Owner's Manual</h2>
+                    <h2 className="text-2xl font-serif font-bold">5. Owner's Manual</h2>
                 </div>
                 
                 <div className="space-y-6 text-gray-700">
@@ -486,7 +395,7 @@ CREATE TABLE reviews (
             <div className="bg-white p-6 rounded-xl shadow-md sticky top-24">
                 <h3 className="font-bold text-gray-900 mb-4">Quick Navigation</h3>
                 <ul className="space-y-3">
-                    <li>
+                     <li>
                         <a href="#hosting-guide" className="flex items-center gap-2 text-gray-600 hover:text-nature-600 hover:underline font-bold text-nature-700">
                             <Rocket size={18} /> Hosting Guides
                         </a>

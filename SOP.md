@@ -12,52 +12,45 @@ I have created the following files in your **Main Project Folder**:
 
 ---
 
-## ⚠️ CRITICAL LIMITATION (Current Mode)
+## ⚠️ TERMINOLOGY: STATIC VS DYNAMIC
 
-**Current Mode:** Demo / Single-User (using `mockDb.ts`)
-**Data Storage:** Local Browser Storage
+**Static Website (What you have currently with Mock Data)**
+- Runs entirely in the browser.
+- Data saved in LocalStorage.
+- Hosting Type: **Render Static Site** or **GitHub Pages**.
 
-The website currently runs in the browser. To make it "Real" (Multi-user), you must switch to using `server.js` and a real database.
+**Dynamic Web App (What you get with the Database)**
+- Runs on a server using `node server.js`.
+- Data saved in PostgreSQL Database.
+- Hosting Type: **Render Web Service**.
 
 ---
 
-## 1. HOSTING GUIDE
+## 1. HOSTING GUIDE (Choose ONE Path)
 
-### Option A: Hosting on Cloud (Render.com) - Recommended
-1. Create a GitHub account.
-2. Upload this code to a new repository.
-3. Go to Render.com -> New Web Service -> Connect Repo.
-4. **Environment Variables:** You must add `DATABASE_URL` pointing to your Postgres DB.
+### Path A: Static Demo (Easiest, but no data sync)
+1. Create a GitHub account & upload code.
+2. Go to Render -> New **Static Site**.
+3. **Build Command:** `npm install && npm run build`
+4. **Publish Directory:** `dist`
+5. Done.
+
+### Path B: Real Business App (With Database)
+1. Create a PostgreSQL Database (e.g., on Render or Neon.tech).
+2. Run the scripts in `database.sql` to create tables.
+3. Go to Render -> New **Web Service** (NOT Static Site).
+4. Connect Repo.
 5. **Build Command:** `npm install && npm run build`
 6. **Start Command:** `node server.js`
-7. Click Create. Done!
-
-### Option B: Hosting on GitHub Pages (Free - Frontend Only)
-1. On your PC, run command: `npm run build`
-2. This creates a 'dist' folder.
-3. Create a NEW repository on GitHub (e.g., 'my-website').
-4. Upload ONLY the files inside the 'dist' folder to this repo.
-5. Go to Repo Settings -> Pages -> Source: 'main' branch -> Save.
-
-### Option C: Hosting on Home PC (Standalone)
-1. Install Node.js from nodejs.org (LTS version).
-2. Open the folder containing this code.
-3. Right-click inside the folder -> "Open in Terminal" (or Command Prompt).
-4. Type: `npm install` (and press Enter).
-5. Type: `npm run dev` (and press Enter).
-6. Open your browser to: `http://localhost:5173`
+7. **Environment Variables:** Add `DATABASE_URL` = [Your Connection String].
 
 ---
 
-## 2. DATABASE SETUP
+## 2. DATABASE SETUP (For Path B)
 
-**For Local Storage Mode:** No action required.
-
-**For Real Server Mode:**
-1. Create a PostgreSQL database (e.g., on Render or Neon.tech).
+1. Create a PostgreSQL database.
 2. Copy the contents of **`database.sql`**.
 3. Run that SQL in your database console to create the tables.
-4. Paste your Database Connection URL into the `.env` file or Render Environment Variables.
 
 ---
 
@@ -66,12 +59,10 @@ The website currently runs in the browser. To make it "Real" (Multi-user), you m
 ### Exporting Data
 - Go to Admin -> Bookings.
 - Click the **Export CSV Report** button (top right).
-- This downloads an Excel-compatible file of all guests.
 
 ### Messaging Guests
 - Go to Admin -> Bookings.
 - Click the **Chat** button next to any guest row.
-- It opens WhatsApp with a pre-filled message.
 
 ### Login
 - URL: /admin
