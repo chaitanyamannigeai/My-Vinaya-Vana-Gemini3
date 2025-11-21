@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../../services/mockDb';
-import { ArrowRight, Coffee, Wifi, Wind, Palmtree, Star, Play, Quote } from 'lucide-react';
+import { ArrowRight, Coffee, Wifi, Wind, Palmtree, Star, Play, Quote, Globe } from 'lucide-react';
 import { Review } from '../../types';
 
 const Home = () => {
@@ -14,12 +14,13 @@ const Home = () => {
     setReviews(db.reviews.getHomeReviews());
   }, []);
 
-  // Extract YouTube Video ID if URL is present
+  // Extract YouTube Video ID robustly
   const getYoutubeEmbedUrl = (url: string) => {
     if (!url) return null;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    // Handle standard watch URLs, short URLs, embed URLs, etc.
+    const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
     const match = url.match(regExp);
-    const id = (match && match[2].length === 11) ? match[2] : null;
+    const id = (match && match[1]) ? match[1] : null;
     return id ? `https://www.youtube.com/embed/${id}` : null;
   };
 
@@ -53,6 +54,23 @@ const Home = () => {
             Check Availability <ArrowRight size={20} />
           </Link>
         </div>
+      </div>
+
+      {/* Language & Welcome Section */}
+      <div className="bg-nature-50 border-b border-nature-200">
+          <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-nature-800">
+                  <Globe size={20} />
+                  <span className="font-medium">International Guests:</span>
+                  <span className="text-sm text-gray-600">Select your language to translate the entire website.</span>
+              </div>
+              {/* Placeholder that Google Translate injects into. Navbar also has one for persistence */}
+              <div className="bg-white px-4 py-1 rounded-full shadow-sm border border-nature-200">
+                   <div className="text-xs text-gray-500 mb-1">Language / Sprache / Langue</div>
+                   {/* Google Translate Element will act here if configured, otherwise falls back to Navbar */}
+                   <div className="text-sm font-bold text-nature-700">Use the selector in the menu bar ↑</div>
+              </div>
+          </div>
       </div>
 
       {/* Features/Intro */}
@@ -96,7 +114,7 @@ const Home = () => {
                       <Play size={16} className="text-nature-300 mr-2" fill="currentColor"/>
                       <span className="text-nature-200 text-sm uppercase tracking-widest">Experience Vinaya Vana</span>
                   </div>
-                  <div className="aspect-w-16 aspect-h-9 rounded-2xl overflow-hidden shadow-2xl border-4 border-nature-800">
+                  <div className="aspect-w-16 aspect-h-9 rounded-2xl overflow-hidden shadow-2xl border-4 border-nature-800 bg-black">
                       <iframe 
                           className="w-full h-[500px]"
                           src={videoEmbedUrl} 

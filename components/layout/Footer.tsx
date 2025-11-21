@@ -37,7 +37,7 @@ const Footer = () => {
             <ul className="space-y-2 text-sm">
               <li>Gokarna, Karnataka</li>
               <li>+91 {settings.whatsappNumber}</li>
-              <li>stay@vinayavana.com</li>
+              <li>{settings.contactEmail}</li>
             </ul>
           </div>
 

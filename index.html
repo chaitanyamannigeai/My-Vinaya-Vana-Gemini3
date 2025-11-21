@@ -41,8 +41,30 @@
     <style>
       body { font-family: 'Inter', sans-serif; }
       h1, h2, h3, h4, h5, h6 { font-family: 'Merriweather', serif; }
+      
+      /* Google Translate Styling Overrides */
+      .goog-te-gadget-simple {
+        background-color: rgba(255,255,255,0.2) !important;
+        border: 1px solid rgba(255,255,255,0.5) !important;
+        padding: 8px !important;
+        border-radius: 4px !important;
+        font-size: 14px !important;
+        line-height: 20px !important;
+        display: inline-block;
+        cursor: pointer;
+        zoom: 1;
+        color: inherit !important;
+      }
+      .goog-te-gadget-simple .goog-te-menu-value {
+        color: inherit !important;
+      }
+      .goog-te-gadget-simple .goog-te-menu-value span {
+        color: inherit !important;
+      }
+      .goog-te-banner-frame.skiptranslate { display: none !important; } 
+      body { top: 0px !important; }
     </style>
-  <script type="importmap">
+    <script type="importmap">
 {
   "imports": {
     "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
@@ -53,6 +75,25 @@
   }
 }
 </script>
+<script type="text/javascript">
+  function googleTranslateElementInit() {
+    new google.translate.TranslateElement({
+      pageLanguage: 'en', 
+      layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+      includedLanguages: 'en,fr,de,es,it,ru,nl'
+    }, 'google_translate_element');
+    
+    // Mobile or duplicate element if needed
+    if(document.getElementById('google_translate_element_mobile')) {
+         new google.translate.TranslateElement({
+            pageLanguage: 'en', 
+            layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+            includedLanguages: 'en,fr,de,es,it,ru,nl'
+        }, 'google_translate_element_mobile');
+    }
+  }
+</script>
+<script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 </head>
   <body class="bg-nature-50 text-nature-900 antialiased">
     <div id="root"></div>

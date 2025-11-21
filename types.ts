@@ -48,6 +48,7 @@ export interface CabLocation {
 
 export interface SiteSettings {
   whatsappNumber: string;
+  contactEmail: string; // Added email field
   razorpayKey: string;
   enableOnlinePayments: boolean;
   adminPasswordHash: string;

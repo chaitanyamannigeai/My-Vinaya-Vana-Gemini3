@@ -565,6 +565,16 @@ const AdminDashboard = () => {
                     />
                 </div>
                 <div>
+                    <label className="block text-sm font-medium text-gray-700">Contact Email Address</label>
+                    <input 
+                        type="email" 
+                        value={settings.contactEmail}
+                        onChange={(e) => setSettings({...settings, contactEmail: e.target.value})}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                        placeholder="stay@vinayavana.com"
+                    />
+                </div>
+                <div>
                     <label className="block text-sm font-medium text-gray-700">Razorpay Key ID</label>
                     <input 
                         type="text" 

@@ -44,7 +44,7 @@ const Contact = () => {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">Email</h3>
-                    <p className="text-gray-600">stay@vinayavana.com</p>
+                    <p className="text-gray-600">{settings.contactEmail}</p>
                   </div>
                 </div>
               </div>
@@ -65,14 +65,15 @@ const Contact = () => {
 
           {/* Google Map Embed */}
           <div className="bg-gray-200 rounded-2xl overflow-hidden shadow-lg min-h-[400px]">
+            {/* Using specific coordinates for Vinaya Vana Farmhouse Gokarna: 14.519306, 74.327528 */}
              <iframe 
-                src="https://maps.google.com/maps?q=Vinaya+Vana+Farmhouse+Gokarna&t=&z=15&ie=UTF8&iwloc=&output=embed" 
+                src="https://maps.google.com/maps?q=14.519306,74.327528&z=15&output=embed" 
                 width="100%" 
                 height="100%" 
                 style={{border:0, minHeight: '400px'}} 
                 allowFullScreen={true} 
                 loading="lazy"
-                title="Google Map Location"
+                title="Vinaya Vana Location"
              ></iframe>
           </div>
         </div>
