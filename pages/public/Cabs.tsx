@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { db } from '../../services/mockDb';
 import { CabLocation, Driver } from '../../types';
-import { MapPin, Phone, MessageCircle, User, Car } from 'lucide-react';
+import { MapPin, Phone, MessageCircle, User, Car, Compass, ArrowRight, X } from 'lucide-react';
 
 const Cabs = () => {
   const [locations, setLocations] = useState<CabLocation[]>([]);
@@ -44,6 +45,11 @@ const Cabs = () => {
     return `https://wa.me/${driver.whatsapp}?text=${encodeURIComponent(message)}`;
   };
 
+  const getCustomPackageLink = () => {
+      const message = "Hi, I am interested in a custom multi-destination tour package from Vinaya Vana.";
+      return `https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent(message)}`;
+  }
+
   return (
     <div className="min-h-screen bg-nature-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -54,7 +60,7 @@ const Cabs = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
           {locations.map((loc) => (
             <div 
               key={loc.id} 
@@ -77,12 +83,38 @@ const Cabs = () => {
                     {loc.price ? `₹${loc.price} approx` : 'Ask for Price'}
                   </span>
                   <span className="text-nature-500 flex items-center gap-1 text-sm">
-                    Book Now <ArrowRightIcon />
+                    Book Now <ArrowRight size={16} />
                   </span>
                 </div>
               </div>
             </div>
           ))}
+        </div>
+        
+        {/* Custom Package Section */}
+        <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12 flex flex-col md:flex-row items-center gap-8 border-l-8 border-nature-500">
+            <div className="md:w-2/3">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="bg-nature-100 p-3 rounded-full text-nature-600">
+                        <Compass size={32} />
+                    </div>
+                    <h2 className="text-2xl font-serif font-bold text-nature-900">Want to visit multiple places?</h2>
+                </div>
+                <p className="text-gray-600 text-lg leading-relaxed">
+                    Create your own custom tour! Whether it's hopping between OM Beach and Kudle Beach, or a day trip covering Yana Caves and Murudeshwar, our drivers offer special package rates for multi-destination trips.
+                </p>
+            </div>
+            <div className="md:w-1/3 w-full">
+                <a 
+                    href={getCustomPackageLink()}
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="block w-full text-center bg-nature-700 hover:bg-nature-800 text-white font-bold py-4 rounded-xl shadow-lg transition-transform hover:-translate-y-1"
+                >
+                    Request Custom Package
+                </a>
+                <p className="text-xs text-center mt-3 text-gray-400">Opens WhatsApp with our travel desk</p>
+            </div>
         </div>
 
         {/* Driver Detail Modal */}
@@ -91,7 +123,7 @@ const Cabs = () => {
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in">
               <div className="bg-nature-800 p-6 text-white relative">
                 <button onClick={closeModal} className="absolute top-4 right-4 text-nature-200 hover:text-white">
-                  <XIcon />
+                  <X size={24} />
                 </button>
                 <h2 className="text-2xl font-serif font-bold">{selectedLocation.name}</h2>
                 <p className="text-nature-200 text-sm mt-1">Travel Partner Details</p>
@@ -148,13 +180,5 @@ const Cabs = () => {
     </div>
   );
 };
-
-// Icon Helpers
-const ArrowRightIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-);
-const XIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-);
 
 export default Cabs;

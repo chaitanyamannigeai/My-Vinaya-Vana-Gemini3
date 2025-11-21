@@ -58,6 +58,14 @@ export interface SiteSettings {
   facebookUrl: string;
   instagramUrl: string;
   googleMapUrl: string;
+  
+  // New features
+  longStayDiscount: {
+    enabled: boolean;
+    minDays: number;
+    percentage: number;
+  };
+  houseRules: string;
 }
 
 export interface GalleryItem {

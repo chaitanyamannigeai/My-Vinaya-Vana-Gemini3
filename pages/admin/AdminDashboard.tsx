@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../../services/mockDb';
 import { Room, Booking, Driver, CabLocation, SiteSettings, PaymentStatus, PricingRule, GalleryItem, Review } from '../../types';
-import { Settings, Calendar, Truck, Map, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate } from 'lucide-react';
+import { Settings, Calendar, Truck, Map, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent } from 'lucide-react';
 import ImageUploader from '../../components/ui/ImageUploader';
 
 const AdminDashboard = () => {
@@ -553,6 +553,76 @@ const AdminDashboard = () => {
 
   const renderSettings = () => (
     <div className="bg-white p-8 rounded-lg shadow max-w-2xl space-y-8">
+        
+        {/* Booking Policies Section */}
+        <div className="border border-nature-200 rounded-lg p-6 bg-nature-50">
+            <h3 className="text-lg font-bold mb-4 border-b border-nature-200 pb-2 flex items-center gap-2 text-nature-900">
+                <FileText size={20} /> Booking Policies & Rules
+            </h3>
+
+            <div className="space-y-6">
+                <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                        <Percent size={16} /> Long Stay Discount
+                     </label>
+                     <div className="bg-white p-4 rounded border border-gray-200 space-y-4">
+                        <div className="flex items-center gap-2">
+                            <input 
+                                type="checkbox" 
+                                id="enableDiscount" 
+                                checked={settings.longStayDiscount?.enabled ?? true}
+                                onChange={(e) => setSettings({
+                                    ...settings, 
+                                    longStayDiscount: { ...settings.longStayDiscount, enabled: e.target.checked }
+                                })}
+                            />
+                            <label htmlFor="enableDiscount" className="text-sm font-medium">Enable Long Stay Discount</label>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs text-gray-500">Minimum Days</label>
+                                <input 
+                                    type="number" 
+                                    min="1"
+                                    value={settings.longStayDiscount?.minDays ?? 5}
+                                    onChange={(e) => setSettings({
+                                        ...settings, 
+                                        longStayDiscount: { ...settings.longStayDiscount, minDays: parseInt(e.target.value) }
+                                    })}
+                                    className="w-full border rounded p-2"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-500">Discount Percentage (%)</label>
+                                <input 
+                                    type="number" 
+                                    min="1"
+                                    max="100"
+                                    value={settings.longStayDiscount?.percentage ?? 20}
+                                    onChange={(e) => setSettings({
+                                        ...settings, 
+                                        longStayDiscount: { ...settings.longStayDiscount, percentage: parseInt(e.target.value) }
+                                    })}
+                                    className="w-full border rounded p-2 font-bold text-nature-700"
+                                />
+                            </div>
+                        </div>
+                     </div>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">House Rules & Policies (Visible on Tariff Page)</label>
+                    <textarea 
+                        value={settings.houseRules}
+                        onChange={(e) => setSettings({...settings, houseRules: e.target.value})}
+                        className="w-full h-32 border border-gray-300 rounded p-3 text-sm bg-white"
+                        placeholder="Enter one rule per line..."
+                    />
+                </div>
+            </div>
+        </div>
+
         <div>
             <h3 className="text-lg font-bold mb-4 border-b pb-2">Site Configuration</h3>
             <div className="space-y-4">

@@ -1,12 +1,15 @@
+
 import React, { useEffect, useState } from 'react';
 import { db } from '../../services/mockDb';
 import { Room } from '../../types';
 
 const Tariff = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [houseRules, setHouseRules] = useState('');
 
   useEffect(() => {
     setRooms(db.rooms.getAll());
+    setHouseRules(db.settings.get().houseRules);
   }, []);
 
   return (
@@ -46,15 +49,18 @@ const Tariff = () => {
         </div>
 
         <div className="bg-white p-8 rounded-xl shadow-md">
-            <h3 className="text-xl font-bold text-nature-900 mb-4">House Rules & Policies</h3>
-            <ul className="list-disc list-inside space-y-2 text-gray-600">
-                <li>Check-in time: 12:00 PM | Check-out time: 11:00 AM.</li>
-                <li>Govt ID proof is mandatory for all guests upon arrival.</li>
-                <li>Quiet hours start from 10:00 PM to maintain the peaceful nature of the farm.</li>
-                <li>Smoking is not allowed inside the rooms. Designated areas available.</li>
-                <li>Pets are not allowed to ensure hygiene for all guests.</li>
-                <li>Cancellation: 50% refund if cancelled 7 days prior to booking.</li>
-            </ul>
+            <h3 className="text-xl font-bold text-nature-900 mb-6">House Rules & Policies</h3>
+            <div className="text-gray-600 space-y-4 leading-relaxed whitespace-pre-line">
+                {houseRules.split('\n').map((rule, idx) => (
+                    rule.trim() ? (
+                        <div key={idx} className="flex items-start gap-3">
+                            <span className="mt-1.5 w-1.5 h-1.5 bg-nature-500 rounded-full shrink-0"></span>
+                            <span>{rule}</span>
+                        </div>
+                    ) : null
+                ))}
+                {(!houseRules) && <p>No specific policies defined.</p>}
+            </div>
         </div>
       </div>
     </div>
