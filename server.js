@@ -312,7 +312,7 @@ if (fs.existsSync(distPath)) {
     });
 } else {
     console.warn('WARNING: "dist" folder not found. Frontend will not be served. Please run "npm run build".');
-    app.get('/', (req, res) => {
+    app.get('*', (req, res) => {
         res.send('<h1>Backend Running</h1><p>Frontend not built. Please run <code>npm run build</code> to generate the dist folder.</p>');
     });
 }
