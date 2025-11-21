@@ -1,12 +1,9 @@
-
 import express from 'express';
 import path from 'path';
-import pg from 'pg';
+import mysql from 'mysql2/promise';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
-
-const { Pool } = pg;
 
 // Load environment variables
 dotenv.config();
@@ -22,44 +19,54 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); // Increased limit for base64 images
 
-// Database Connection
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+// Database Connection Pool (MySQL)
+// We use a pool to manage multiple connections automatically
+const pool = mysql.createPool(process.env.DATABASE_URL || '');
 
 // Helper to parse JSON from DB text columns
-const parseJSON = (text) => {
-    try { return JSON.parse(text); } catch (e) { return text; }
+const parseJSON = (data) => {
+    if (typeof data === 'string') {
+        try { return JSON.parse(data); } catch (e) { return data; }
+    }
+    return data;
 };
 
 // --- 1. ROOMS API ---
 app.get('/api/rooms', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM rooms');
-    const rooms = result.rows.map(r => ({
+    const [rows] = await pool.query('SELECT * FROM rooms');
+    const rooms = rows.map(r => ({
         ...r,
         amenities: parseJSON(r.amenities),
         images: parseJSON(r.images)
     }));
     res.json(rooms);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { 
+      console.error('Error fetching rooms:', err);
+      res.status(500).json({ error: err.message }); 
+  }
 });
 
 app.post('/api/rooms', async (req, res) => {
   const { id, name, description, basePrice, capacity, amenities, images } = req.body;
   try {
-    await pool.query(
-      'INSERT INTO rooms (id, name, description, base_price, capacity, amenities, images) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO UPDATE SET name=$2, description=$3, base_price=$4, capacity=$5, amenities=$6, images=$7',
-      [id, name, description, basePrice, capacity, JSON.stringify(amenities), JSON.stringify(images)]
-    );
+    const sql = `INSERT INTO rooms (id, name, description, base_price, capacity, amenities, images) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?) 
+                 ON DUPLICATE KEY UPDATE 
+                 name=VALUES(name), description=VALUES(description), base_price=VALUES(base_price), 
+                 capacity=VALUES(capacity), amenities=VALUES(amenities), images=VALUES(images)`;
+    
+    await pool.query(sql, [id, name, description, basePrice, capacity, JSON.stringify(amenities), JSON.stringify(images)]);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { 
+      console.error('Error saving room:', err);
+      res.status(500).json({ error: err.message }); 
+  }
 });
 
 app.delete('/api/rooms/:id', async (req, res) => {
     try {
-        await pool.query('DELETE FROM rooms WHERE id = $1', [req.params.id]);
+        await pool.query('DELETE FROM rooms WHERE id = ?', [req.params.id]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -67,18 +74,17 @@ app.delete('/api/rooms/:id', async (req, res) => {
 // --- 2. BOOKINGS API ---
 app.get('/api/bookings', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM bookings ORDER BY created_at DESC');
-    res.json(result.rows);
+    const [rows] = await pool.query('SELECT * FROM bookings ORDER BY created_at DESC');
+    res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/bookings', async (req, res) => {
   const { id, roomId, guestName, guestPhone, checkIn, checkOut, totalAmount, status } = req.body;
   try {
-    await pool.query(
-      'INSERT INTO bookings (id, room_id, guest_name, guest_phone, check_in, check_out, total_amount, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-      [id, roomId, guestName, guestPhone, checkIn, checkOut, totalAmount, status]
-    );
+    const sql = `INSERT INTO bookings (id, room_id, guest_name, guest_phone, check_in, check_out, total_amount, status) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    await pool.query(sql, [id, roomId, guestName, guestPhone, checkIn, checkOut, totalAmount, status]);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -86,7 +92,7 @@ app.post('/api/bookings', async (req, res) => {
 app.put('/api/bookings/:id', async (req, res) => {
     const { status } = req.body;
     try {
-        await pool.query('UPDATE bookings SET status = $1 WHERE id = $2', [status, req.params.id]);
+        await pool.query('UPDATE bookings SET status = ? WHERE id = ?', [status, req.params.id]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -94,8 +100,9 @@ app.put('/api/bookings/:id', async (req, res) => {
 // --- 3. DRIVERS API ---
 app.get('/api/drivers', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM drivers');
-        res.json(result.rows);
+        const [rows] = await pool.query('SELECT * FROM drivers');
+        const drivers = rows.map(d => ({ ...d, isDefault: !!d.is_default, active: !!d.active }));
+        res.json(drivers);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -103,20 +110,21 @@ app.post('/api/drivers', async (req, res) => {
     const { id, name, phone, whatsapp, isDefault, active, vehicleInfo } = req.body;
     try {
         if (isDefault) {
-            // Ensure only one default driver exists
-            await pool.query('UPDATE drivers SET is_default = false');
+            await pool.query('UPDATE drivers SET is_default = 0');
         }
-        await pool.query(
-            'INSERT INTO drivers (id, name, phone, whatsapp, is_default, active, vehicle_info) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO UPDATE SET name=$2, phone=$3, whatsapp=$4, is_default=$5, active=$6, vehicle_info=$7',
-            [id, name, phone, whatsapp, isDefault, active, vehicleInfo]
-        );
+        const sql = `INSERT INTO drivers (id, name, phone, whatsapp, is_default, active, vehicle_info) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?) 
+                     ON DUPLICATE KEY UPDATE 
+                     name=VALUES(name), phone=VALUES(phone), whatsapp=VALUES(whatsapp), 
+                     is_default=VALUES(is_default), active=VALUES(active), vehicle_info=VALUES(vehicle_info)`;
+        await pool.query(sql, [id, name, phone, whatsapp, isDefault, active, vehicleInfo]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.delete('/api/drivers/:id', async (req, res) => {
     try {
-        await pool.query('DELETE FROM drivers WHERE id = $1', [req.params.id]);
+        await pool.query('DELETE FROM drivers WHERE id = ?', [req.params.id]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -124,25 +132,28 @@ app.delete('/api/drivers/:id', async (req, res) => {
 // --- 4. LOCATIONS API ---
 app.get('/api/locations', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM cab_locations');
-        res.json(result.rows);
+        const [rows] = await pool.query('SELECT * FROM cab_locations');
+        const locs = rows.map(l => ({...l, active: !!l.active}));
+        res.json(locs);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/locations', async (req, res) => {
     const { id, name, description, imageUrl, price, driverId, active } = req.body;
     try {
-        await pool.query(
-            'INSERT INTO cab_locations (id, name, description, image_url, price, driver_id, active) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO UPDATE SET name=$2, description=$3, image_url=$4, price=$5, driver_id=$6, active=$7',
-            [id, name, description, imageUrl, price, driverId, active]
-        );
+        const sql = `INSERT INTO cab_locations (id, name, description, image_url, price, driver_id, active) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?) 
+                     ON DUPLICATE KEY UPDATE 
+                     name=VALUES(name), description=VALUES(description), image_url=VALUES(image_url), 
+                     price=VALUES(price), driver_id=VALUES(driver_id), active=VALUES(active)`;
+        await pool.query(sql, [id, name, description, imageUrl, price, driverId, active]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.delete('/api/locations/:id', async (req, res) => {
     try {
-        await pool.query('DELETE FROM cab_locations WHERE id = $1', [req.params.id]);
+        await pool.query('DELETE FROM cab_locations WHERE id = ?', [req.params.id]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -150,11 +161,11 @@ app.delete('/api/locations/:id', async (req, res) => {
 // --- 5. SETTINGS API ---
 app.get('/api/settings', async (req, res) => {
     try {
-        const result = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
-        if (result.rows.length > 0) {
-            res.json(JSON.parse(result.rows[0].value));
+        const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
+        if (rows.length > 0) {
+            res.json(JSON.parse(rows[0].value));
         } else {
-            res.json({}); // Should seed default
+            res.json({}); 
         }
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -162,10 +173,8 @@ app.get('/api/settings', async (req, res) => {
 app.post('/api/settings', async (req, res) => {
     const settings = req.body;
     try {
-        await pool.query(
-            "INSERT INTO site_settings (key_name, value) VALUES ('general_settings', $1) ON CONFLICT (key_name) DO UPDATE SET value=$1",
-            [JSON.stringify(settings)]
-        );
+        const sql = "INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)";
+        await pool.query(sql, [JSON.stringify(settings)]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -173,25 +182,25 @@ app.post('/api/settings', async (req, res) => {
 // --- 6. GALLERY API ---
 app.get('/api/gallery', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM gallery');
-        res.json(result.rows);
+        const [rows] = await pool.query('SELECT * FROM gallery');
+        res.json(rows);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/gallery', async (req, res) => {
     const { id, url, category, caption } = req.body;
     try {
-        await pool.query(
-            'INSERT INTO gallery (id, url, category, caption) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET url=$2, category=$3, caption=$4',
-            [id, url, category, caption]
-        );
+        const sql = `INSERT INTO gallery (id, url, category, caption) 
+                     VALUES (?, ?, ?, ?) 
+                     ON DUPLICATE KEY UPDATE url=VALUES(url), category=VALUES(category), caption=VALUES(caption)`;
+        await pool.query(sql, [id, url, category, caption]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.delete('/api/gallery/:id', async (req, res) => {
     try {
-        await pool.query('DELETE FROM gallery WHERE id = $1', [req.params.id]);
+        await pool.query('DELETE FROM gallery WHERE id = ?', [req.params.id]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -199,25 +208,28 @@ app.delete('/api/gallery/:id', async (req, res) => {
 // --- 7. REVIEWS API ---
 app.get('/api/reviews', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM reviews');
-        res.json(result.rows);
+        const [rows] = await pool.query('SELECT * FROM reviews');
+        const reviews = rows.map(r => ({...r, showOnHome: !!r.show_on_home}));
+        res.json(reviews);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/reviews', async (req, res) => {
     const { id, guestName, location, rating, comment, date, showOnHome } = req.body;
     try {
-        await pool.query(
-            'INSERT INTO reviews (id, guest_name, location, rating, comment, date, show_on_home) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO UPDATE SET guest_name=$2, location=$3, rating=$4, comment=$5, date=$6, show_on_home=$7',
-            [id, guestName, location, rating, comment, date, showOnHome]
-        );
+        const sql = `INSERT INTO reviews (id, guest_name, location, rating, comment, date, show_on_home) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?) 
+                     ON DUPLICATE KEY UPDATE 
+                     guest_name=VALUES(guest_name), location=VALUES(location), rating=VALUES(rating), 
+                     comment=VALUES(comment), date=VALUES(date), show_on_home=VALUES(show_on_home)`;
+        await pool.query(sql, [id, guestName, location, rating, comment, date, showOnHome]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.delete('/api/reviews/:id', async (req, res) => {
     try {
-        await pool.query('DELETE FROM reviews WHERE id = $1', [req.params.id]);
+        await pool.query('DELETE FROM reviews WHERE id = ?', [req.params.id]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -225,25 +237,26 @@ app.delete('/api/reviews/:id', async (req, res) => {
 // --- 8. PRICING API ---
 app.get('/api/pricing', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM pricing_rules');
-        res.json(result.rows);
+        const [rows] = await pool.query('SELECT * FROM pricing_rules');
+        res.json(rows);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/pricing', async (req, res) => {
     const { id, name, startDate, endDate, multiplier } = req.body;
     try {
-        await pool.query(
-            'INSERT INTO pricing_rules (id, name, start_date, end_date, multiplier) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE SET name=$2, start_date=$3, end_date=$4, multiplier=$5',
-            [id, name, startDate, endDate, multiplier]
-        );
+        const sql = `INSERT INTO pricing_rules (id, name, start_date, end_date, multiplier) 
+                     VALUES (?, ?, ?, ?, ?) 
+                     ON DUPLICATE KEY UPDATE 
+                     name=VALUES(name), start_date=VALUES(start_date), end_date=VALUES(end_date), multiplier=VALUES(multiplier)`;
+        await pool.query(sql, [id, name, startDate, endDate, multiplier]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.delete('/api/pricing/:id', async (req, res) => {
     try {
-        await pool.query('DELETE FROM pricing_rules WHERE id = $1', [req.params.id]);
+        await pool.query('DELETE FROM pricing_rules WHERE id = ?', [req.params.id]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });

@@ -45,7 +45,7 @@ const Docs = () => {
 - Hosting: GitHub Pages, Render Static Site.
 
 **Dynamic Web App (Real Business Mode)**
-- Uses 'server.js' + PostgreSQL Database.
+- Uses 'server.js' + MySQL Database.
 - Runs on a server.
 - Hosting: Render Web Service.
 
@@ -62,7 +62,7 @@ const Docs = () => {
 
 ### Path B: The "Real Business" (Dynamic)
 *Use this if you want to take real bookings and save data.*
-1. Create a PostgreSQL Database (e.g., on Render Dashboard).
+1. Create a MySQL Database (e.g., on Aiven).
 2. Go to Render -> New **Web Service** (NOT Static Site).
 3. Connect your Repo.
 4. **Build Command:** npm install && npm run build
@@ -204,7 +204,7 @@ const Docs = () => {
                         <div className="space-y-4 text-gray-700 pl-4 border-l-2 border-blue-100">
                             <div>
                                 <h3 className="font-bold text-md mb-1">1. Create Database</h3>
-                                <p className="text-sm">Create a PostgreSQL database (Render offers a free one).</p>
+                                <p className="text-sm">Create a MySQL database (e.g., free on Aiven).</p>
                             </div>
                             <div>
                                 <h3 className="font-bold text-md mb-1">2. Create Web Service</h3>
@@ -212,7 +212,7 @@ const Docs = () => {
                                     <li>Go to Render &rarr; Create New &rarr; <strong>Web Service</strong>.</li>
                                     <li><strong>Build Command:</strong> <code>npm install && npm run build</code></li>
                                     <li><strong>Start Command:</strong> <code>node server.js</code></li>
-                                    <li><strong>Environment Variables:</strong> Add <code>DATABASE_URL</code> with your database connection string.</li>
+                                    <li><strong>Environment Variables:</strong> Add <code>DATABASE_URL</code> with your Aiven connection string.</li>
                                 </ul>
                             </div>
                         </div>
@@ -272,23 +272,25 @@ const Docs = () => {
                 </div>
                 
                 <p className="text-gray-700 mb-4">
-                    Use the code below (or the file <code>database.sql</code>) to create your tables in a real PostgreSQL/MySQL database.
+                    Use the code below (or the file <code>database.sql</code>) to create your tables in your Aiven MySQL database.
                 </p>
 
                 <div className="bg-gray-800 text-gray-200 p-4 rounded-lg font-mono text-xs overflow-x-auto h-64 overflow-y-auto">
-<pre>{`-- 1. ROOMS
-CREATE TABLE rooms (
+<pre>{`SET NAMES utf8mb4;
+
+-- 1. ROOMS
+CREATE TABLE IF NOT EXISTS rooms (
     id VARCHAR(50) PRIMARY KEY,
-    name VARCHAR(100),
+    name VARCHAR(100) NOT NULL,
     description TEXT,
-    base_price DECIMAL(10,2),
-    capacity INT,
+    base_price DECIMAL(10,2) NOT NULL,
+    capacity INT NOT NULL,
     amenities JSON,
     images JSON
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 2. BOOKINGS
-CREATE TABLE bookings (
+CREATE TABLE IF NOT EXISTS bookings (
     id VARCHAR(50) PRIMARY KEY,
     room_id VARCHAR(50),
     guest_name VARCHAR(100),
@@ -296,12 +298,12 @@ CREATE TABLE bookings (
     check_in DATE,
     check_out DATE,
     total_amount DECIMAL(10,2),
-    status VARCHAR(20), -- 'PENDING', 'PAID', 'FAILED'
+    status VARCHAR(20),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 3. DRIVERS
-CREATE TABLE drivers (
+CREATE TABLE IF NOT EXISTS drivers (
     id VARCHAR(50) PRIMARY KEY,
     name VARCHAR(100),
     phone VARCHAR(20),
@@ -309,10 +311,10 @@ CREATE TABLE drivers (
     is_default BOOLEAN DEFAULT FALSE,
     active BOOLEAN DEFAULT TRUE,
     vehicle_info VARCHAR(100)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 4. CAB LOCATIONS
-CREATE TABLE cab_locations (
+CREATE TABLE IF NOT EXISTS cab_locations (
     id VARCHAR(50) PRIMARY KEY,
     name VARCHAR(100),
     description TEXT,
@@ -320,10 +322,10 @@ CREATE TABLE cab_locations (
     price DECIMAL(10,2),
     driver_id VARCHAR(50),
     active BOOLEAN DEFAULT TRUE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 5. REVIEWS
-CREATE TABLE reviews (
+CREATE TABLE IF NOT EXISTS reviews (
     id VARCHAR(50) PRIMARY KEY,
     guest_name VARCHAR(100),
     location VARCHAR(100),
@@ -331,30 +333,30 @@ CREATE TABLE reviews (
     comment TEXT,
     date DATE,
     show_on_home BOOLEAN DEFAULT FALSE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 6. SETTINGS
-CREATE TABLE site_settings (
+CREATE TABLE IF NOT EXISTS site_settings (
     key_name VARCHAR(50) PRIMARY KEY,
-    value TEXT
-);
+    value JSON
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 7. GALLERY
-CREATE TABLE gallery (
+CREATE TABLE IF NOT EXISTS gallery (
     id VARCHAR(50) PRIMARY KEY,
     url TEXT,
     category VARCHAR(50),
     caption TEXT
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 8. PRICING RULES
-CREATE TABLE pricing_rules (
+CREATE TABLE IF NOT EXISTS pricing_rules (
     id VARCHAR(50) PRIMARY KEY,
     name VARCHAR(100),
     start_date DATE,
     end_date DATE,
     multiplier DECIMAL(3,2)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 `}</pre>
                 </div>
             </section>
