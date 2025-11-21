@@ -72,8 +72,13 @@ const parseJSON = (data) => {
 app.get('/api/rooms', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM rooms');
+    // CRITICAL FIX: Explicitly map snake_case (DB) to camelCase (Frontend)
     const rooms = rows.map(r => ({
-        ...r,
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        basePrice: r.base_price, // Map base_price -> basePrice
+        capacity: r.capacity,
         amenities: parseJSON(r.amenities),
         images: parseJSON(r.images)
     }));
@@ -153,7 +158,10 @@ app.get('/api/drivers', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM drivers');
         const drivers = rows.map(d => ({ 
-            ...d, 
+            id: d.id,
+            name: d.name,
+            phone: d.phone,
+            whatsapp: d.whatsapp,
             isDefault: !!d.is_default, 
             active: !!d.active,
             vehicleInfo: d.vehicle_info 
