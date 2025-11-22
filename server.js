@@ -32,6 +32,28 @@ app.use((req, res, next) => {
 // Database Connection Pool (MySQL)
 const pool = mysql.createPool(process.env.DATABASE_URL || '');
 
+// --- DATABASE AUTO-REPAIR SCRIPT ---
+// This runs on startup to fix column sizes for existing databases
+const fixDatabaseSchema = async () => {
+    try {
+        const connection = await pool.getConnection();
+        console.log('🔧 Checking database schema...');
+        
+        // Force upgrade columns to hold Large Images (LONGTEXT = 4GB limit)
+        // Using separate try-catches so one failure doesn't stop the others
+        try { await connection.query("ALTER TABLE gallery MODIFY url LONGTEXT"); } catch(e) {}
+        try { await connection.query("ALTER TABLE cab_locations MODIFY image_url LONGTEXT"); } catch(e) {}
+        try { await connection.query("ALTER TABLE rooms MODIFY images LONGTEXT"); } catch(e) {}
+        try { await connection.query("ALTER TABLE rooms MODIFY amenities LONGTEXT"); } catch(e) {}
+        try { await connection.query("ALTER TABLE site_settings MODIFY value LONGTEXT"); } catch(e) {}
+
+        console.log('✅ Database schema auto-corrected for large images.');
+        connection.release();
+    } catch (err) {
+        console.log('ℹ️ Schema check skipped (Database might not be ready yet).');
+    }
+};
+
 // --- DATABASE CONNECTION TEST ---
 const testDbConnection = async () => {
     try {
@@ -40,6 +62,10 @@ const testDbConnection = async () => {
         console.log('✅ DATABASE CONNECTED SUCCESSFULLY');
         console.log('----------------------------------------');
         connection.release();
+        
+        // Run the auto-fix
+        await fixDatabaseSchema();
+        
     } catch (err) {
         console.error('----------------------------------------');
         console.error('❌ DATABASE CONNECTION FAILED');
