@@ -221,7 +221,13 @@ app.get('/api/locations', async (req, res) => {
 });
 
 app.post('/api/locations', async (req, res) => {
-    const { id, name, description, imageUrl, price, driverId, active } = req.body;
+    let { id, name, description, imageUrl, price, driverId, active } = req.body;
+    
+    // Sanitization: Convert undefined/null to DB friendly values
+    price = (price === undefined || price === null || price === '') ? null : parseFloat(price);
+    driverId = (driverId === 'default' || driverId === '' || driverId === undefined) ? null : driverId;
+    active = active === undefined ? true : active;
+
     try {
         const sql = `INSERT INTO cab_locations (id, name, description, image_url, price, driver_id, active) 
                      VALUES (?, ?, ?, ?, ?, ?, ?) 
@@ -231,7 +237,10 @@ app.post('/api/locations', async (req, res) => {
                      price=new_vals.price, driver_id=new_vals.driver_id, active=new_vals.active`;
         await pool.query(sql, [id, name, description, imageUrl, price, driverId, active]);
         res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) { 
+        console.error("Error saving location:", err);
+        res.status(500).json({ error: err.message }); 
+    }
 });
 
 app.delete('/api/locations/:id', async (req, res) => {
