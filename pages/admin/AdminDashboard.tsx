@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
@@ -184,7 +183,7 @@ const AdminDashboard = () => {
           imageUrl: 'https://images.unsplash.com/photo-1590664095612-2d4e5e0a8d7a?auto=format&fit=crop&q=80&w=400',
           active: true,
           driverId: null,
-          price: 0 // Default price to prevent undefined errors
+          price: 0 // Initialize with 0 to allow proper database saving
       };
       setLocations([newLoc, ...locations]);
   };
@@ -269,7 +268,10 @@ const AdminDashboard = () => {
           try {
               await api.gallery.save(item);
               alert("Image Saved!");
-          } catch (e) { alert("Error saving image"); }
+          } catch (e) { 
+              console.error(e);
+              alert("Error saving image"); 
+          }
       }
   };
 
@@ -553,7 +555,16 @@ const AdminDashboard = () => {
                         <div className="flex gap-2">
                             <div className="w-1/2">
                                 <label className="text-xs block text-gray-500">Price</label>
-                                <input type="number" value={loc.price || ''} onChange={(e) => updateLocationLocal(loc.id, 'price', parseInt(e.target.value))} className="border w-full p-1 rounded"/>
+                                <input 
+                                    type="number" 
+                                    value={loc.price ?? ''} 
+                                    onChange={(e) => {
+                                        // Safe number handling: empty string -> 0, otherwise parse float
+                                        const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                                        updateLocationLocal(loc.id, 'price', val);
+                                    }}
+                                    className="border w-full p-1 rounded"
+                                />
                             </div>
                             <div className="w-1/2">
                                 <label className="text-xs block text-gray-500">Driver</label>

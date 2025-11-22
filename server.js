@@ -95,7 +95,9 @@ app.post('/api/rooms', async (req, res) => {
   const name = req.body.name || 'New Room';
   const description = req.body.description || '';
   // Robust check for price
-  const basePrice = req.body.basePrice !== undefined ? req.body.basePrice : (req.body.base_price !== undefined ? req.body.base_price : 0);
+  let basePrice = req.body.basePrice !== undefined ? req.body.basePrice : (req.body.base_price !== undefined ? req.body.base_price : 0);
+  if (isNaN(parseFloat(basePrice))) basePrice = 0;
+  
   const capacity = req.body.capacity || 1;
   const amenities = JSON.stringify(req.body.amenities || []);
   const images = JSON.stringify(req.body.images || []);
@@ -223,13 +225,19 @@ app.get('/api/locations', async (req, res) => {
 app.post('/api/locations', async (req, res) => {
     let { id, name, description, imageUrl, price, driverId, active } = req.body;
     
-    // Sanitization: Convert undefined/null/empty to 0 for price (safer for DB)
-    price = (price === undefined || price === null || price === '') ? 0 : parseFloat(price);
+    // Sanitization: Convert undefined/null/empty/NaN to 0 for price (safer for DB)
+    price = parseFloat(price);
+    if (isNaN(price)) price = 0;
     
-    // Driver ID: use null if empty string
+    // Driver ID: use null if empty string or 'default'
     driverId = (driverId === 'default' || driverId === '' || driverId === undefined) ? null : driverId;
     
+    // Active: Default to true
     active = active === undefined ? true : active;
+
+    // Name/Desc fallback
+    name = name || 'New Location';
+    description = description || '';
 
     try {
         const sql = `INSERT INTO cab_locations (id, name, description, image_url, price, driver_id, active) 
@@ -288,7 +296,13 @@ app.get('/api/gallery', async (req, res) => {
 });
 
 app.post('/api/gallery', async (req, res) => {
-    const { id, url, category, caption } = req.body;
+    let { id, url, category, caption } = req.body;
+    
+    // Sanitization for Gallery
+    category = category || 'General';
+    caption = caption || '';
+    url = url || '';
+
     try {
         const sql = `INSERT INTO gallery (id, url, category, caption) 
                      VALUES (?, ?, ?, ?) 
@@ -296,7 +310,10 @@ app.post('/api/gallery', async (req, res) => {
                      ON DUPLICATE KEY UPDATE url=new_vals.url, category=new_vals.category, caption=new_vals.caption`;
         await pool.query(sql, [id, url, category, caption]);
         res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) { 
+        console.error("Error saving gallery:", err);
+        res.status(500).json({ error: err.message }); 
+    }
 });
 
 app.delete('/api/gallery/:id', async (req, res) => {
