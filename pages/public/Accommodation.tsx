@@ -4,6 +4,13 @@ import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { Room, Booking, PaymentStatus, PricingRule } from '../../types';
 import { CheckCircle, Users, Home, Utensils, Monitor, Droplet, Calendar as CalendarIcon, XCircle, MessageCircle, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 
+// Declaration for Razorpay on window object
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
 const Accommodation = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [pricingRules, setPricingRules] = useState<PricingRule[]>([]);
@@ -18,7 +25,7 @@ const Accommodation = () => {
   });
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [totalPrice, setTotalPrice] = useState(0);
-  const [showPayment, setShowPayment] = useState(false);
+  const [showSimulatedPayment, setShowSimulatedPayment] = useState(false); // Renamed for clarity
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [pricingBreakdown, setPricingBreakdown] = useState<{avgPrice: number, days: number, discountApplied: number} | null>(null);
@@ -159,10 +166,63 @@ const Accommodation = () => {
     setBookingForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleBookingSubmit = (e: React.FormEvent) => {
+  // --- RAZORPAY INTEGRATION ---
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedRoom || totalPrice <= 0 || availabilityError) return;
-    setShowPayment(true);
+
+    // 1. Check if we should use Real or Simulated payment
+    const isDummyKey = !settings.razorpayKey || settings.razorpayKey === 'rzp_test_123456789' || settings.razorpayKey.includes('test_dummy');
+
+    if (isDummyKey) {
+        // Use Simulation Modal
+        setShowSimulatedPayment(true);
+    } else {
+        // Use Real Razorpay
+        const res = await loadRazorpayScript();
+        if (!res) {
+            alert('Razorpay SDK failed to load. Please check your internet connection.');
+            return;
+        }
+
+        const options = {
+            key: settings.razorpayKey,
+            amount: totalPrice * 100, // Amount in paise
+            currency: 'INR',
+            name: 'Vinaya Vana Farmhouse',
+            description: `Stay at ${selectedRoom.name} (${bookingForm.checkIn} to ${bookingForm.checkOut})`,
+            image: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&q=80&w=200', // Uses hero image styling
+            prefill: {
+                name: bookingForm.guestName,
+                contact: bookingForm.guestPhone
+            },
+            theme: {
+                color: '#3ba573'
+            },
+            handler: function (response: any) {
+                // On Success
+                finalizeBooking(response.razorpay_payment_id);
+            },
+            modal: {
+                ondismiss: function() {
+                    // console.log("Payment cancelled");
+                }
+            }
+        };
+
+        const paymentObject = new window.Razorpay(options);
+        paymentObject.open();
+    }
   };
 
   const getWhatsAppBookingLink = () => {
@@ -177,7 +237,7 @@ const Accommodation = () => {
       return `https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent(msg)}`;
   };
 
-  const confirmPayment = async () => {
+  const finalizeBooking = async (paymentId?: string) => {
     // Double check availability before confirming
     const isAvailable = checkAvailability(
         bookingForm.roomId, 
@@ -186,7 +246,7 @@ const Accommodation = () => {
     );
 
     if (!isAvailable) {
-        setShowPayment(false);
+        setShowSimulatedPayment(false);
         setAvailabilityError("Sorry! Someone just booked these dates.");
         return;
     }
@@ -203,6 +263,9 @@ const Accommodation = () => {
       createdAt: new Date().toISOString()
     };
 
+    // If real payment, we could store paymentId in DB (schema update needed for strictness, but flexible JSON/notes works)
+    // For now we just mark as PAID.
+
     try {
         await api.bookings.add(newBooking);
         
@@ -210,7 +273,7 @@ const Accommodation = () => {
         const updatedBookings = await api.bookings.getAll();
         setBookings(updatedBookings);
 
-        setShowPayment(false);
+        setShowSimulatedPayment(false);
         setBookingSuccess(true);
         
         setBookingForm({
@@ -222,7 +285,7 @@ const Accommodation = () => {
         });
         setTotalPrice(0);
     } catch (err) {
-        alert("Booking failed. Please try again.");
+        alert("Booking failed to save. Please contact support.");
     }
   };
 
@@ -546,7 +609,7 @@ const Accommodation = () => {
                         : 'bg-nature-600 hover:bg-nature-700 text-white'
                     }`}
                   >
-                    {availabilityError ? 'Unavailable' : 'Book Now'}
+                    {availabilityError ? 'Unavailable' : 'Pay & Book Now'}
                   </button>
 
                    <div className="relative flex py-2 items-center">
@@ -571,11 +634,11 @@ const Accommodation = () => {
         </div>
       </div>
 
-      {/* Mock Payment Modal */}
-      {showPayment && (
+      {/* Simulated Payment Modal (Only shown if Key is Dummy) */}
+      {showSimulatedPayment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 backdrop-blur-sm p-4">
           <div className="bg-white p-8 rounded-2xl max-w-md w-full text-center relative">
-            <button onClick={() => setShowPayment(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+            <button onClick={() => setShowSimulatedPayment(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
                 <XCircle size={24}/>
             </button>
             <h3 className="text-2xl font-bold text-gray-900 mb-4">Complete Payment</h3>
@@ -584,13 +647,16 @@ const Accommodation = () => {
                 <p className="text-3xl font-bold text-nature-700">₹{totalPrice}</p>
             </div>
             
-            <div className="bg-blue-50 p-4 rounded-lg mb-6 text-sm text-blue-800 text-left">
-              <p className="font-bold mb-1">Simulated Razorpay</p>
-              <p>In a production environment, this would open the official Razorpay payment gateway using Key ID: <span className="font-mono bg-blue-100 px-1 rounded">{settings.razorpayKey}</span></p>
+            <div className="bg-orange-50 p-4 rounded-lg mb-6 text-sm text-orange-800 text-left border border-orange-100">
+              <p className="font-bold mb-1 flex items-center gap-2">
+                 <span className="bg-orange-200 px-2 py-0.5 rounded text-xs uppercase">Simulation Mode</span>
+              </p>
+              <p className="mt-2">You are using a Test Key. No real money will be deducted. </p>
+              <p className="mt-2 text-xs text-orange-600">To enable real payments, update the <strong>Razorpay Key ID</strong> in the Admin Panel.</p>
             </div>
             <div className="flex gap-4 justify-center">
-              <button onClick={() => setShowPayment(false)} className="px-4 py-3 text-gray-600 hover:bg-gray-100 rounded-lg w-1/3 font-medium">Cancel</button>
-              <button onClick={confirmPayment} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg w-2/3 shadow-lg shadow-blue-200">Pay Now</button>
+              <button onClick={() => setShowSimulatedPayment(false)} className="px-4 py-3 text-gray-600 hover:bg-gray-100 rounded-lg w-1/3 font-medium">Cancel</button>
+              <button onClick={() => finalizeBooking()} className="px-6 py-3 bg-nature-600 hover:bg-nature-700 text-white font-bold rounded-lg w-2/3 shadow-lg">Simulate Success</button>
             </div>
           </div>
         </div>
