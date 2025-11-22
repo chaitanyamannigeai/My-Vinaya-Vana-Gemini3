@@ -90,16 +90,17 @@ app.get('/api/rooms', async (req, res) => {
 });
 
 app.post('/api/rooms', async (req, res) => {
-  const { id, name, description, basePrice, capacity, amenities, images } = req.body;
-  try {
-    // Safety Fallbacks: Ensure no value is undefined/null before sending to DB
-    const safeName = name || 'New Room';
-    const safeDesc = description || '';
-    const safePrice = basePrice || 0;
-    const safeCap = capacity || 1;
-    const safeAm = JSON.stringify(amenities || []);
-    const safeImg = JSON.stringify(images || []);
+  // FIX: Accept both camelCase (from frontend) and snake_case (if sent manually) to prevent null errors
+  const id = req.body.id;
+  const name = req.body.name || 'New Room';
+  const description = req.body.description || '';
+  // Robust check for price
+  const basePrice = req.body.basePrice !== undefined ? req.body.basePrice : (req.body.base_price !== undefined ? req.body.base_price : 0);
+  const capacity = req.body.capacity || 1;
+  const amenities = JSON.stringify(req.body.amenities || []);
+  const images = JSON.stringify(req.body.images || []);
 
+  try {
     // MySQL 8 compatible syntax: AS new_vals
     const sql = `INSERT INTO rooms (id, name, description, base_price, capacity, amenities, images) 
                  VALUES (?, ?, ?, ?, ?, ?, ?) 
@@ -108,7 +109,7 @@ app.post('/api/rooms', async (req, res) => {
                  name=new_vals.name, description=new_vals.description, base_price=new_vals.base_price, 
                  capacity=new_vals.capacity, amenities=new_vals.amenities, images=new_vals.images`;
     
-    await pool.query(sql, [id, safeName, safeDesc, safePrice, safeCap, safeAm, safeImg]);
+    await pool.query(sql, [id, name, description, basePrice, capacity, amenities, images]);
     res.json({ success: true });
   } catch (err) { 
       console.error('Error saving room:', err);
