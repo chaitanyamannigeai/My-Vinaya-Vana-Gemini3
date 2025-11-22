@@ -183,7 +183,8 @@ const AdminDashboard = () => {
           description: '',
           imageUrl: 'https://images.unsplash.com/photo-1590664095612-2d4e5e0a8d7a?auto=format&fit=crop&q=80&w=400',
           active: true,
-          driverId: null
+          driverId: null,
+          price: 0 // Default price to prevent undefined errors
       };
       setLocations([newLoc, ...locations]);
   };
@@ -198,7 +199,10 @@ const AdminDashboard = () => {
           try {
               await api.locations.save(loc);
               alert("Location Saved!");
-          } catch (e) { alert("Error saving location"); }
+          } catch (e) { 
+            console.error(e);
+            alert("Error saving location"); 
+          }
       }
   };
 

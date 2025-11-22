@@ -223,9 +223,12 @@ app.get('/api/locations', async (req, res) => {
 app.post('/api/locations', async (req, res) => {
     let { id, name, description, imageUrl, price, driverId, active } = req.body;
     
-    // Sanitization: Convert undefined/null to DB friendly values
-    price = (price === undefined || price === null || price === '') ? null : parseFloat(price);
+    // Sanitization: Convert undefined/null/empty to 0 for price (safer for DB)
+    price = (price === undefined || price === null || price === '') ? 0 : parseFloat(price);
+    
+    // Driver ID: use null if empty string
     driverId = (driverId === 'default' || driverId === '' || driverId === undefined) ? null : driverId;
+    
     active = active === undefined ? true : active;
 
     try {
