@@ -36,6 +36,13 @@ const handleResponse = async (response: Response) => {
 const getUrl = (endpoint: string) => `${API_URL}${endpoint}?_t=${Date.now()}`;
 
 export const api = {
+    auth: {
+        login: async (password: string) => handleResponse(await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        }))
+    },
     rooms: {
         getAll: async (): Promise<Room[]> => handleResponse(await fetch(getUrl('/rooms'))),
         save: async (room: Room) => handleResponse(await fetch(`${API_URL}/rooms`, {

@@ -94,6 +94,33 @@ const parseJSON = (data) => {
     return data;
 };
 
+// --- AUTH API (New for Faster Login) ---
+app.post('/api/auth/login', async (req, res) => {
+    const { password } = req.body;
+    try {
+        // Fetch only settings to check password on server side
+        const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
+        let adminPassword = 'admin123'; // Default
+        
+        if (rows.length > 0) {
+            const settings = parseJSON(rows[0].value);
+            if (settings && settings.adminPasswordHash) {
+                adminPassword = settings.adminPasswordHash;
+            }
+        }
+
+        if (password === adminPassword) {
+            res.json({ success: true });
+        } else {
+            res.status(401).json({ error: 'Invalid password' });
+        }
+    } catch (err) {
+        console.error("Login error:", err);
+        res.status(500).json({ error: 'Internal server error checking password' });
+    }
+});
+
+
 // --- 1. ROOMS API ---
 app.get('/api/rooms', async (req, res) => {
   try {
