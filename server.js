@@ -20,15 +20,6 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); // Increased limit for base64 images
 
-// --- CRITICAL FIX: DISABLE CACHING ---
-// This forces the browser to fetch fresh data from the DB every single time
-app.use((req, res, next) => {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
-    next();
-});
-
 // Database Connection Pool (MySQL)
 const pool = mysql.createPool(process.env.DATABASE_URL || '');
 

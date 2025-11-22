@@ -24,6 +24,14 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   houseRules: "Check-in time: 12:00 PM | Check-out time: 11:00 AM.\nGovt ID proof is mandatory for all guests.\nQuiet hours start from 10:00 PM.\nSmoking is not allowed inside the rooms.\nPets are not allowed.\nCancellation: 50% refund if cancelled 7 days prior."
 };
 
+// --- IN-MEMORY CACHE ---
+// Stores API responses to make navigation instant
+const cache: Record<string, any> = {};
+
+const clearCache = () => {
+    for (const key in cache) delete cache[key];
+};
+
 const handleResponse = async (response: Response) => {
     if (!response.ok) {
         const text = await response.text();
@@ -32,61 +40,55 @@ const handleResponse = async (response: Response) => {
     return response.json();
 };
 
-// Cache Buster Helper: Appends ?t=timestamp to URLs to force fresh fetch
-const getUrl = (endpoint: string) => `${API_URL}${endpoint}?_t=${Date.now()}`;
+// Optimized fetcher: Checks cache first for GET requests
+const fetchWithCache = async (endpoint: string) => {
+    if (cache[endpoint]) {
+        return cache[endpoint];
+    }
+    const data = await handleResponse(await fetch(`${API_URL}${endpoint}`));
+    cache[endpoint] = data;
+    return data;
+};
+
+// Mutator: Sends data and clears cache to ensure freshness on next fetch
+const mutate = async (endpoint: string, method: 'POST' | 'PUT' | 'DELETE', body?: any) => {
+    clearCache(); // Clear cache on any change so user sees updates
+    const options: RequestInit = {
+        method,
+        headers: body ? { 'Content-Type': 'application/json' } : undefined,
+        body: body ? JSON.stringify(body) : undefined
+    };
+    return handleResponse(await fetch(`${API_URL}${endpoint}`, options));
+};
 
 export const api = {
     auth: {
-        login: async (password: string) => handleResponse(await fetch(`${API_URL}/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password })
-        }))
+        login: async (password: string) => mutate('/auth/login', 'POST', { password })
     },
     rooms: {
-        getAll: async (): Promise<Room[]> => handleResponse(await fetch(getUrl('/rooms'))),
-        save: async (room: Room) => handleResponse(await fetch(`${API_URL}/rooms`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(room)
-        })),
-        delete: async (id: string) => handleResponse(await fetch(`${API_URL}/rooms/${id}`, { method: 'DELETE' }))
+        getAll: async (): Promise<Room[]> => fetchWithCache('/rooms'),
+        save: async (room: Room) => mutate('/rooms', 'POST', room),
+        delete: async (id: string) => mutate(`/rooms/${id}`, 'DELETE')
     },
     bookings: {
-        getAll: async (): Promise<Booking[]> => handleResponse(await fetch(getUrl('/bookings'))),
-        add: async (booking: Booking) => handleResponse(await fetch(`${API_URL}/bookings`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(booking)
-        })),
-        updateStatus: async (id: string, status: PaymentStatus) => handleResponse(await fetch(`${API_URL}/bookings/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status })
-        }))
+        getAll: async (): Promise<Booking[]> => fetchWithCache('/bookings'),
+        add: async (booking: Booking) => mutate('/bookings', 'POST', booking),
+        updateStatus: async (id: string, status: PaymentStatus) => mutate(`/bookings/${id}`, 'PUT', { status })
     },
     drivers: {
-        getAll: async (): Promise<Driver[]> => handleResponse(await fetch(getUrl('/drivers'))),
-        save: async (driver: Driver) => handleResponse(await fetch(`${API_URL}/drivers`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(driver)
-        })),
-        delete: async (id: string) => handleResponse(await fetch(`${API_URL}/drivers/${id}`, { method: 'DELETE' }))
+        getAll: async (): Promise<Driver[]> => fetchWithCache('/drivers'),
+        save: async (driver: Driver) => mutate('/drivers', 'POST', driver),
+        delete: async (id: string) => mutate(`/drivers/${id}`, 'DELETE')
     },
     locations: {
-        getAll: async (): Promise<CabLocation[]> => handleResponse(await fetch(getUrl('/locations'))),
-        save: async (location: CabLocation) => handleResponse(await fetch(`${API_URL}/locations`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(location)
-        })),
-        delete: async (id: string) => handleResponse(await fetch(`${API_URL}/locations/${id}`, { method: 'DELETE' }))
+        getAll: async (): Promise<CabLocation[]> => fetchWithCache('/locations'),
+        save: async (location: CabLocation) => mutate('/locations', 'POST', location),
+        delete: async (id: string) => mutate(`/locations/${id}`, 'DELETE')
     },
     settings: {
         get: async (): Promise<SiteSettings> => {
              try {
-                const settings = await handleResponse(await fetch(getUrl('/settings')));
+                const settings = await fetchWithCache('/settings');
                 // Merge with defaults in case DB is partial or empty
                 return { ...DEFAULT_SETTINGS, ...settings, longStayDiscount: { ...DEFAULT_SETTINGS.longStayDiscount, ...(settings.longStayDiscount || {}) } };
              } catch (e) {
@@ -94,37 +96,21 @@ export const api = {
                  return DEFAULT_SETTINGS;
              }
         },
-        save: async (settings: SiteSettings) => handleResponse(await fetch(`${API_URL}/settings`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(settings)
-        }))
+        save: async (settings: SiteSettings) => mutate('/settings', 'POST', settings)
     },
     gallery: {
-        getAll: async (): Promise<GalleryItem[]> => handleResponse(await fetch(getUrl('/gallery'))),
-        save: async (item: GalleryItem) => handleResponse(await fetch(`${API_URL}/gallery`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(item)
-        })),
-        delete: async (id: string) => handleResponse(await fetch(`${API_URL}/gallery/${id}`, { method: 'DELETE' }))
+        getAll: async (): Promise<GalleryItem[]> => fetchWithCache('/gallery'),
+        save: async (item: GalleryItem) => mutate('/gallery', 'POST', item),
+        delete: async (id: string) => mutate(`/gallery/${id}`, 'DELETE')
     },
     reviews: {
-        getAll: async (): Promise<Review[]> => handleResponse(await fetch(getUrl('/reviews'))),
-        save: async (review: Review) => handleResponse(await fetch(`${API_URL}/reviews`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(review)
-        })),
-        delete: async (id: string) => handleResponse(await fetch(`${API_URL}/reviews/${id}`, { method: 'DELETE' }))
+        getAll: async (): Promise<Review[]> => fetchWithCache('/reviews'),
+        save: async (review: Review) => mutate('/reviews', 'POST', review),
+        delete: async (id: string) => mutate(`/reviews/${id}`, 'DELETE')
     },
     pricing: {
-        getAll: async (): Promise<PricingRule[]> => handleResponse(await fetch(getUrl('/pricing'))),
-        save: async (rule: PricingRule) => handleResponse(await fetch(`${API_URL}/pricing`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(rule)
-        })),
-        delete: async (id: string) => handleResponse(await fetch(`${API_URL}/pricing/${id}`, { method: 'DELETE' }))
+        getAll: async (): Promise<PricingRule[]> => fetchWithCache('/pricing'),
+        save: async (rule: PricingRule) => mutate('/pricing', 'POST', rule),
+        delete: async (id: string) => mutate(`/pricing/${id}`, 'DELETE')
     }
 };
