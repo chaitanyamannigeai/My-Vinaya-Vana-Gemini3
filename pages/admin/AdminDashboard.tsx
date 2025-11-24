@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
@@ -815,6 +816,10 @@ const AdminDashboard = () => {
                  <div>
                     <label className="block text-sm font-medium text-gray-700">Admin Password</label>
                     <input type="text" value={settings.adminPasswordHash} onChange={(e) => setSettings({...settings, adminPasswordHash: e.target.value})} className="mt-1 block w-full border p-2 rounded bg-gray-50"/>
+                </div>
+                 <div>
+                    <label className="block text-sm font-medium text-gray-700">OpenWeatherMap API Key</label>
+                    <input type="text" value={settings.weatherApiKey || ''} onChange={(e) => setSettings({...settings, weatherApiKey: e.target.value})} className="mt-1 block w-full border p-2 rounded"/>
                 </div>
             </div>
         </div>

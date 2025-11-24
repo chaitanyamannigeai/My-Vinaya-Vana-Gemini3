@@ -67,6 +67,7 @@ export interface SiteSettings {
     percentage: number;
   };
   houseRules: string;
+  weatherApiKey?: string; // Added for OpenWeatherMap
 }
 
 export interface GalleryItem {

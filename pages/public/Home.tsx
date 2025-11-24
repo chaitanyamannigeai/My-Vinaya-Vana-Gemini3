@@ -2,13 +2,21 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
-import { ArrowRight, Coffee, Wifi, Wind, Palmtree, Star, Play, Quote } from 'lucide-react';
-import { Review, Room } from '../../types';
+import { ArrowRight, Coffee, Wifi, Wind, Palmtree, Star, Play, Quote, Sun, Cloud, CloudRain } from 'lucide-react';
+import { Review, Room, SiteSettings } from '../../types';
+
+interface WeatherData {
+  temp: number;
+  description: string;
+  icon: string;
+}
 
 const Home = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(true);
   const featuredRoom = rooms[0];
 
   useEffect(() => {
@@ -22,8 +30,26 @@ const Home = () => {
         setRooms(fetchedRooms);
         setReviews(fetchedReviews.filter(r => r.showOnHome));
         setSettings(fetchedSettings);
+
+        // Fetch weather if API key is present
+        if (fetchedSettings.weatherApiKey) {
+            setWeatherLoading(true);
+            try {
+                const weatherData = await api.weather.getForecast('Gokarna'); // Hardcoded location for now
+                setWeather(weatherData);
+            } catch (weatherErr) {
+                console.error("Failed to fetch weather:", weatherErr);
+                setWeather(null);
+            } finally {
+                setWeatherLoading(false);
+            }
+        } else {
+            setWeatherLoading(false);
+        }
+
       } catch (err) {
-          console.error(err);
+          console.error("Failed to load initial data", err);
+          setWeatherLoading(false); // Ensure loading state is reset even if main data fails
       }
     };
     fetchData();
@@ -39,6 +65,13 @@ const Home = () => {
   };
 
   const videoEmbedUrl = getYoutubeEmbedUrl(settings.youtubeVideoUrl);
+
+  const getWeatherIcon = (iconCode: string) => {
+    if (!iconCode) return <Sun size={20} className="text-yellow-400" />;
+    if (iconCode.includes('rain')) return <CloudRain size={20} className="text-blue-400" />;
+    if (iconCode.includes('cloud')) return <Cloud size={20} className="text-gray-400" />;
+    return <Sun size={20} className="text-yellow-400" />; // Default to sun
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -67,6 +100,28 @@ const Home = () => {
           >
             Check Availability <ArrowRight size={20} />
           </Link>
+          
+          {/* Weather Widget */}
+          {settings.weatherApiKey && (
+              <div className="mt-8 flex justify-center">
+                  {weatherLoading ? (
+                      <div className="bg-white/10 backdrop-blur-sm text-white text-sm px-4 py-2 rounded-full flex items-center gap-2">
+                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                          Loading weather...
+                      </div>
+                  ) : weather ? (
+                      <div className="bg-white/10 backdrop-blur-sm text-white text-sm px-4 py-2 rounded-full flex items-center gap-2 border border-white/20 shadow-lg">
+                          {getWeatherIcon(weather.icon)}
+                          <span>{weather.description}, {Math.round(weather.temp)}°C</span>
+                      </div>
+                  ) : (
+                      <div className="bg-white/10 backdrop-blur-sm text-white text-sm px-4 py-2 rounded-full flex items-center gap-2 border border-white/20 shadow-lg">
+                          <Cloud size={16} className="text-gray-300"/>
+                          <span>Weather unavailable</span>
+                      </div>
+                  )}
+              </div>
+          )}
         </div>
       </div>
 

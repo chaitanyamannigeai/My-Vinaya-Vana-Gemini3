@@ -105,7 +105,7 @@ const Login = () => {
                     <h4 className="font-bold text-gray-800 mb-2">How to Reset Password manually:</h4>
                     <p className="text-sm text-gray-600 mb-4">You must run a SQL command in your Aiven Database Console.</p>
                     
-                    <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-xs overflow-x-auto mb-4 shadow-inner">
+                    <div className="bg-gray-900 text-green-400 font-mono p-4 rounded-lg text-xs overflow-x-auto mb-4 shadow-inner">
                         {`UPDATE site_settings 
 SET value = JSON_SET(value, '$.adminPasswordHash', 'admin123') 
 WHERE key_name = 'general_settings';`}

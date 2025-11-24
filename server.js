@@ -1,3 +1,4 @@
+
 import express from 'express';
 import path from 'path';
 import mysql from 'mysql2/promise';
@@ -5,6 +6,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import axios from 'axios'; // Import axios for HTTP requests
 
 // Load environment variables
 dotenv.config();
@@ -331,6 +333,43 @@ app.post('/api/settings', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// --- WEATHER API ---
+app.get('/api/weather', async (req, res) => {
+    try {
+        const [settingsRows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
+        if (settingsRows.length === 0) {
+            return res.status(400).json({ error: "Weather API Key not configured in settings." });
+        }
+        const settings = parseJSON(settingsRows[0].value);
+        const apiKey = settings.weatherApiKey;
+        const location = req.query.location || 'Gokarna'; // Default to Gokarna
+
+        if (!apiKey) {
+            return res.status(400).json({ error: "OpenWeatherMap API Key is missing in site settings." });
+        }
+
+        const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${apiKey}&units=metric`;
+        const weatherResponse = await axios.get(weatherUrl);
+
+        res.json({
+            temp: weatherResponse.data.main.temp,
+            description: weatherResponse.data.weather[0].description,
+            icon: weatherResponse.data.weather[0].icon,
+        });
+
+    } catch (err: any) {
+        console.error("Weather fetch error:", err.message);
+        if (err.response && err.response.status === 401) {
+            return res.status(401).json({ error: "Invalid OpenWeatherMap API Key." });
+        }
+        if (err.response && err.response.status === 404) {
+            return res.status(404).json({ error: "Location not found in weather data." });
+        }
+        res.status(500).json({ error: "Failed to fetch weather data." });
+    }
+});
+
+
 // --- 6. GALLERY API ---
 app.get('/api/gallery', async (req, res) => {
     try {
@@ -396,8 +435,10 @@ app.post('/api/reviews', async (req, res) => {
                      comment=new_vals.comment, date=new_vals.date, show_on_home=new_vals.show_on_home`;
         await pool.query(sql, [id, guestName, location, rating, comment, date, showOnHome]);
         res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    }
+    catch (err) { console.error("Error saving review:", err); res.status(500).json({ error: err.message }); }
 });
+
 
 app.delete('/api/reviews/:id', async (req, res) => {
     try {

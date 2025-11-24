@@ -21,7 +21,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     minDays: 5,
     percentage: 20
   },
-  houseRules: "Check-in time: 12:00 PM | Check-out time: 11:00 AM.\nGovt ID proof is mandatory for all guests.\nQuiet hours start from 10:00 PM.\nSmoking is not allowed inside the rooms.\nPets are not allowed.\nCancellation: 50% refund if cancelled 7 days prior."
+  houseRules: "Check-in time: 12:00 PM | Check-out time: 11:00 AM.\nGovt ID proof is mandatory for all guests.\nQuiet hours start from 10:00 PM.\nSmoking is not allowed inside the rooms.\nPets are not allowed.\nCancellation: 50% refund if cancelled 7 days prior.",
+  weatherApiKey: '' // Placeholder for OpenWeatherMap API key
 };
 
 // --- IN-MEMORY CACHE ---
@@ -112,5 +113,8 @@ export const api = {
         getAll: async (): Promise<PricingRule[]> => fetchWithCache('/pricing'),
         save: async (rule: PricingRule) => mutate('/pricing', 'POST', rule),
         delete: async (id: string) => mutate(`/pricing/${id}`, 'DELETE')
+    },
+    weather: {
+        getForecast: async (location: string) => fetchWithCache(`/weather?location=${location}`)
     }
 };
