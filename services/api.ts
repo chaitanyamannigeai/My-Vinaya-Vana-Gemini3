@@ -1,5 +1,4 @@
-
-import { Room, Booking, Driver, CabLocation, SiteSettings, GalleryItem, PricingRule, Review, PaymentStatus } from '../types';
+import { Room, Booking, Driver, CabLocation, SiteSettings, GalleryItem, PricingRule, Review, PaymentStatus, WeatherData } from '../types'; // Import WeatherData
 
 const API_URL = '/api';
 
@@ -11,7 +10,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   razorpayKey: 'rzp_test_123456789',
   enableOnlinePayments: true,
   adminPasswordHash: 'admin123',
-  heroImageUrl: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&q=80&w=1920',
+  heroImageUrl: 'https://images.unsplash.com/photo-1579546059633-82084666f7f6?auto=format&fit=crop&q=80&w=1920&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', // Updated to coconut palm
   youtubeVideoUrl: 'https://www.youtube.com/watch?v=LXb3EKWsInQ',
   facebookUrl: 'https://www.facebook.com/',
   instagramUrl: 'https://www.instagram.com/',
@@ -39,6 +38,20 @@ const handleResponse = async (response: Response) => {
         throw new Error(text || `HTTP error! status: ${response.status}`);
     }
     return response.json();
+};
+
+// Deep merge utility for settings
+const deepMerge = (target: any, source: any) => {
+    for (const key in source) {
+        if (source.hasOwnProperty(key)) {
+            if (typeof source[key] === 'object' && source[key] !== null && !Array.isArray(source[key]) && typeof target[key] === 'object' && target[key] !== null && !Array.isArray(target[key])) {
+                target[key] = deepMerge(target[key], source[key]);
+            } else {
+                target[key] = source[key];
+            }
+        }
+    }
+    return target;
 };
 
 // Optimized fetcher: Checks cache first for GET requests
@@ -90,8 +103,8 @@ export const api = {
         get: async (): Promise<SiteSettings> => {
              try {
                 const settings = await fetchWithCache('/settings');
-                // Merge with defaults in case DB is partial or empty
-                return { ...DEFAULT_SETTINGS, ...settings, longStayDiscount: { ...DEFAULT_SETTINGS.longStayDiscount, ...(settings.longStayDiscount || {}) } };
+                // Use deepMerge for robustness
+                return deepMerge({ ...DEFAULT_SETTINGS }, settings);
              } catch (e) {
                  console.warn("Failed to fetch settings, using defaults", e);
                  return DEFAULT_SETTINGS;
@@ -115,6 +128,9 @@ export const api = {
         delete: async (id: string) => mutate(`/pricing/${id}`, 'DELETE')
     },
     weather: {
-        getForecast: async (location: string) => fetchWithCache(`/weather?location=${location}`)
+        getForecast: async (location: string): Promise<WeatherData> => fetchWithCache(`/weather?location=${location}`)
+    },
+    docs: {
+        getSqlScript: async (): Promise<string> => fetchWithCache('/docs/sql-script')
     }
 };

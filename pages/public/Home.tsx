@@ -1,15 +1,8 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
-import { ArrowRight, Coffee, Wifi, Wind, Palmtree, Star, Play, Quote, Sun, Cloud, CloudRain } from 'lucide-react';
-import { Review, Room, SiteSettings } from '../../types';
-
-interface WeatherData {
-  temp: number;
-  description: string;
-  icon: string;
-}
+import { ArrowRight, Coffee, Wifi, Wind, Palmtree, Star, Play, Quote, Sun, Cloud, CloudRain, CloudFog, CloudLightning, CloudDrizzle, Snowflake, Droplets, Thermometer, Moon, Wind as WindIcon } from 'lucide-react'; // Added more icons
+import { Review, Room, SiteSettings, WeatherData } from '../../types'; // Import WeatherData from types
 
 const Home = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -67,10 +60,24 @@ const Home = () => {
   const videoEmbedUrl = getYoutubeEmbedUrl(settings.youtubeVideoUrl);
 
   const getWeatherIcon = (iconCode: string) => {
-    if (!iconCode) return <Sun size={20} className="text-yellow-400" />;
-    if (iconCode.includes('rain')) return <CloudRain size={20} className="text-blue-400" />;
-    if (iconCode.includes('cloud')) return <Cloud size={20} className="text-gray-400" />;
-    return <Sun size={20} className="text-yellow-400" />; // Default to sun
+    // Mapping OpenWeatherMap icons to Lucide icons
+    // See https://openweathermap.org/weather-conditions#Weather-condition-codes-2
+    if (!iconCode) return <Sun size={24} className="text-yellow-400" />;
+    
+    if (iconCode.startsWith('01d')) return <Sun size={24} className="text-yellow-400" />; // Clear sky day
+    if (iconCode.startsWith('01n')) return <Moon size={24} className="text-blue-200" />; // Clear sky night
+    if (iconCode.startsWith('02d')) return <Cloud size={24} className="text-gray-300" />; // Few clouds day
+    if (iconCode.startsWith('02n')) return <Cloud size={24} className="text-gray-300" />; // Few clouds night
+    if (iconCode.startsWith('03')) return <Cloud size={24} className="text-gray-400" />; // Scattered clouds
+    if (iconCode.startsWith('04')) return <Cloud size={24} className="text-gray-500" />; // Broken clouds
+    if (iconCode.startsWith('09')) return <CloudRain size={24} className="text-blue-400" />; // Shower rain
+    if (iconCode.startsWith('10d')) return <CloudDrizzle size={24} className="text-blue-400" />; // Rain day
+    if (iconCode.startsWith('10n')) return <CloudDrizzle size={24} className="text-blue-400" />; // Rain night
+    if (iconCode.startsWith('11')) return <CloudLightning size={24} className="text-gray-400" />; // Thunderstorm
+    if (iconCode.startsWith('13')) return <Snowflake size={24} className="text-blue-200" />; // Snow
+    if (iconCode.startsWith('50')) return <CloudFog size={24} className="text-gray-400" />; // Mist
+
+    return <Sun size={24} className="text-yellow-400" />; // Default fallback
   }
 
   return (
@@ -105,19 +112,26 @@ const Home = () => {
           {settings.weatherApiKey && (
               <div className="mt-8 flex justify-center">
                   {weatherLoading ? (
-                      <div className="bg-white/10 backdrop-blur-sm text-white text-sm px-4 py-2 rounded-full flex items-center gap-2">
-                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                          Loading weather...
+                      <div className="bg-white/10 backdrop-blur-sm text-white text-sm px-6 py-3 rounded-full flex items-center gap-3 border border-white/20 shadow-lg">
+                          <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                          <span>Loading weather...</span>
                       </div>
                   ) : weather ? (
-                      <div className="bg-white/10 backdrop-blur-sm text-white text-sm px-4 py-2 rounded-full flex items-center gap-2 border border-white/20 shadow-lg">
-                          {getWeatherIcon(weather.icon)}
-                          <span>{weather.description}, {Math.round(weather.temp)}°C</span>
+                      <div className="bg-white/10 backdrop-blur-sm text-white px-6 py-4 rounded-xl flex items-center gap-4 border border-white/20 shadow-xl max-w-sm w-full">
+                          <div className="flex-shrink-0">
+                              {getWeatherIcon(weather.icon)}
+                          </div>
+                          <div className="text-left">
+                              <p className="text-lg font-bold">Gokarna Weather</p>
+                              <p className="text-3xl font-bold mb-1">{Math.round(weather.temp)}°C</p>
+                              <p className="text-sm capitalize">{weather.description}, Feels like {Math.round(weather.feelsLike)}°C</p>
+                              <p className="text-xs text-nature-200 mt-1">Humidity: {weather.humidity}%, Wind: {weather.windSpeed} m/s</p>
+                          </div>
                       </div>
                   ) : (
-                      <div className="bg-white/10 backdrop-blur-sm text-white text-sm px-4 py-2 rounded-full flex items-center gap-2 border border-white/20 shadow-lg">
-                          <Cloud size={16} className="text-gray-300"/>
-                          <span>Weather unavailable</span>
+                      <div className="bg-white/10 backdrop-blur-sm text-white text-sm px-6 py-4 rounded-xl flex items-center gap-4 border border-white/20 shadow-lg max-w-sm w-full">
+                          <Cloud size={24} className="text-gray-300"/>
+                          <p className="text-lg font-bold">Weather unavailable</p>
                       </div>
                   )}
               </div>
@@ -135,7 +149,7 @@ const Home = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             <div className="p-8 bg-nature-50 rounded-2xl shadow-sm hover:shadow-md transition-all hover:-translate-y-1">
               <div className="w-16 h-16 bg-nature-200 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Wind className="text-nature-700 w-8 h-8" />
+                <WindIcon className="text-nature-700 w-8 h-8" />
               </div>
               <h3 className="text-xl font-semibold mb-3 text-nature-900">Green Atmosphere</h3>
               <p className="text-gray-600 leading-relaxed">Breathe fresh air surrounded by tall coconut trees and lush greenery in a private 1-acre property.</p>

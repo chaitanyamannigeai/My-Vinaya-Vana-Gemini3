@@ -1,4 +1,3 @@
-
 export enum PaymentStatus {
   PENDING = 'PENDING',
   PAID = 'PAID',
@@ -93,4 +92,13 @@ export interface Review {
   comment: string;
   date: string;
   showOnHome: boolean;
+}
+
+export interface WeatherData {
+  temp: number;
+  feelsLike: number; // Added
+  humidity: number;  // Added
+  windSpeed: number; // Added
+  description: string;
+  icon: string;
 }

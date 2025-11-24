@@ -83,6 +83,7 @@ const parseJSON = (data) => {
     if (typeof data === 'string') {
         try { return JSON.parse(data); } catch (e) { return data; }
     }
+    // If it's not a string, or parsing failed, return as is or a default for expected types
     return data;
 };
 
@@ -135,20 +136,18 @@ app.get('/api/rooms', async (req, res) => {
 });
 
 app.post('/api/rooms', async (req, res) => {
-  // FIX: Accept both camelCase (from frontend) and snake_case (if sent manually) to prevent null errors
   const id = req.body.id;
   const name = req.body.name || 'New Room';
   const description = req.body.description || '';
-  // Robust check for price
-  let basePrice = req.body.basePrice !== undefined ? req.body.basePrice : (req.body.base_price !== undefined ? req.body.base_price : 0);
+  
+  let basePrice = req.body.basePrice !== undefined ? req.body.basePrice : 0;
   if (isNaN(parseFloat(basePrice))) basePrice = 0;
   
-  const capacity = req.body.capacity || 1;
+  const capacity = req.body.capacity !== undefined ? req.body.capacity : 1;
   const amenities = JSON.stringify(req.body.amenities || []);
   const images = JSON.stringify(req.body.images || []);
 
   try {
-    // MySQL 8 compatible syntax: AS new_vals
     const sql = `INSERT INTO rooms (id, name, description, base_price, capacity, amenities, images) 
                  VALUES (?, ?, ?, ?, ?, ?, ?) 
                  AS new_vals 
@@ -270,17 +269,13 @@ app.get('/api/locations', async (req, res) => {
 app.post('/api/locations', async (req, res) => {
     let { id, name, description, imageUrl, price, driverId, active } = req.body;
     
-    // Sanitization: Convert undefined/null/empty/NaN to 0 for price (safer for DB)
     price = parseFloat(price);
     if (isNaN(price)) price = 0;
     
-    // Driver ID: use null if empty string or 'default'
     driverId = (driverId === 'default' || driverId === '' || driverId === undefined) ? null : driverId;
     
-    // Active: Default to true
     active = active === undefined ? true : active;
 
-    // Name/Desc fallback
     name = name || 'New Location';
     description = description || '';
 
@@ -352,11 +347,14 @@ app.get('/api/weather', async (req, res) => {
 
         res.json({
             temp: weatherResponse.data.main.temp,
+            feelsLike: weatherResponse.data.main.feels_like, // Added
+            humidity: weatherResponse.data.main.humidity,     // Added
+            windSpeed: weatherResponse.data.wind.speed,       // Added
             description: weatherResponse.data.weather[0].description,
             icon: weatherResponse.data.weather[0].icon,
         });
 
-    } catch (err) { // FIX: Removed ': any' from catch block
+    } catch (err) { 
         console.error("Weather fetch error:", err.message);
         if (err.response && err.response.status === 401) {
             return res.status(401).json({ error: "Invalid OpenWeatherMap API Key." });
@@ -481,6 +479,20 @@ app.delete('/api/pricing/:id', async (req, res) => {
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+// --- API for fetching SQL script (for Docs page) ---
+app.get('/api/docs/sql-script', (req, res) => {
+    const sqlScriptPath = path.join(__dirname, 'database.sql');
+    fs.readFile(sqlScriptPath, 'utf8', (err, data) => {
+        if (err) {
+            console.error("Error reading database.sql:", err);
+            return res.status(500).json({ error: 'Failed to read SQL script' });
+        }
+        res.setHeader('Content-Type', 'text/plain');
+        res.send(data);
+    });
+});
+
 
 // --- Handle 404 for API routes explicitly ---
 app.use('/api/*', (req, res) => {
