@@ -349,6 +349,8 @@ app.get('/api/weather', async (req, res) => {
             return res.status(400).json({ error: "OpenWeatherMap API Key is missing in site settings." });
         }
 
+        console.log(`DEBUG: Using Weather API Key: ${apiKey.substring(0, 5)}...`); // DEBUG LOG
+
         const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${apiKey}&units=metric`;
         const weatherResponse = await axios.get(weatherUrl);
 
@@ -385,6 +387,7 @@ app.post('/api/analytics/track-hit', async (req, res) => {
         const sql = "INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) AS new_vals ON DUPLICATE KEY UPDATE value=new_vals.value";
         await pool.query(sql, [JSON.stringify(settings)]);
         
+        console.log(`INFO: Website hit tracked. New hits: ${settings.websiteHits}`); // DEBUG LOG
         res.json({ success: true, newHits: settings.websiteHits });
     } catch (err) {
         console.error("Error tracking hit:", err);

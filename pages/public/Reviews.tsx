@@ -40,7 +40,7 @@ const Reviews = () => {
                         key={i} 
                         size={16} 
                         fill={i < review.rating ? "#FBBF24" : "none"} 
-                        className={i < review.rating ? "text-yellow-400" : "text-gray-300"} 
+                        className={i < review.rating ? "" : "text-gray-300"} 
                     />
                   ))}
                 </div>

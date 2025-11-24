@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from 'react';
 declare global {
   interface Window {
     google: any;
-    googleTranslateElementInit: () => void;
+    googleTranslateElementInit: (() => void) | undefined; // Allow undefined
   }
 }
 
@@ -12,49 +12,55 @@ interface GoogleTranslateProps {
 }
 
 const GoogleTranslate: React.FC<GoogleTranslateProps> = ({ mobile }) => {
-  const isInitialized = useRef(false);
-  const containerRef = useRef<HTMLDivElement>(null); // Use ref for the container
+  const containerRef = useRef<HTMLDivElement>(null); 
   const containerId = mobile ? "google_translate_element_mobile" : "google_translate_element";
+  const isWidgetRendered = useRef(false); // Track if widget is already in DOM
 
   useEffect(() => {
     const initializeGoogleTranslate = () => {
+      // Only proceed if google.translate is ready AND container exists AND it's empty
       if (window.google && window.google.translate && window.google.translate.TranslateElement && containerRef.current && !containerRef.current.hasChildNodes()) {
-        new window.google.translate.TranslateElement(
-          {
-            pageLanguage: 'en',
-            layout: window.google.translate.TranslateElement.InlineLayout?.SIMPLE ?? 0,
-            autoDisplay: false,
-            includedLanguages: 'en,fr,de,es,it,ru,nl,pt,ja,he'
-          },
-          containerId
-        );
-        isInitialized.current = true;
+        try {
+            new window.google.translate.TranslateElement(
+              {
+                pageLanguage: 'en',
+                layout: window.google.translate.TranslateElement.InlineLayout?.SIMPLE ?? 0,
+                autoDisplay: false,
+                includedLanguages: 'en,fr,de,es,it,ru,nl,pt,ja,he'
+              },
+              containerId
+            );
+            isWidgetRendered.current = true; // Mark as rendered
+        } catch (e) {
+            console.error("Google Translate initialization failed:", e);
+            // This might happen if the layout property is not found, etc.
+        }
       }
     };
 
-    // Define the Init Function globally
+    // Ensure window.googleTranslateElementInit is globally accessible for the script
     window.googleTranslateElementInit = initializeGoogleTranslate;
 
-    // Load Script if missing
+    // Load the script only once
     const scriptId = 'google-translate-script';
     if (!document.getElementById(scriptId)) {
       const script = document.createElement('script');
       script.id = scriptId;
       script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
       script.async = true;
-      document.body.appendChild(script);
+      document.head.appendChild(script); // Append to head for better practice
     } else {
-        // If script exists, manually trigger init if fully ready and not yet initialized
-        if (!isInitialized.current && window.google && window.google.translate && window.google.translate.TranslateElement) {
+        // If script is already there, and not yet rendered, try to initialize directly
+        if (!isWidgetRendered.current && window.google && window.google.translate) {
             initializeGoogleTranslate();
         }
     }
 
-    // Use MutationObserver for robust re-initialization if the DOM changes or widget gets removed
+    // Use MutationObserver to robustly re-initialize if the DOM changes or widget gets removed
+    // This catches scenarios where React might unmount/remount parts of the Navbar
     const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
-            // Check if the container became empty or if the element we need to attach to is present but empty
-            if (!isInitialized.current && containerRef.current && !containerRef.current.hasChildNodes()) {
+            if (mutation.type === 'childList' && containerRef.current && !isWidgetRendered.current && !containerRef.current.hasChildNodes()) {
                 initializeGoogleTranslate();
             }
         });
@@ -67,13 +73,11 @@ const GoogleTranslate: React.FC<GoogleTranslateProps> = ({ mobile }) => {
     // Cleanup
     return () => {
         observer.disconnect();
-        // Clean up global function to avoid conflicts if component unmounts and remounts rapidly
+        // Clean up the global function reference
         if (window.googleTranslateElementInit === initializeGoogleTranslate) {
             delete window.googleTranslateElementInit;
         }
-        // If script needs to be removed from DOM (less common for global scripts)
-        // const script = document.getElementById(scriptId);
-        // if (script && script.parentNode) script.parentNode.removeChild(script);
+        isWidgetRendered.current = false; // Reset render status on unmount
     };
     
   }, [containerId]);

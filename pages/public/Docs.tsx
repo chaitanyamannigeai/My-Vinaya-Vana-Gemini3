@@ -1,96 +1,67 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Book, Code, Settings, Key, Map, Users, ArrowLeft, Globe, Rocket, AlertTriangle, Lock, Download, Database, Monitor, Github, ServerCrash, Layers } from 'lucide-react';
-import { db } from '../../services/mockDb';
+import { api } from '../../services/api'; // Use real API
 
 const Docs = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [sqlScript, setSqlScript] = useState(''); // State to hold SQL script content
 
   useEffect(() => {
-    // Check if already logged in as admin
+    // Check if already logged in as admin or docs viewer
     const adminAuth = localStorage.getItem('vv_admin_auth');
     const docsAuth = sessionStorage.getItem('vv_docs_auth');
     
     if (adminAuth === 'true' || docsAuth === 'true') {
       setIsAuthenticated(true);
+      // Fetch SQL script as it's needed for display
+      api.docs.getSqlScript().then(setSqlScript).catch(console.error);
     }
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const settings = db.settings.get();
-    
-    if (password === settings.adminPasswordHash) {
+    setError('');
+    try {
+      await api.auth.login(password); // Use real API for login
       setIsAuthenticated(true);
       sessionStorage.setItem('vv_docs_auth', 'true');
-      setError('');
-    } else {
-      setError('Incorrect password');
+      // Fetch SQL script on successful login
+      api.docs.getSqlScript().then(setSqlScript).catch(console.error);
+    } catch (err: any) {
+      console.error("Docs login error:", err);
+      if (err.message.includes('401')) {
+        setError('Incorrect password');
+      } else {
+        setError('Could not connect to server.');
+      }
     }
   };
 
   const handleDownload = () => {
+      if (!sqlScript) {
+          alert("SQL script not loaded yet. Please try again.");
+          return;
+      }
       const element = document.createElement("a");
-      const file = new Blob([
-`# VINAYA VANA FARMHOUSE - SYSTEM DOCUMENTATION
-
-## 1. TERMINOLOGY: STATIC VS DYNAMIC
-
-**Static Website (Demo Mode)**
-- Uses 'mockDb' (LocalStorage).
-- Runs entirely in the browser.
-- Hosting: GitHub Pages, Render Static Site.
-
-**Dynamic Web App (Real Business Mode)**
-- Uses 'server.js' + MySQL Database.
-- Runs on a server.
-- Hosting: Render Web Service.
-
----
-
-## 2. HOSTING GUIDE
-
-### Path A: The "Easy Demo" (Static)
-*Use this if you just want to show the design to friends/family.*
-1. Upload code to GitHub.
-2. Go to Render -> New **Static Site**.
-3. Build Command: npm install && npm run build
-4. Publish Directory: dist
-
-### Path B: The "Real Business" (Dynamic)
-*Use this if you want to take real bookings and save data.*
-1. Create a MySQL Database (e.g., on Aiven).
-2. Go to Render -> New **Web Service** (NOT Static Site).
-3. Connect your Repo.
-4. **Build Command:** npm install && npm run build
-5. **Start Command:** node server.js
-6. **Environment Variables:** Add 'DATABASE_URL' (from step 1).
-
----
-
-## 3. DATABASE SETUP (For Path B)
-
-1. Create table script provided in 'database.sql'.
-2. Run SQL in your database console.
-`
-      ], {type: 'text/markdown'});
+      const file = new Blob([sqlScript], {type: 'text/plain'}); // Use fetched script
       element.href = URL.createObjectURL(file);
-      element.download = "Vinaya_Vana_SOP.md";
+      element.download = "Vinaya_Vana_Database_Schema.sql"; // More specific name
       document.body.appendChild(element);
       element.click();
+      document.body.removeChild(element);
   };
 
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-nature-900 flex items-center justify-center px-4">
         <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md text-center">
-          <div className="w-16 h-16 bg-nature-100 rounded-full flex items-center justify-center mx-auto mb-4 text-nature-700">
+          <div className="w-16 h-16 bg-nature-100 rounded-full flex items-center justify-center mx-auto mb-4 text-nature-700 shadow-inner">
             <Lock size={32} />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Protected Document</h2>
+          <h2 className="text-2xl font-bold text-gray-900 font-serif mb-2">Protected Document</h2>
           <p className="text-gray-500 mb-6">Please enter the System Password to view the SOP.</p>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -135,7 +106,7 @@ const Docs = () => {
                     onClick={handleDownload}
                     className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg backdrop-blur-sm transition-all border border-white/20"
                 >
-                    <Download size={18} /> Download SOP File
+                    <Download size={18} /> Download SQL Script
                 </button>
             </div>
         </div>
@@ -281,45 +252,45 @@ const Docs = () => {
 -- 1. ROOMS
 CREATE TABLE IF NOT EXISTS rooms (
     id VARCHAR(50) PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
+    name VARCHAR(255) NOT NULL,
     description TEXT,
-    base_price DECIMAL(10,2) NOT NULL,
-    capacity INT NOT NULL,
-    amenities JSON,
-    images JSON
+    base_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    capacity INT NOT NULL DEFAULT 2,
+    amenities LONGTEXT, 
+    images LONGTEXT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 2. BOOKINGS
 CREATE TABLE IF NOT EXISTS bookings (
     id VARCHAR(50) PRIMARY KEY,
     room_id VARCHAR(50),
-    guest_name VARCHAR(100),
-    guest_phone VARCHAR(20),
+    guest_name VARCHAR(255),
+    guest_phone VARCHAR(50),
     check_in DATE,
     check_out DATE,
-    total_amount DECIMAL(10,2),
-    status VARCHAR(20),
+    total_amount DECIMAL(10,2) DEFAULT 0.00,
+    status VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 3. DRIVERS
 CREATE TABLE IF NOT EXISTS drivers (
     id VARCHAR(50) PRIMARY KEY,
-    name VARCHAR(100),
-    phone VARCHAR(20),
-    whatsapp VARCHAR(20),
+    name VARCHAR(255),
+    phone VARCHAR(50),
+    whatsapp VARCHAR(50),
     is_default BOOLEAN DEFAULT FALSE,
     active BOOLEAN DEFAULT TRUE,
-    vehicle_info VARCHAR(100)
+    vehicle_info VARCHAR(255)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 4. CAB LOCATIONS
 CREATE TABLE IF NOT EXISTS cab_locations (
     id VARCHAR(50) PRIMARY KEY,
-    name VARCHAR(100),
+    name VARCHAR(255),
     description TEXT,
-    image_url TEXT,
-    price DECIMAL(10,2),
+    image_url LONGTEXT,
+    price DECIMAL(10,2) DEFAULT 0.00,
     driver_id VARCHAR(50),
     active BOOLEAN DEFAULT TRUE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -327,35 +298,35 @@ CREATE TABLE IF NOT EXISTS cab_locations (
 -- 5. REVIEWS
 CREATE TABLE IF NOT EXISTS reviews (
     id VARCHAR(50) PRIMARY KEY,
-    guest_name VARCHAR(100),
-    location VARCHAR(100),
-    rating INT,
+    guest_name VARCHAR(255),
+    location VARCHAR(255),
+    rating INT DEFAULT 5,
     comment TEXT,
     date DATE,
     show_on_home BOOLEAN DEFAULT FALSE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 6. SETTINGS
+-- 6. SITE SETTINGS
 CREATE TABLE IF NOT EXISTS site_settings (
     key_name VARCHAR(50) PRIMARY KEY,
-    value JSON
+    value LONGTEXT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 7. GALLERY
 CREATE TABLE IF NOT EXISTS gallery (
     id VARCHAR(50) PRIMARY KEY,
-    url TEXT,
-    category VARCHAR(50),
+    url LONGTEXT,
+    category VARCHAR(100),
     caption TEXT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 8. PRICING RULES
 CREATE TABLE IF NOT EXISTS pricing_rules (
     id VARCHAR(50) PRIMARY KEY,
-    name VARCHAR(100),
+    name VARCHAR(255),
     start_date DATE,
     end_date DATE,
-    multiplier DECIMAL(3,2)
+    multiplier DECIMAL(3,2) DEFAULT 1.00
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 `}</pre>
                 </div>
