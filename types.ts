@@ -67,6 +67,7 @@ export interface SiteSettings {
   };
   houseRules: string;
   weatherApiKey?: string; // Added for OpenWeatherMap
+  websiteHits?: number; // Added for basic analytics
 }
 
 export interface GalleryItem {

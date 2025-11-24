@@ -78,14 +78,22 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-// Helper to parse JSON from DB text columns
+// Helper to parse JSON from DB text columns, returns data as is if not string or parsing fails
 const parseJSON = (data) => {
     if (typeof data === 'string') {
-        try { return JSON.parse(data); } catch (e) { return data; }
+        try { 
+            const parsed = JSON.parse(data);
+            // If it was a JSON string, ensure it's not null, otherwise return empty array/object
+            if (Array.isArray(parsed)) return parsed;
+            if (typeof parsed === 'object' && parsed !== null) return parsed;
+            return data; // Return original string if not array/object
+        } catch (e) { 
+            return data; // Return original string if parsing failed
+        }
     }
-    // If it's not a string, or parsing failed, return as is or a default for expected types
     return data;
 };
+
 
 // --- AUTH API (New for Faster Login) ---
 app.post('/api/auth/login', async (req, res) => {
@@ -140,10 +148,9 @@ app.post('/api/rooms', async (req, res) => {
   const name = req.body.name || 'New Room';
   const description = req.body.description || '';
   
-  let basePrice = req.body.basePrice !== undefined ? req.body.basePrice : 0;
-  if (isNaN(parseFloat(basePrice))) basePrice = 0;
+  let basePrice = req.body.basePrice !== undefined && !isNaN(parseFloat(req.body.basePrice)) ? parseFloat(req.body.basePrice) : 0;
   
-  const capacity = req.body.capacity !== undefined ? req.body.capacity : 1;
+  const capacity = req.body.capacity !== undefined && !isNaN(parseInt(req.body.capacity)) ? parseInt(req.body.capacity) : 1;
   const amenities = JSON.stringify(req.body.amenities || []);
   const images = JSON.stringify(req.body.images || []);
 
@@ -270,7 +277,7 @@ app.post('/api/locations', async (req, res) => {
     let { id, name, description, imageUrl, price, driverId, active } = req.body;
     
     price = parseFloat(price);
-    if (isNaN(price)) price = 0;
+    if (isNaN(price)) price = 0; // Ensure price is a number
     
     driverId = (driverId === 'default' || driverId === '' || driverId === undefined) ? null : driverId;
     
@@ -347,9 +354,9 @@ app.get('/api/weather', async (req, res) => {
 
         res.json({
             temp: weatherResponse.data.main.temp,
-            feelsLike: weatherResponse.data.main.feels_like, // Added
-            humidity: weatherResponse.data.main.humidity,     // Added
-            windSpeed: weatherResponse.data.wind.speed,       // Added
+            feelsLike: weatherResponse.data.main.feels_like,
+            humidity: weatherResponse.data.main.humidity,
+            windSpeed: weatherResponse.data.wind.speed,
             description: weatherResponse.data.weather[0].description,
             icon: weatherResponse.data.weather[0].icon,
         });
@@ -363,6 +370,25 @@ app.get('/api/weather', async (req, res) => {
             return res.status(404).json({ error: "Location not found in weather data." });
         }
         res.status(500).json({ error: "Failed to fetch weather data." });
+    }
+});
+
+// --- ANALYTICS API ---
+app.post('/api/analytics/track-hit', async (req, res) => {
+    try {
+        const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
+        let settings = rows.length > 0 ? parseJSON(rows[0].value) : {};
+        
+        let currentHits = settings.websiteHits || 0;
+        settings.websiteHits = currentHits + 1;
+
+        const sql = "INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) AS new_vals ON DUPLICATE KEY UPDATE value=new_vals.value";
+        await pool.query(sql, [JSON.stringify(settings)]);
+        
+        res.json({ success: true, newHits: settings.websiteHits });
+    } catch (err) {
+        console.error("Error tracking hit:", err);
+        res.status(500).json({ error: "Failed to track website hit." });
     }
 });
 

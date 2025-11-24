@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { Room, Booking, Driver, CabLocation, SiteSettings, PaymentStatus, PricingRule, GalleryItem, Review } from '../../types';
-import { Settings, Calendar, Truck, Map, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent, Download, MessageCircle, CheckCircle } from 'lucide-react';
+import { Settings, Calendar, Truck, Map, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent, Download, MessageCircle, CheckCircle, BarChart2 } from 'lucide-react'; // Added BarChart2
 import ImageUploader from '../../components/ui/ImageUploader';
 
 const AdminDashboard = () => {
@@ -733,6 +733,16 @@ const AdminDashboard = () => {
                 />
             </div>
         </div>
+
+        {/* Website Hits Counter */}
+        <div className="bg-nature-50 p-4 rounded-lg border border-nature-200">
+            <h3 className="text-lg font-bold mb-2 flex items-center gap-2 text-nature-900">
+                <BarChart2 size={20}/> Website Traffic
+            </h3>
+            <p className="text-gray-700">Total unique visits to public pages: <span className="font-bold text-nature-700 text-xl">{settings.websiteHits || 0}</span></p>
+            <p className="text-xs text-gray-500 mt-1">This counter increments on each page load on public facing pages.</p>
+        </div>
+
 
         <button onClick={saveSettings} className="flex items-center gap-2 bg-nature-600 text-white px-6 py-2 rounded-md hover:bg-nature-700 w-full justify-center">
             <Save size={18} /> Save Content

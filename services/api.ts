@@ -21,15 +21,20 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     percentage: 20
   },
   houseRules: "Check-in time: 12:00 PM | Check-out time: 11:00 AM.\nGovt ID proof is mandatory for all guests.\nQuiet hours start from 10:00 PM.\nSmoking is not allowed inside the rooms.\nPets are not allowed.\nCancellation: 50% refund if cancelled 7 days prior.",
-  weatherApiKey: '' // Placeholder for OpenWeatherMap API key
+  weatherApiKey: '', // Placeholder for OpenWeatherMap API key
+  websiteHits: 0, // Initialize website hits
 };
 
 // --- IN-MEMORY CACHE ---
 // Stores API responses to make navigation instant
 const cache: Record<string, any> = {};
 
-const clearCache = () => {
-    for (const key in cache) delete cache[key];
+const clearCache = (specificKey?: string) => {
+    if (specificKey) {
+        delete cache[specificKey];
+    } else {
+        for (const key in cache) delete cache[key];
+    }
 };
 
 const handleResponse = async (response: Response) => {
@@ -64,9 +69,9 @@ const fetchWithCache = async (endpoint: string) => {
     return data;
 };
 
-// Mutator: Sends data and clears cache to ensure freshness on next fetch
-const mutate = async (endpoint: string, method: 'POST' | 'PUT' | 'DELETE', body?: any) => {
-    clearCache(); // Clear cache on any change so user sees updates
+// Mutator: Sends data and clears relevant cache to ensure freshness on next fetch
+const mutate = async (endpoint: string, method: 'POST' | 'PUT' | 'DELETE', body?: any, invalidateKey?: string) => {
+    clearCache(invalidateKey || endpoint); // Clear specific cache key or the endpoint's key
     const options: RequestInit = {
         method,
         headers: body ? { 'Content-Type': 'application/json' } : undefined,
@@ -129,6 +134,9 @@ export const api = {
     },
     weather: {
         getForecast: async (location: string): Promise<WeatherData> => fetchWithCache(`/weather?location=${location}`)
+    },
+    analytics: {
+        trackHit: async () => mutate('/analytics/track-hit', 'POST', {}, '/settings') // Invalidate settings cache as websiteHits changes
     },
     docs: {
         getSqlScript: async (): Promise<string> => fetchWithCache('/docs/sql-script')

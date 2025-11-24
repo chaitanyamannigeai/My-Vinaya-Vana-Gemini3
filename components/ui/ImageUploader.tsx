@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Upload, Link as LinkIcon, Image as ImageIcon, X } from 'lucide-react';
 
@@ -12,25 +11,72 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ value, onChange, label })
   const [mode, setMode] = useState<'url' | 'file'>('url');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string>('');
+  const MAX_WIDTH = 800; // Max width for images
+  const MAX_HEIGHT = 600; // Max height for images
+  const COMPRESSION_QUALITY = 0.8; // JPEG compression quality
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const resizeAndCompressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = event => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Resize logic
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error("Failed to get canvas context"));
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Compress to JPEG
+          const dataUrl = canvas.toDataURL('image/jpeg', COMPRESSION_QUALITY);
+          resolve(dataUrl);
+        };
+        img.onerror = error => reject(error);
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Basic validation
-    if (file.size > 1024 * 1024 * 2) { // 2MB limit warning
-      setError('Warning: Large images (>2MB) may fill up browser storage quickly in this demo.');
-    } else {
-      setError('');
+    setError(''); // Clear previous errors
+
+    // Check file size for warning (before actual resize)
+    if (file.size > 1024 * 1024 * 1) { // 1MB raw file size for warning
+      setError('Note: Large original image. Will be resized/compressed to optimize.');
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === 'string') {
-        onChange(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressedDataUrl = await resizeAndCompressImage(file);
+      onChange(compressedDataUrl);
+    } catch (err) {
+      setError('Failed to process image. Please try another file.');
+      console.error("Image processing error:", err);
+    }
   };
 
   return (

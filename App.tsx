@@ -1,6 +1,5 @@
-
-import React from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import Home from './pages/public/Home';
@@ -13,11 +12,30 @@ import Docs from './pages/public/Docs';
 import Reviews from './pages/public/Reviews';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import Login from './pages/admin/Login';
+import { api } from './services/api'; // Import api to track hits
+
+// Component to handle hit tracking
+const HitTracker = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    // Only track hits on public-facing routes
+    if (!location.pathname.startsWith('/admin')) {
+      api.analytics.trackHit().catch(console.error);
+    }
+  }, [location.pathname]); // Re-run when the path changes
+
+  return null;
+};
+
 
 function App() {
   return (
     <Router>
       <div className="flex flex-col min-h-screen font-sans">
+        {/* Hit Tracker always active */}
+        <HitTracker />
+
         <Routes>
              <Route path="/admin/*" element={null} />
              <Route path="*" element={<Navbar />} />
