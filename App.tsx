@@ -21,7 +21,8 @@ const HitTracker = () => {
   useEffect(() => {
     // Only track hits on public-facing routes
     if (!location.pathname.startsWith('/admin')) {
-      api.analytics.trackHit().catch(console.error);
+      // Track hit silently, without awaiting to prevent blocking render
+      api.analytics.trackHit().catch(e => console.warn("Analytics Error", e));
     }
   }, [location.pathname]); // Re-run when the path changes
 

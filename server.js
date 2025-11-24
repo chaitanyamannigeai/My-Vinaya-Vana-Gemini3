@@ -32,7 +32,6 @@ const fixDatabaseSchema = async () => {
         console.log('🔧 Checking database schema...');
         
         // Force upgrade columns to hold Large Images (LONGTEXT = 4GB limit)
-        // Using separate try-catches so one failure doesn't stop the others
         try { await connection.query("ALTER TABLE gallery MODIFY url LONGTEXT"); } catch(e) {}
         try { await connection.query("ALTER TABLE cab_locations MODIFY image_url LONGTEXT"); } catch(e) {}
         try { await connection.query("ALTER TABLE rooms MODIFY images LONGTEXT"); } catch(e) {}
@@ -78,28 +77,25 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-// Helper to parse JSON from DB text columns, returns data as is if not string or parsing fails
+// Helper to parse JSON from DB text columns
 const parseJSON = (data) => {
     if (typeof data === 'string') {
         try { 
             const parsed = JSON.parse(data);
-            // If it was a JSON string, ensure it's not null, otherwise return empty array/object
             if (Array.isArray(parsed)) return parsed;
             if (typeof parsed === 'object' && parsed !== null) return parsed;
-            return data; // Return original string if not array/object
+            return data;
         } catch (e) { 
-            return data; // Return original string if parsing failed
+            return data;
         }
     }
     return data;
 };
 
-
-// --- AUTH API (New for Faster Login) ---
+// --- AUTH API ---
 app.post('/api/auth/login', async (req, res) => {
     const { password } = req.body;
     try {
-        // Fetch only settings to check password on server side
         const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
         let adminPassword = 'admin123'; // Default
         
@@ -121,24 +117,44 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
+// --- ANALYTICS API (NEW) ---
+app.post('/api/analytics/track-hit', async (req, res) => {
+    try {
+        const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
+        let settings = rows.length > 0 ? parseJSON(rows[0].value) : {};
+        
+        // Initialize or increment hits
+        let currentHits = settings.websiteHits || 0;
+        settings.websiteHits = currentHits + 1;
 
-// --- 1. ROOMS API ---
+        // Save back to DB
+        const sql = "INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) AS new_vals ON DUPLICATE KEY UPDATE value=new_vals.value";
+        await pool.query(sql, [JSON.stringify(settings)]);
+        
+        // console.log(`INFO: Website hit tracked. New hits: ${settings.websiteHits}`);
+        res.json({ success: true, newHits: settings.websiteHits });
+    } catch (err) {
+        console.error("Error tracking hit:", err);
+        // Don't fail the request hard, just log it
+        res.json({ success: false, error: "Failed to track" });
+    }
+});
+
+// --- ROOMS API ---
 app.get('/api/rooms', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM rooms');
-    // CRITICAL FIX: Explicitly map snake_case (DB) to camelCase (Frontend)
     const rooms = rows.map(r => ({
         id: r.id,
         name: r.name,
         description: r.description,
-        basePrice: r.base_price || 0, // Fallback to 0 to avoid UI errors
+        basePrice: r.base_price || 0,
         capacity: r.capacity || 0,
         amenities: parseJSON(r.amenities) || [],
         images: parseJSON(r.images) || []
     }));
     res.json(rooms);
   } catch (err) { 
-      console.error('Error fetching rooms:', err);
       res.status(500).json({ error: err.message }); 
   }
 });
@@ -147,9 +163,7 @@ app.post('/api/rooms', async (req, res) => {
   const id = req.body.id;
   const name = req.body.name || 'New Room';
   const description = req.body.description || '';
-  
   let basePrice = req.body.basePrice !== undefined && !isNaN(parseFloat(req.body.basePrice)) ? parseFloat(req.body.basePrice) : 0;
-  
   const capacity = req.body.capacity !== undefined && !isNaN(parseInt(req.body.capacity)) ? parseInt(req.body.capacity) : 1;
   const amenities = JSON.stringify(req.body.amenities || []);
   const images = JSON.stringify(req.body.images || []);
@@ -161,11 +175,9 @@ app.post('/api/rooms', async (req, res) => {
                  ON DUPLICATE KEY UPDATE 
                  name=new_vals.name, description=new_vals.description, base_price=new_vals.base_price, 
                  capacity=new_vals.capacity, amenities=new_vals.amenities, images=new_vals.images`;
-    
     await pool.query(sql, [id, name, description, basePrice, capacity, amenities, images]);
     res.json({ success: true });
   } catch (err) { 
-      console.error('Error saving room:', err);
       res.status(500).json({ error: err.message }); 
   }
 });
@@ -177,11 +189,10 @@ app.delete('/api/rooms/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// --- 2. BOOKINGS API ---
+// --- BOOKINGS API ---
 app.get('/api/bookings', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM bookings ORDER BY created_at DESC');
-    // Map snake_case DB columns to camelCase frontend properties
     const bookings = rows.map(b => ({
         id: b.id,
         roomId: b.room_id,
@@ -215,7 +226,7 @@ app.put('/api/bookings/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// --- 3. DRIVERS API ---
+// --- DRIVERS API ---
 app.get('/api/drivers', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM drivers');
@@ -256,7 +267,7 @@ app.delete('/api/drivers/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// --- 4. LOCATIONS API ---
+// --- LOCATIONS API ---
 app.get('/api/locations', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM cab_locations');
@@ -275,14 +286,10 @@ app.get('/api/locations', async (req, res) => {
 
 app.post('/api/locations', async (req, res) => {
     let { id, name, description, imageUrl, price, driverId, active } = req.body;
-    
     price = parseFloat(price);
-    if (isNaN(price)) price = 0; // Ensure price is a number
-    
+    if (isNaN(price)) price = 0;
     driverId = (driverId === 'default' || driverId === '' || driverId === undefined) ? null : driverId;
-    
     active = active === undefined ? true : active;
-
     name = name || 'New Location';
     description = description || '';
 
@@ -296,7 +303,6 @@ app.post('/api/locations', async (req, res) => {
         await pool.query(sql, [id, name, description, imageUrl, price, driverId, active]);
         res.json({ success: true });
     } catch (err) { 
-        console.error("Error saving location:", err);
         res.status(500).json({ error: err.message }); 
     }
 });
@@ -308,18 +314,16 @@ app.delete('/api/locations/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// --- 5. SETTINGS API ---
+// --- SETTINGS API ---
 app.get('/api/settings', async (req, res) => {
     try {
         const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
         if (rows.length > 0) {
-            // Use helper to safely parse (handles double parsing)
             res.json(parseJSON(rows[0].value));
         } else {
             res.json({}); 
         }
     } catch (err) { 
-        console.error("Settings fetch error:", err);
         res.status(500).json({ error: err.message }); 
     }
 });
@@ -327,7 +331,6 @@ app.get('/api/settings', async (req, res) => {
 app.post('/api/settings', async (req, res) => {
     const settings = req.body;
     try {
-        // For settings, we just overwrite the JSON value
         const sql = "INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) AS new_vals ON DUPLICATE KEY UPDATE value=new_vals.value";
         await pool.query(sql, [JSON.stringify(settings)]);
         res.json({ success: true });
@@ -343,13 +346,11 @@ app.get('/api/weather', async (req, res) => {
         }
         const settings = parseJSON(settingsRows[0].value);
         const apiKey = settings.weatherApiKey;
-        const location = req.query.location || 'Gokarna'; // Default to Gokarna
+        const location = req.query.location || 'Gokarna';
 
         if (!apiKey) {
             return res.status(400).json({ error: "OpenWeatherMap API Key is missing in site settings." });
         }
-
-        console.log(`DEBUG: Using Weather API Key: ${apiKey.substring(0, 5)}...`); // DEBUG LOG
 
         const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${apiKey}&units=metric`;
         const weatherResponse = await axios.get(weatherUrl);
@@ -375,28 +376,7 @@ app.get('/api/weather', async (req, res) => {
     }
 });
 
-// --- ANALYTICS API ---
-app.post('/api/analytics/track-hit', async (req, res) => {
-    try {
-        const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
-        let settings = rows.length > 0 ? parseJSON(rows[0].value) : {};
-        
-        let currentHits = settings.websiteHits || 0;
-        settings.websiteHits = currentHits + 1;
-
-        const sql = "INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) AS new_vals ON DUPLICATE KEY UPDATE value=new_vals.value";
-        await pool.query(sql, [JSON.stringify(settings)]);
-        
-        console.log(`INFO: Website hit tracked. New hits: ${settings.websiteHits}`); // DEBUG LOG
-        res.json({ success: true, newHits: settings.websiteHits });
-    } catch (err) {
-        console.error("Error tracking hit:", err);
-        res.status(500).json({ error: "Failed to track website hit." });
-    }
-});
-
-
-// --- 6. GALLERY API ---
+// --- GALLERY API ---
 app.get('/api/gallery', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM gallery');
@@ -406,8 +386,6 @@ app.get('/api/gallery', async (req, res) => {
 
 app.post('/api/gallery', async (req, res) => {
     let { id, url, category, caption } = req.body;
-    
-    // Sanitization for Gallery
     category = category || 'General';
     caption = caption || '';
     url = url || '';
@@ -420,7 +398,6 @@ app.post('/api/gallery', async (req, res) => {
         await pool.query(sql, [id, url, category, caption]);
         res.json({ success: true });
     } catch (err) { 
-        console.error("Error saving gallery:", err);
         res.status(500).json({ error: err.message }); 
     }
 });
@@ -432,11 +409,10 @@ app.delete('/api/gallery/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// --- 7. REVIEWS API ---
+// --- REVIEWS API ---
 app.get('/api/reviews', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM reviews');
-        // FIX: Explicitly map guest_name to guestName
         const reviews = rows.map(r => ({
             id: r.id,
             guestName: r.guest_name || 'Guest',
@@ -462,9 +438,8 @@ app.post('/api/reviews', async (req, res) => {
         await pool.query(sql, [id, guestName, location, rating, comment, date, showOnHome]);
         res.json({ success: true });
     }
-    catch (err) { console.error("Error saving review:", err); res.status(500).json({ error: err.message }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
 });
-
 
 app.delete('/api/reviews/:id', async (req, res) => {
     try {
@@ -473,11 +448,10 @@ app.delete('/api/reviews/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// --- 8. PRICING API ---
+// --- PRICING API ---
 app.get('/api/pricing', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM pricing_rules');
-        // Map snake_case to camelCase
         const rules = rows.map(r => ({
             id: r.id,
             name: r.name,
@@ -509,19 +483,17 @@ app.delete('/api/pricing/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// --- API for fetching SQL script (for Docs page) ---
+// --- API for fetching SQL script ---
 app.get('/api/docs/sql-script', (req, res) => {
     const sqlScriptPath = path.join(__dirname, 'database.sql');
     fs.readFile(sqlScriptPath, 'utf8', (err, data) => {
         if (err) {
-            console.error("Error reading database.sql:", err);
             return res.status(500).json({ error: 'Failed to read SQL script' });
         }
         res.setHeader('Content-Type', 'text/plain');
         res.send(data);
     });
 });
-
 
 // --- Handle 404 for API routes explicitly ---
 app.use('/api/*', (req, res) => {

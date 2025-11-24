@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { Room, Booking, Driver, CabLocation, SiteSettings, PaymentStatus, PricingRule, GalleryItem, Review } from '../../types';
-import { Settings, Calendar, Truck, Map, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent, Download, MessageCircle, CheckCircle, BarChart2 } from 'lucide-react'; // Added BarChart2
+import { Settings, Calendar, Truck, Map, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent, Download, MessageCircle, CheckCircle, BarChart2, Activity } from 'lucide-react'; // Added Activity icon
 import ImageUploader from '../../components/ui/ImageUploader';
 
 const AdminDashboard = () => {
@@ -389,319 +389,6 @@ const AdminDashboard = () => {
     </div>
   );
 
-  const renderRooms = () => (
-    <div className="space-y-6">
-      <button onClick={addRoomLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700 transition-all hover:scale-105">
-          <Plus size={16} /> Add New Room
-      </button>
-
-      {rooms.map(room => (
-        <div key={room.id} className="bg-white p-6 rounded-lg shadow flex flex-col lg:flex-row gap-6 relative border border-gray-100">
-            <div className="absolute top-4 right-4 flex gap-2 z-10">
-                <button onClick={() => saveRoom(room.id)} className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded shadow hover:bg-blue-700" title="Save Changes">
-                    <Save size={16} /> Save
-                </button>
-                <button onClick={() => deleteRoom(room.id)} className="text-red-400 hover:text-red-600 bg-white p-1 rounded border border-gray-200" title="Delete">
-                    <Trash2 size={20} />
-                </button>
-            </div>
-
-            <div className="lg:w-1/3">
-                 <ImageUploader 
-                    label="Room Main Image"
-                    value={room.images[0]}
-                    onChange={(val) => {
-                        const newImgs = [...room.images];
-                        newImgs[0] = val;
-                        updateRoomLocal(room.id, 'images', newImgs);
-                    }}
-                 />
-            </div>
-            
-            <div className="lg:w-2/3 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-xs text-gray-500">Room Name</label>
-                        <input 
-                            type="text" 
-                            value={room.name}
-                            onChange={(e) => updateRoomLocal(room.id, 'name', e.target.value)}
-                            className="border rounded px-3 py-2 w-full font-bold"
-                        />
-                    </div>
-                     <div>
-                        <label className="block text-xs text-gray-500">Base Price (₹)</label>
-                        <input 
-                            type="number" 
-                            value={room.basePrice}
-                            onChange={(e) => updateRoomLocal(room.id, 'basePrice', parseInt(e.target.value))}
-                            className="border rounded px-3 py-2 w-full"
-                        />
-                    </div>
-                </div>
-
-                <div>
-                    <label className="block text-xs text-gray-500">Description</label>
-                    <textarea 
-                        value={room.description}
-                        onChange={(e) => updateRoomLocal(room.id, 'description', e.target.value)}
-                        className="border rounded px-3 py-2 w-full h-20"
-                    />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div>
-                        <label className="block text-xs text-gray-500">Capacity</label>
-                        <input 
-                            type="number" 
-                            value={room.capacity}
-                            onChange={(e) => updateRoomLocal(room.id, 'capacity', parseInt(e.target.value))}
-                            className="border rounded px-3 py-2 w-full"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs text-gray-500">Amenities (comma separated)</label>
-                        <input 
-                            type="text" 
-                            value={room.amenities.join(', ')}
-                            onChange={(e) => updateRoomAmenitiesLocal(room.id, e.target.value)}
-                            className="border rounded px-3 py-2 w-full"
-                        />
-                    </div>
-                </div>
-            </div>
-        </div>
-      ))}
-    </div>
-  );
-
-  const renderDrivers = () => (
-    <div className="space-y-4">
-        <button onClick={addDriverLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700">
-            <Plus size={16} /> Add Driver
-        </button>
-        <div className="grid gap-4">
-            {drivers.map(d => (
-                <div key={d.id} className="bg-white p-4 rounded-lg shadow border-l-4 border-nature-500 relative">
-                    <div className="absolute top-2 right-2 flex gap-2">
-                        <button onClick={() => saveDriver(d.id)} className="bg-blue-100 text-blue-600 p-1 rounded hover:bg-blue-200"><Save size={18}/></button>
-                        <button onClick={() => deleteDriver(d.id)} className="text-gray-400 hover:text-red-500 p-1"><X size={18}/></button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                        <div>
-                            <label className="text-xs text-gray-500 block">Name</label>
-                            <input type="text" value={d.name} onChange={(e) => updateDriverLocal(d.id, 'name', e.target.value)} className="border w-full p-1 rounded"/>
-                        </div>
-                        <div>
-                            <label className="text-xs text-gray-500 block">Phone</label>
-                            <input type="text" value={d.phone} onChange={(e) => updateDriverLocal(d.id, 'phone', e.target.value)} className="border w-full p-1 rounded"/>
-                        </div>
-                        <div>
-                             <label className="text-xs text-gray-500 block">WhatsApp</label>
-                             <input type="text" value={d.whatsapp} onChange={(e) => updateDriverLocal(d.id, 'whatsapp', e.target.value)} className="border w-full p-1 rounded"/>
-                        </div>
-                        <div className="flex items-center gap-4 pt-4">
-                            <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                <input type="checkbox" checked={d.isDefault} onChange={(e) => updateDriverLocal(d.id, 'isDefault', e.target.checked)} /> Default
-                            </label>
-                             <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                <input type="checkbox" checked={d.active} onChange={(e) => updateDriverLocal(d.id, 'active', e.target.checked)} /> Active
-                            </label>
-                        </div>
-                    </div>
-                    <div className="mt-2">
-                         <label className="text-xs text-gray-500 block">Vehicle Info</label>
-                         <input type="text" value={d.vehicleInfo || ''} onChange={(e) => updateDriverLocal(d.id, 'vehicleInfo', e.target.value)} className="border w-full p-1 rounded" placeholder="e.g. Toyota Innova"/>
-                    </div>
-                </div>
-            ))}
-        </div>
-    </div>
-  );
-
-  const renderLocations = () => (
-    <div className="space-y-4">
-        <button onClick={addLocationLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700">
-            <Plus size={16} /> Add Cab Location
-        </button>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {locations.map(loc => (
-                <div key={loc.id} className="bg-white p-4 rounded-lg shadow relative border border-gray-100">
-                    <div className="absolute top-2 right-2 flex gap-2 z-10">
-                         <button onClick={() => saveLocation(loc.id)} className="bg-white text-blue-600 p-1 rounded shadow hover:bg-blue-50"><Save size={16}/></button>
-                         <button onClick={() => deleteLocation(loc.id)} className="bg-white text-red-500 hover:bg-red-50 p-1 rounded shadow"><Trash2 size={16}/></button>
-                    </div>
-                    <div className="mb-4">
-                        <ImageUploader 
-                            label="Location Image"
-                            value={loc.imageUrl}
-                            onChange={(val) => updateLocationLocal(loc.id, 'imageUrl', val)}
-                        />
-                    </div>
-                    <div className="space-y-2">
-                         <input 
-                            type="text" 
-                            value={loc.name}
-                            onChange={(e) => updateLocationLocal(loc.id, 'name', e.target.value)}
-                            className="font-bold border w-full p-1 rounded"
-                            placeholder="Location Name"
-                        />
-                         <textarea 
-                            value={loc.description}
-                            onChange={(e) => updateLocationLocal(loc.id, 'description', e.target.value)}
-                            className="text-sm border w-full p-1 rounded h-20"
-                            placeholder="Description"
-                        />
-                        <div className="flex gap-2">
-                            <div className="w-1/2">
-                                <label className="text-xs block text-gray-500">Price</label>
-                                <input 
-                                    type="number" 
-                                    value={loc.price ?? ''} 
-                                    onChange={(e) => {
-                                        // Safe number handling: empty string -> 0, otherwise parse float
-                                        const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                                        updateLocationLocal(loc.id, 'price', val);
-                                    }}
-                                    className="border w-full p-1 rounded"
-                                />
-                            </div>
-                            <div className="w-1/2">
-                                <label className="text-xs block text-gray-500">Driver</label>
-                                <select 
-                                    value={loc.driverId || ''} 
-                                    onChange={(e) => updateLocationLocal(loc.id, 'driverId', e.target.value || null)}
-                                    className="border w-full p-1 rounded text-sm"
-                                >
-                                    <option value="">Default Driver</option>
-                                    {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            ))}
-        </div>
-    </div>
-  );
-
-  const renderPricing = () => (
-    <div className="space-y-6">
-        <button onClick={addPricingRuleLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700">
-          <Plus size={16} /> Add Seasonal Rule
-        </button>
-        <div className="grid gap-4">
-            {pricingRules.map(rule => (
-                <div key={rule.id} className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row items-center gap-4 relative">
-                      <div className="absolute top-2 right-2 flex gap-2">
-                          <button onClick={() => savePricingRule(rule.id)} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Save size={18}/></button>
-                          <button onClick={() => deletePricingRule(rule.id)} className="text-gray-400 hover:text-red-500 p-1 rounded"><X size={18}/></button>
-                      </div>
-                    <div className="flex-grow grid grid-cols-1 md:grid-cols-4 gap-4 w-full mt-2 md:mt-0">
-                        <div>
-                            <label className="text-xs text-gray-500">Season Name</label>
-                            <input type="text" value={rule.name} onChange={(e) => updatePricingRuleLocal(rule.id, 'name', e.target.value)} className="border w-full p-2 rounded"/>
-                        </div>
-                        <div>
-                            <label className="text-xs text-gray-500">Start Date</label>
-                            <input type="date" value={rule.startDate} onChange={(e) => updatePricingRuleLocal(rule.id, 'startDate', e.target.value)} className="border w-full p-2 rounded"/>
-                        </div>
-                        <div>
-                            <label className="text-xs text-gray-500">End Date</label>
-                            <input type="date" value={rule.endDate} onChange={(e) => updatePricingRuleLocal(rule.id, 'endDate', e.target.value)} className="border w-full p-2 rounded"/>
-                        </div>
-                        <div>
-                            <label className="text-xs text-gray-500">Multiplier</label>
-                            <input type="number" step="0.1" value={rule.multiplier} onChange={(e) => updatePricingRuleLocal(rule.id, 'multiplier', parseFloat(e.target.value))} className="border w-full p-2 rounded font-bold text-nature-700"/>
-                        </div>
-                    </div>
-                </div>
-            ))}
-        </div>
-    </div>
-  );
-
-  const renderGallery = () => (
-      <div className="space-y-6">
-          <button onClick={addGalleryItemLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700">
-            <Plus size={16} /> Add Image
-          </button>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {gallery.map(item => (
-                  <div key={item.id} className="bg-white p-4 rounded-lg shadow relative group border border-gray-100">
-                       <div className="absolute top-2 right-2 flex gap-2 z-10">
-                            <button onClick={() => saveGalleryItem(item.id)} className="bg-white p-1 rounded-full text-blue-600 hover:bg-blue-50 shadow"><Save size={16}/></button>
-                            <button onClick={() => deleteGalleryItem(item.id)} className="bg-white p-1 rounded-full text-red-500 hover:bg-red-50 shadow"><Trash2 size={16}/></button>
-                        </div>
-                      <div className="mb-3">
-                          <ImageUploader 
-                            value={item.url}
-                            onChange={(val) => updateGalleryItemLocal(item.id, 'url', val)}
-                          />
-                      </div>
-                      <div className="space-y-2">
-                          <div>
-                              <label className="text-xs text-gray-500">Category</label>
-                              <input type="text" value={item.category} onChange={(e) => updateGalleryItemLocal(item.id, 'category', e.target.value)} className="border w-full p-1 rounded text-sm"/>
-                          </div>
-                          <div>
-                              <label className="text-xs text-gray-500">Caption</label>
-                              <input type="text" value={item.caption || ''} onChange={(e) => updateGalleryItemLocal(item.id, 'caption', e.target.value)} className="border w-full p-1 rounded text-sm"/>
-                          </div>
-                      </div>
-                  </div>
-              ))}
-          </div>
-      </div>
-  );
-
-  const renderReviews = () => (
-    <div className="space-y-6">
-        <button onClick={addReviewLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700">
-            <Plus size={16} /> Add Review
-        </button>
-        <div className="grid gap-4">
-            {reviews.map(rev => (
-                <div key={rev.id} className="bg-white p-6 rounded-lg shadow border-l-4 border-yellow-400 relative">
-                    <div className="absolute top-2 right-2 flex gap-2">
-                        <button onClick={() => saveReview(rev.id)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Save size={18}/></button>
-                        <button onClick={() => deleteReview(rev.id)} className="text-gray-400 hover:text-red-500 p-1"><X size={18}/></button>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div>
-                            <label className="text-xs text-gray-500">Guest Name</label>
-                            <input type="text" value={rev.guestName} onChange={(e) => updateReviewLocal(rev.id, 'guestName', e.target.value)} className="border w-full p-1 rounded font-bold"/>
-                        </div>
-                        <div>
-                            <label className="text-xs text-gray-500">Location</label>
-                            <input type="text" value={rev.location} onChange={(e) => updateReviewLocal(rev.id, 'location', e.target.value)} className="border w-full p-1 rounded"/>
-                        </div>
-                        <div>
-                            <label className="text-xs text-gray-500">Rating (1-5)</label>
-                            <input type="number" min="1" max="5" value={rev.rating} onChange={(e) => updateReviewLocal(rev.id, 'rating', parseInt(e.target.value))} className="border w-full p-1 rounded"/>
-                        </div>
-                    </div>
-                    <div className="mb-4">
-                         <label className="text-xs text-gray-500">Comment</label>
-                         <textarea value={rev.comment} onChange={(e) => updateReviewLocal(rev.id, 'comment', e.target.value)} className="border w-full p-2 rounded h-20 text-sm"></textarea>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div>
-                             <label className="text-xs text-gray-500">Date</label>
-                             <input type="date" value={rev.date} onChange={(e) => updateReviewLocal(rev.id, 'date', e.target.value)} className="border ml-2 p-1 rounded"/>
-                        </div>
-                        <div className="flex items-center gap-2">
-                             <input type="checkbox" checked={rev.showOnHome} onChange={(e) => updateReviewLocal(rev.id, 'showOnHome', e.target.checked)} id={`home-${rev.id}`} />
-                             <label htmlFor={`home-${rev.id}`} className="text-sm font-medium cursor-pointer">Show on Home Page</label>
-                        </div>
-                    </div>
-                </div>
-            ))}
-        </div>
-    </div>
-  );
-
   const renderHomePageContent = () => (
     <div className="bg-white p-8 rounded-lg shadow max-w-3xl space-y-8">
          <div>
@@ -735,12 +422,18 @@ const AdminDashboard = () => {
         </div>
 
         {/* Website Hits Counter */}
-        <div className="bg-nature-50 p-4 rounded-lg border border-nature-200">
-            <h3 className="text-lg font-bold mb-2 flex items-center gap-2 text-nature-900">
-                <BarChart2 size={20}/> Website Traffic
-            </h3>
-            <p className="text-gray-700">Total unique visits to public pages: <span className="font-bold text-nature-700 text-xl">{settings.websiteHits || 0}</span></p>
-            <p className="text-xs text-gray-500 mt-1">This counter increments on each page load on public facing pages.</p>
+        <div className="bg-nature-50 p-6 rounded-lg border border-nature-200 flex items-center gap-4">
+            <div className="bg-nature-100 p-3 rounded-full text-nature-600">
+                <Activity size={32} />
+            </div>
+            <div>
+                <h3 className="text-lg font-bold text-nature-900">Website Traffic</h3>
+                <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-extrabold text-nature-700">{settings.websiteHits || 0}</span>
+                    <span className="text-sm text-gray-500">total visits</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Counts unique visits to public pages.</p>
+            </div>
         </div>
 
 
@@ -834,6 +527,246 @@ const AdminDashboard = () => {
         </div>
         <button onClick={saveSettings} className="flex items-center gap-2 bg-nature-600 text-white px-6 py-2 rounded-md hover:bg-nature-700 w-full justify-center"><Save size={18} /> Save Settings</button>
     </div>
+  );
+
+  const renderRooms = () => (
+    <div className="space-y-6">
+      <button onClick={addRoomLocal} className="bg-nature-600 text-white px-4 py-2 rounded flex items-center gap-2 hover:bg-nature-700">
+        <Plus size={18} /> Add Room
+      </button>
+      {rooms.map(room => (
+        <div key={room.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+               <div>
+                  <label className="block text-xs text-gray-500">Room Name</label>
+                  <input type="text" value={room.name} onChange={(e) => updateRoomLocal(room.id, 'name', e.target.value)} className="w-full border p-2 rounded"/>
+               </div>
+               <div className="grid grid-cols-2 gap-4">
+                 <div>
+                    <label className="block text-xs text-gray-500">Base Price (₹)</label>
+                    <input type="number" value={room.basePrice} onChange={(e) => updateRoomLocal(room.id, 'basePrice', e.target.value)} className="w-full border p-2 rounded"/>
+                 </div>
+                 <div>
+                    <label className="block text-xs text-gray-500">Capacity</label>
+                    <input type="number" value={room.capacity} onChange={(e) => updateRoomLocal(room.id, 'capacity', e.target.value)} className="w-full border p-2 rounded"/>
+                 </div>
+               </div>
+               <div>
+                  <label className="block text-xs text-gray-500">Description</label>
+                  <textarea value={room.description} onChange={(e) => updateRoomLocal(room.id, 'description', e.target.value)} className="w-full border p-2 rounded h-20"/>
+               </div>
+               <div>
+                  <label className="block text-xs text-gray-500">Amenities (comma separated)</label>
+                  <input type="text" value={room.amenities.join(', ')} onChange={(e) => updateRoomAmenitiesLocal(room.id, e.target.value)} className="w-full border p-2 rounded"/>
+               </div>
+            </div>
+            <div className="space-y-4">
+                <ImageUploader 
+                    label="Main Room Image"
+                    value={room.images[0] || ''} 
+                    onChange={(val) => {
+                        const newImages = [...room.images];
+                        newImages[0] = val;
+                        updateRoomLocal(room.id, 'images', newImages);
+                    }}
+                />
+                <div className="flex gap-2 justify-end mt-4">
+                    <button onClick={() => deleteRoom(room.id)} className="text-red-500 p-2 hover:bg-red-50 rounded"><Trash2 size={18}/></button>
+                    <button onClick={() => saveRoom(room.id)} className="bg-nature-600 text-white px-4 py-2 rounded flex items-center gap-2 hover:bg-nature-700"><Save size={18}/> Save</button>
+                </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderDrivers = () => (
+    <div className="space-y-6">
+       <button onClick={addDriverLocal} className="bg-nature-600 text-white px-4 py-2 rounded flex items-center gap-2 hover:bg-nature-700">
+        <Plus size={18} /> Add Driver
+      </button>
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+                <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Driver Info</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contacts</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vehicle</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+                {drivers.map(driver => (
+                    <tr key={driver.id}>
+                        <td className="px-6 py-4">
+                            <input type="text" value={driver.name} onChange={(e) => updateDriverLocal(driver.id, 'name', e.target.value)} className="border p-1 rounded w-full mb-1" placeholder="Name"/>
+                        </td>
+                         <td className="px-6 py-4">
+                            <input type="text" value={driver.phone} onChange={(e) => updateDriverLocal(driver.id, 'phone', e.target.value)} className="border p-1 rounded w-full mb-1 text-xs" placeholder="Phone"/>
+                            <input type="text" value={driver.whatsapp} onChange={(e) => updateDriverLocal(driver.id, 'whatsapp', e.target.value)} className="border p-1 rounded w-full text-xs" placeholder="WhatsApp"/>
+                        </td>
+                        <td className="px-6 py-4">
+                             <input type="text" value={driver.vehicleInfo || ''} onChange={(e) => updateDriverLocal(driver.id, 'vehicleInfo', e.target.value)} className="border p-1 rounded w-full text-sm" placeholder="Car Model"/>
+                        </td>
+                        <td className="px-6 py-4 space-y-2">
+                            <div className="flex items-center gap-2">
+                                <input type="checkbox" checked={driver.active} onChange={(e) => updateDriverLocal(driver.id, 'active', e.target.checked)} />
+                                <span className="text-sm">Active</span>
+                            </div>
+                             <div className="flex items-center gap-2">
+                                <input type="checkbox" checked={driver.isDefault} onChange={(e) => updateDriverLocal(driver.id, 'isDefault', e.target.checked)} />
+                                <span className="text-sm">Default</span>
+                            </div>
+                        </td>
+                         <td className="px-6 py-4">
+                            <div className="flex gap-2">
+                                <button onClick={() => saveDriver(driver.id)} className="text-nature-600 hover:text-nature-800"><Save size={18}/></button>
+                                <button onClick={() => deleteDriver(driver.id)} className="text-red-500 hover:text-red-700"><Trash2 size={18}/></button>
+                            </div>
+                        </td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  const renderLocations = () => (
+    <div className="space-y-6">
+       <button onClick={addLocationLocal} className="bg-nature-600 text-white px-4 py-2 rounded flex items-center gap-2 hover:bg-nature-700">
+        <Plus size={18} /> Add Location
+      </button>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {locations.map(loc => (
+            <div key={loc.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col gap-4">
+                <ImageUploader value={loc.imageUrl} onChange={(val) => updateLocationLocal(loc.id, 'imageUrl', val)} />
+                <input type="text" value={loc.name} onChange={(e) => updateLocationLocal(loc.id, 'name', e.target.value)} className="border p-2 rounded font-bold" placeholder="Location Name"/>
+                <textarea value={loc.description} onChange={(e) => updateLocationLocal(loc.id, 'description', e.target.value)} className="border p-2 rounded text-sm h-20" placeholder="Description"/>
+                <div className="flex gap-2">
+                    <input type="number" value={loc.price || ''} onChange={(e) => updateLocationLocal(loc.id, 'price', e.target.value)} className="border p-2 rounded w-1/2" placeholder="Price (Optional)"/>
+                    <select 
+                        value={loc.driverId || ''} 
+                        onChange={(e) => updateLocationLocal(loc.id, 'driverId', e.target.value || null)}
+                        className="border p-2 rounded w-1/2 text-sm"
+                    >
+                        <option value="">Default Driver</option>
+                        {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                </div>
+                 <div className="flex items-center justify-between mt-auto pt-4 border-t">
+                    <div className="flex items-center gap-2">
+                        <input type="checkbox" checked={loc.active} onChange={(e) => updateLocationLocal(loc.id, 'active', e.target.checked)}/>
+                        <span className="text-sm text-gray-500">Active</span>
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={() => saveLocation(loc.id)} className="bg-blue-50 text-blue-600 p-2 rounded hover:bg-blue-100"><Save size={18}/></button>
+                        <button onClick={() => deleteLocation(loc.id)} className="bg-red-50 text-red-500 p-2 rounded hover:bg-red-100"><Trash2 size={18}/></button>
+                    </div>
+                 </div>
+            </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderPricing = () => (
+      <div className="space-y-6">
+        <button onClick={addPricingRuleLocal} className="bg-nature-600 text-white px-4 py-2 rounded flex items-center gap-2 hover:bg-nature-700">
+            <Plus size={18} /> Add Seasonal Rule
+        </button>
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+             <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                    <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Season Name</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Start Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">End Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Multiplier</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                    {pricingRules.map(rule => (
+                        <tr key={rule.id}>
+                            <td className="px-6 py-4"><input type="text" value={rule.name} onChange={(e) => updatePricingRuleLocal(rule.id, 'name', e.target.value)} className="border p-1 rounded w-full"/></td>
+                            <td className="px-6 py-4"><input type="date" value={rule.startDate} onChange={(e) => updatePricingRuleLocal(rule.id, 'startDate', e.target.value)} className="border p-1 rounded w-full"/></td>
+                            <td className="px-6 py-4"><input type="date" value={rule.endDate} onChange={(e) => updatePricingRuleLocal(rule.id, 'endDate', e.target.value)} className="border p-1 rounded w-full"/></td>
+                            <td className="px-6 py-4">
+                                <div className="flex items-center gap-2">
+                                    <input type="number" step="0.1" value={rule.multiplier} onChange={(e) => updatePricingRuleLocal(rule.id, 'multiplier', e.target.value)} className="border p-1 rounded w-20"/>
+                                    <span className="text-xs text-gray-500">x Base Price</span>
+                                </div>
+                            </td>
+                            <td className="px-6 py-4">
+                                <div className="flex gap-2">
+                                    <button onClick={() => savePricingRule(rule.id)} className="text-nature-600 hover:text-nature-800"><Save size={18}/></button>
+                                    <button onClick={() => deletePricingRule(rule.id)} className="text-red-500 hover:text-red-700"><Trash2 size={18}/></button>
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+             </table>
+        </div>
+      </div>
+  );
+
+  const renderGallery = () => (
+      <div className="space-y-6">
+        <button onClick={addGalleryItemLocal} className="bg-nature-600 text-white px-4 py-2 rounded flex items-center gap-2 hover:bg-nature-700">
+            <Plus size={18} /> Add Image
+        </button>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {gallery.map(item => (
+                <div key={item.id} className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 flex flex-col gap-3">
+                     <ImageUploader value={item.url} onChange={(val) => updateGalleryItemLocal(item.id, 'url', val)} />
+                     <input type="text" value={item.category} onChange={(e) => updateGalleryItemLocal(item.id, 'category', e.target.value)} className="border p-2 rounded text-sm" placeholder="Category (e.g. Rooms)"/>
+                     <input type="text" value={item.caption || ''} onChange={(e) => updateGalleryItemLocal(item.id, 'caption', e.target.value)} className="border p-2 rounded text-sm" placeholder="Caption (Optional)"/>
+                     <div className="flex gap-2 mt-auto pt-2 border-t">
+                        <button onClick={() => saveGalleryItem(item.id)} className="flex-1 bg-blue-50 text-blue-600 p-2 rounded hover:bg-blue-100 flex justify-center"><Save size={18}/></button>
+                        <button onClick={() => deleteGalleryItem(item.id)} className="flex-1 bg-red-50 text-red-500 p-2 rounded hover:bg-red-100 flex justify-center"><Trash2 size={18}/></button>
+                     </div>
+                </div>
+            ))}
+        </div>
+      </div>
+  );
+
+  const renderReviews = () => (
+      <div className="space-y-6">
+         <button onClick={addReviewLocal} className="bg-nature-600 text-white px-4 py-2 rounded flex items-center gap-2 hover:bg-nature-700">
+            <Plus size={18} /> Add Manual Review
+        </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {reviews.map(review => (
+                <div key={review.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <div className="flex justify-between items-start mb-4">
+                         <div className="space-y-2 w-full mr-4">
+                            <input type="text" value={review.guestName} onChange={(e) => updateReviewLocal(review.id, 'guestName', e.target.value)} className="border p-1 rounded w-full font-bold" placeholder="Guest Name"/>
+                            <input type="text" value={review.location} onChange={(e) => updateReviewLocal(review.id, 'location', e.target.value)} className="border p-1 rounded w-full text-sm text-gray-500" placeholder="Location"/>
+                         </div>
+                         <input type="number" min="1" max="5" value={review.rating} onChange={(e) => updateReviewLocal(review.id, 'rating', e.target.value)} className="border p-1 rounded w-16 text-center font-bold text-yellow-500"/>
+                    </div>
+                    <textarea value={review.comment} onChange={(e) => updateReviewLocal(review.id, 'comment', e.target.value)} className="w-full border p-2 rounded h-24 text-sm mb-4" placeholder="Review comment..."/>
+                    <div className="flex items-center justify-between border-t pt-4">
+                        <div className="flex items-center gap-2">
+                             <input type="checkbox" checked={review.showOnHome} onChange={(e) => updateReviewLocal(review.id, 'showOnHome', e.target.checked)}/>
+                             <span className="text-sm">Show on Home</span>
+                        </div>
+                        <input type="date" value={review.date} onChange={(e) => updateReviewLocal(review.id, 'date', e.target.value)} className="border p-1 rounded text-xs"/>
+                    </div>
+                    <div className="flex gap-2 justify-end mt-4">
+                        <button onClick={() => saveReview(review.id)} className="bg-nature-600 text-white px-3 py-1 rounded text-sm hover:bg-nature-700">Save</button>
+                        <button onClick={() => deleteReview(review.id)} className="text-red-500 hover:text-red-700 text-sm">Delete</button>
+                    </div>
+                </div>
+            ))}
+        </div>
+      </div>
   );
 
   return (

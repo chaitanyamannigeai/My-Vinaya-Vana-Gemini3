@@ -71,7 +71,9 @@ const fetchWithCache = async (endpoint: string) => {
 
 // Mutator: Sends data and clears relevant cache to ensure freshness on next fetch
 const mutate = async (endpoint: string, method: 'POST' | 'PUT' | 'DELETE', body?: any, invalidateKey?: string) => {
-    clearCache(invalidateKey || endpoint); // Clear specific cache key or the endpoint's key
+    if (invalidateKey !== 'NONE') {
+        clearCache(invalidateKey || endpoint); // Clear specific cache key or the endpoint's key
+    }
     const options: RequestInit = {
         method,
         headers: body ? { 'Content-Type': 'application/json' } : undefined,
@@ -136,7 +138,8 @@ export const api = {
         getForecast: async (location: string): Promise<WeatherData> => fetchWithCache(`/weather?location=${location}`)
     },
     analytics: {
-        trackHit: async () => mutate('/analytics/track-hit', 'POST', {}, '/settings') // Invalidate settings cache as websiteHits changes
+        // Important: Pass 'NONE' to prevent clearing settings cache on every hit
+        trackHit: async () => mutate('/analytics/track-hit', 'POST', {}, 'NONE') 
     },
     docs: {
         getSqlScript: async (): Promise<string> => fetchWithCache('/docs/sql-script')
