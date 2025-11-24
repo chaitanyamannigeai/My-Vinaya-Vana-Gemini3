@@ -23,6 +23,6 @@
     /* Node Types */
     "types": ["node"]
   },
-  "include": ["src", "index.html", "types.ts", "pages", "components", "services"],
+  "include": ["src", "index.html", "types.ts", "pages", "components", "services", "./index.tsx"],
   "exclude": ["node_modules", "server.js"]
 }
