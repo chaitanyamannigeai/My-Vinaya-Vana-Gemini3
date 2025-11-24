@@ -1,4 +1,3 @@
-
 import express from 'express';
 import path from 'path';
 import mysql from 'mysql2/promise';
@@ -357,7 +356,7 @@ app.get('/api/weather', async (req, res) => {
             icon: weatherResponse.data.weather[0].icon,
         });
 
-    } catch (err: any) {
+    } catch (err) { // FIX: Removed ': any' from catch block
         console.error("Weather fetch error:", err.message);
         if (err.response && err.response.status === 401) {
             return res.status(401).json({ error: "Invalid OpenWeatherMap API Key." });
