@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import * as ReactRouterDOM from 'react-router-dom';
 import { Book, Code, Settings, Key, Map, Users, ArrowLeft, Globe, Rocket, AlertTriangle, Lock, Download, Database, Monitor, Github, ServerCrash, Layers } from 'lucide-react';
 import { api } from '../../services/api'; // Use real API
+
+const { Link } = ReactRouterDOM as any;
 
 const Docs = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);

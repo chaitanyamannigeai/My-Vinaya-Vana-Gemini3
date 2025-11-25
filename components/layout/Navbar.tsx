@@ -1,8 +1,9 @@
-
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import * as ReactRouterDOM from 'react-router-dom';
 import { Menu, X, Palmtree, Globe } from 'lucide-react';
 import GoogleTranslate from '../ui/GoogleTranslate';
+
+const { Link, useLocation } = ReactRouterDOM as any;
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);

@@ -1,8 +1,9 @@
-
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import * as ReactRouterDOM from 'react-router-dom';
 import { api } from '../../services/api';
 import { Lock, HelpCircle, X, Database } from 'lucide-react';
+
+const { useNavigate } = ReactRouterDOM as any;
 
 const Login = () => {
   const [password, setPassword] = useState('');

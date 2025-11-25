@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import * as ReactRouterDOM from 'react-router-dom';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import Home from './pages/public/Home';
@@ -13,6 +13,8 @@ import Reviews from './pages/public/Reviews';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import Login from './pages/admin/Login';
 import { api } from './services/api'; // Import api to track hits
+
+const { HashRouter: Router, Routes, Route, useLocation } = ReactRouterDOM as any;
 
 // Component to handle hit tracking
 const HitTracker = () => {

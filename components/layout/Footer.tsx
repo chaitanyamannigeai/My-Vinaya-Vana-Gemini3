@@ -1,9 +1,10 @@
-
 import React, { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import * as ReactRouterDOM from 'react-router-dom';
 import { Palmtree, Facebook, Instagram } from 'lucide-react';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { SiteSettings } from '../../types';
+
+const { Link, useLocation } = ReactRouterDOM as any;
 
 const Footer = () => {
   const location = useLocation();

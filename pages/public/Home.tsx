@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { ArrowRight, Coffee, Wifi, Wind, Palmtree, Star, Play, Quote, Sun, Cloud, CloudRain, CloudFog, CloudLightning, CloudDrizzle, Snowflake, Droplets, Thermometer, Moon, Wind as WindIcon } from 'lucide-react'; // Added more icons
 import { Review, Room, SiteSettings, WeatherData } from '../../types'; // Import WeatherData from types
+
+const { Link } = ReactRouterDOM as any;
 
 const Home = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
