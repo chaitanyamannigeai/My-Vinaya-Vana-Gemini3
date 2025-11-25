@@ -202,7 +202,9 @@ app.get('/api/drivers', async (req, res) => {
 app.post('/api/drivers', async (req, res) => {
     const { id, name, phone, whatsapp, isDefault, active, vehicleInfo } = req.body;
     try {
-        if (isDefault) await pool.query('UPDATE drivers SET is_default = 0');
+        if (isDefault) {
+            await pool.query('UPDATE drivers SET is_default = 0');
+        }
         const sql = `INSERT INTO drivers (id, name, phone, whatsapp, is_default, active, vehicle_info) VALUES (?, ?, ?, ?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE name=new_vals.name, phone=new_vals.phone, whatsapp=new_vals.whatsapp, is_default=new_vals.is_default, active=new_vals.active, vehicle_info=new_vals.vehicle_info`;
         await pool.query(sql, [id, name, phone, whatsapp, isDefault, active, vehicleInfo]);
         res.json({ success: true });
@@ -280,7 +282,8 @@ app.get('/api/weather', async (req, res) => {
             description: weatherResponse.data.weather[0].description,
             icon: weatherResponse.data.weather[0].icon,
         });
-    } catch (err) {
+    } catch (err) { 
+        // CRITICAL FIX: REMOVED : any
         console.error("Weather fetch error:", err.message);
         if (err.response && err.response.status === 401) return res.status(401).json({ error: "Invalid OpenWeatherMap API Key." });
         res.status(500).json({ error: "Failed to fetch weather data." });
