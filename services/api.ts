@@ -72,7 +72,9 @@ const fetchWithCache = async (endpoint: string) => {
 // Mutator: Sends data and clears relevant cache to ensure freshness on next fetch
 const mutate = async (endpoint: string, method: 'POST' | 'PUT' | 'DELETE', body?: any, invalidateKey?: string) => {
     if (invalidateKey !== 'NONE') {
-        clearCache(invalidateKey || endpoint); // Clear specific cache key or the endpoint's key
+        // If an explicit invalidateKey is provided (e.g. '/bookings'), clear that.
+        // If not, clear the specific endpoint being hit (default behavior).
+        clearCache(invalidateKey || endpoint); 
     }
     const options: RequestInit = {
         method,
@@ -89,22 +91,24 @@ export const api = {
     rooms: {
         getAll: async (): Promise<Room[]> => fetchWithCache('/rooms'),
         save: async (room: Room) => mutate('/rooms', 'POST', room),
-        delete: async (id: string) => mutate(`/rooms/${id}`, 'DELETE')
+        // When deleting, we must invalidate the list '/rooms', not just '/rooms/123'
+        delete: async (id: string) => mutate(`/rooms/${id}`, 'DELETE', undefined, '/rooms')
     },
     bookings: {
         getAll: async (): Promise<Booking[]> => fetchWithCache('/bookings'),
         add: async (booking: Booking) => mutate('/bookings', 'POST', booking),
-        updateStatus: async (id: string, status: PaymentStatus) => mutate(`/bookings/${id}`, 'PUT', { status })
+        // IMPORTANT: When updating status, invalidate the main '/bookings' list cache
+        updateStatus: async (id: string, status: PaymentStatus) => mutate(`/bookings/${id}`, 'PUT', { status }, '/bookings')
     },
     drivers: {
         getAll: async (): Promise<Driver[]> => fetchWithCache('/drivers'),
         save: async (driver: Driver) => mutate('/drivers', 'POST', driver),
-        delete: async (id: string) => mutate(`/drivers/${id}`, 'DELETE')
+        delete: async (id: string) => mutate(`/drivers/${id}`, 'DELETE', undefined, '/drivers')
     },
     locations: {
         getAll: async (): Promise<CabLocation[]> => fetchWithCache('/locations'),
         save: async (location: CabLocation) => mutate('/locations', 'POST', location),
-        delete: async (id: string) => mutate(`/locations/${id}`, 'DELETE')
+        delete: async (id: string) => mutate(`/locations/${id}`, 'DELETE', undefined, '/locations')
     },
     settings: {
         get: async (): Promise<SiteSettings> => {
@@ -122,17 +126,17 @@ export const api = {
     gallery: {
         getAll: async (): Promise<GalleryItem[]> => fetchWithCache('/gallery'),
         save: async (item: GalleryItem) => mutate('/gallery', 'POST', item),
-        delete: async (id: string) => mutate(`/gallery/${id}`, 'DELETE')
+        delete: async (id: string) => mutate(`/gallery/${id}`, 'DELETE', undefined, '/gallery')
     },
     reviews: {
         getAll: async (): Promise<Review[]> => fetchWithCache('/reviews'),
         save: async (review: Review) => mutate('/reviews', 'POST', review),
-        delete: async (id: string) => mutate(`/reviews/${id}`, 'DELETE')
+        delete: async (id: string) => mutate(`/reviews/${id}`, 'DELETE', undefined, '/reviews')
     },
     pricing: {
         getAll: async (): Promise<PricingRule[]> => fetchWithCache('/pricing'),
         save: async (rule: PricingRule) => mutate('/pricing', 'POST', rule),
-        delete: async (id: string) => mutate(`/pricing/${id}`, 'DELETE')
+        delete: async (id: string) => mutate(`/pricing/${id}`, 'DELETE', undefined, '/pricing')
     },
     weather: {
         getForecast: async (location: string): Promise<WeatherData> => fetchWithCache(`/weather?location=${location}`)

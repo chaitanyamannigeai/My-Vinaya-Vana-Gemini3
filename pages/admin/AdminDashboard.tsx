@@ -150,16 +150,16 @@ const AdminDashboard = () => {
                 <button onClick={() => saveItem(rooms, room.id, api.rooms.save)} className="bg-blue-600 text-white px-3 py-1 rounded shadow hover:bg-blue-700"><Save size={16} /></button>
                 <button onClick={() => deleteItem(setRooms, room.id, api.rooms.delete)} className="text-red-400 hover:text-red-600 bg-white p-1 rounded border border-gray-200"><Trash2 size={20} /></button>
             </div>
-            <div className="lg:w-1/3"><ImageUploader label="Image" value={room.images[0]} onChange={(val) => { const ni = [...room.images]; ni[0] = val; updateItem(setRooms, room.id, 'images', ni); }} /></div>
+            <div className="lg:w-1/3"><ImageUploader label="Image" value={room.images[0]} onChange={(val) => { const ni = [...room.images]; ni[0] = val; updateItem<Room>(setRooms, room.id, 'images', ni); }} /></div>
             <div className="lg:w-2/3 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                    <input type="text" value={room.name} onChange={(e) => updateItem(setRooms, room.id, 'name', e.target.value)} className="border rounded p-2 font-bold" placeholder="Room Name"/>
-                    <input type="number" value={room.basePrice} onChange={(e) => updateItem(setRooms, room.id, 'basePrice', parseInt(e.target.value))} className="border rounded p-2" placeholder="Price"/>
+                    <input type="text" value={room.name} onChange={(e) => updateItem<Room>(setRooms, room.id, 'name', e.target.value)} className="border rounded p-2 font-bold" placeholder="Room Name"/>
+                    <input type="number" value={room.basePrice} onChange={(e) => updateItem<Room>(setRooms, room.id, 'basePrice', parseInt(e.target.value))} className="border rounded p-2" placeholder="Price"/>
                 </div>
-                <textarea value={room.description} onChange={(e) => updateItem(setRooms, room.id, 'description', e.target.value)} className="border rounded p-2 w-full h-20" placeholder="Description"/>
+                <textarea value={room.description} onChange={(e) => updateItem<Room>(setRooms, room.id, 'description', e.target.value)} className="border rounded p-2 w-full h-20" placeholder="Description"/>
                 <div className="grid grid-cols-2 gap-4">
-                     <input type="number" value={room.capacity} onChange={(e) => updateItem(setRooms, room.id, 'capacity', parseInt(e.target.value))} className="border rounded p-2" placeholder="Capacity"/>
-                     <input type="text" value={room.amenities.join(', ')} onChange={(e) => updateItem(setRooms, room.id, 'amenities', e.target.value.split(',').map(s=>s.trim()))} className="border rounded p-2" placeholder="Amenities (comma sep)"/>
+                     <input type="number" value={room.capacity} onChange={(e) => updateItem<Room>(setRooms, room.id, 'capacity', parseInt(e.target.value))} className="border rounded p-2" placeholder="Capacity"/>
+                     <input type="text" value={room.amenities.join(', ')} onChange={(e) => updateItem<Room>(setRooms, room.id, 'amenities', e.target.value.split(',').map(s=>s.trim()))} className="border rounded p-2" placeholder="Amenities (comma sep)"/>
                 </div>
             </div>
         </div>
@@ -177,13 +177,13 @@ const AdminDashboard = () => {
                      <button onClick={() => saveItem(locations, loc.id, api.locations.save)} className="bg-blue-50 text-blue-600 p-1 rounded"><Save size={16}/></button>
                      <button onClick={() => deleteItem(setLocations, loc.id, api.locations.delete)} className="bg-red-50 text-red-500 p-1 rounded"><Trash2 size={16}/></button>
                 </div>
-                <ImageUploader value={loc.imageUrl} onChange={(val) => updateItem(setLocations, loc.id, 'imageUrl', val)} />
+                <ImageUploader value={loc.imageUrl} onChange={(val) => updateItem<CabLocation>(setLocations, loc.id, 'imageUrl', val)} />
                 <div className="mt-4 space-y-2">
-                     <input type="text" value={loc.name} onChange={(e) => updateItem(setLocations, loc.id, 'name', e.target.value)} className="font-bold border w-full p-1 rounded"/>
-                     <textarea value={loc.description} onChange={(e) => updateItem(setLocations, loc.id, 'description', e.target.value)} className="text-sm border w-full p-1 rounded h-16"/>
+                     <input type="text" value={loc.name} onChange={(e) => updateItem<CabLocation>(setLocations, loc.id, 'name', e.target.value)} className="font-bold border w-full p-1 rounded"/>
+                     <textarea value={loc.description} onChange={(e) => updateItem<CabLocation>(setLocations, loc.id, 'description', e.target.value)} className="text-sm border w-full p-1 rounded h-16"/>
                      <div className="flex gap-2">
-                        <input type="number" value={loc.price || 0} onChange={(e) => updateItem(setLocations, loc.id, 'price', parseFloat(e.target.value))} className="border w-full p-1 rounded" placeholder="Price"/>
-                        <select value={loc.driverId || ''} onChange={(e) => updateItem(setLocations, loc.id, 'driverId', e.target.value || null)} className="border w-full p-1 rounded text-sm">
+                        <input type="number" value={loc.price || 0} onChange={(e) => updateItem<CabLocation>(setLocations, loc.id, 'price', parseFloat(e.target.value))} className="border w-full p-1 rounded" placeholder="Price"/>
+                        <select value={loc.driverId || ''} onChange={(e) => updateItem<CabLocation>(setLocations, loc.id, 'driverId', e.target.value || null)} className="border w-full p-1 rounded text-sm">
                             <option value="">Default Driver</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                         </select>
                      </div>
@@ -215,9 +215,9 @@ const AdminDashboard = () => {
           {drivers.map(d => (
               <div key={d.id} className="bg-white p-4 rounded shadow flex gap-4 items-center relative">
                   <div className="absolute top-2 right-2 flex gap-2"><button onClick={() => saveItem(drivers, d.id, api.drivers.save)}><Save size={16} className="text-blue-600"/></button><button onClick={() => deleteItem(setDrivers, d.id, api.drivers.delete)}><Trash2 size={16} className="text-red-500"/></button></div>
-                  <input value={d.name} onChange={e => updateItem(setDrivers, d.id, 'name', e.target.value)} className="border p-1 rounded" placeholder="Name"/>
-                  <input value={d.phone} onChange={e => updateItem(setDrivers, d.id, 'phone', e.target.value)} className="border p-1 rounded" placeholder="Phone"/>
-                  <label className="flex gap-1 text-sm"><input type="checkbox" checked={d.isDefault} onChange={e => updateItem(setDrivers, d.id, 'isDefault', e.target.checked)}/> Default</label>
+                  <input value={d.name} onChange={e => updateItem<Driver>(setDrivers, d.id, 'name', e.target.value)} className="border p-1 rounded" placeholder="Name"/>
+                  <input value={d.phone} onChange={e => updateItem<Driver>(setDrivers, d.id, 'phone', e.target.value)} className="border p-1 rounded" placeholder="Phone"/>
+                  <label className="flex gap-1 text-sm"><input type="checkbox" checked={d.isDefault} onChange={e => updateItem<Driver>(setDrivers, d.id, 'isDefault', e.target.checked)}/> Default</label>
               </div>
           ))}
       </div>
