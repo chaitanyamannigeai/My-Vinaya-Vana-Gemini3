@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
-import { Palmtree, Facebook, Instagram } from 'lucide-react';
+import { Facebook, Instagram } from 'lucide-react';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { SiteSettings } from '../../types';
+import Logo from '../ui/Logo';
 
 const { Link, useLocation } = ReactRouterDOM as any;
 
@@ -21,9 +22,8 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           
           <div className="col-span-1 md:col-span-1">
-            <Link to="/" className="flex items-center gap-2 font-serif font-bold text-xl tracking-wider text-white mb-4">
-              <Palmtree className="h-8 w-8 text-nature-400" />
-              VINAYA VANA
+            <Link to="/" className="flex items-center mb-4">
+              <Logo className="h-16 w-auto" light={true} />
             </Link>
             <p className="text-sm text-nature-300">
               Relax in the lap of nature. Your serene home away from home in Gokarna.

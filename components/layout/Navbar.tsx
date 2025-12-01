@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
-import { Menu, X, Palmtree, Globe } from 'lucide-react';
+import { Menu, X, Globe } from 'lucide-react';
 import GoogleTranslate from '../ui/GoogleTranslate';
+import Logo from '../ui/Logo';
 
 const { Link, useLocation } = ReactRouterDOM as any;
 
@@ -24,12 +25,11 @@ const Navbar = () => {
   return (
     <nav className="bg-nature-900 text-nature-50 sticky top-0 z-50 shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-20"> {/* Increased height slightly for logo */}
           {/* Logo */}
-          <div className="flex items-center">
-            <Link to="/" className="flex items-center gap-2 font-serif font-bold text-xl tracking-wider">
-              <Palmtree className="h-8 w-8 text-nature-400" />
-              VINAYA VANA
+          <div className="flex items-center flex-shrink-0">
+            <Link to="/" className="flex items-center">
+              <Logo className="h-16 w-auto" light={true} />
             </Link>
           </div>
 
