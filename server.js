@@ -283,7 +283,6 @@ app.get('/api/weather', async (req, res) => {
             icon: weatherResponse.data.weather[0].icon,
         });
     } catch (err) { 
-        // CRITICAL FIX: REMOVED : any
         console.error("Weather fetch error:", err.message);
         if (err.response && err.response.status === 401) return res.status(401).json({ error: "Invalid OpenWeatherMap API Key." });
         res.status(500).json({ error: "Failed to fetch weather data." });
