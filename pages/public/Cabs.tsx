@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { CabLocation, Driver } from '../../types';
-import { MapPin, Phone, MessageCircle, User, Car, Compass, ArrowRight, X } from 'lucide-react';
+import { MapPin, Phone, MessageCircle, User, Car, Compass, ArrowRight, X, Search } from 'lucide-react';
 
 const Cabs = () => {
   const [locations, setLocations] = useState<CabLocation[]>([]);
@@ -11,6 +11,7 @@ const Cabs = () => {
   const [selectedLocation, setSelectedLocation] = useState<CabLocation | null>(null);
   const [assignedDriver, setAssignedDriver] = useState<Driver | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -67,6 +68,11 @@ const Cabs = () => {
       return `https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent(message)}`;
   }
 
+  // Filter locations based on search
+  const filteredLocations = locations.filter(loc => 
+    loc.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-nature-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -77,35 +83,55 @@ const Cabs = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-          {locations.map((loc) => (
-            <div 
-              key={loc.id} 
-              className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer group"
-              onClick={() => handleLocationClick(loc)}
-            >
-              <div className="h-48 overflow-hidden relative">
-                 <img 
-                  src={loc.imageUrl} 
-                  alt={loc.name} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-20 group-hover:bg-opacity-10 transition-all"></div>
-              </div>
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-nature-800 mb-2">{loc.name}</h3>
-                <p className="text-gray-600 text-sm line-clamp-2 mb-4">{loc.description}</p>
-                <div className="flex items-center justify-between mt-4">
-                  <span className="text-nature-600 font-medium text-sm bg-nature-50 px-3 py-1 rounded-full border border-nature-100">
-                    {loc.price ? `₹${loc.price} approx` : 'Ask for Price'}
-                  </span>
-                  <span className="text-nature-500 flex items-center gap-1 text-sm">
-                    Book Now <ArrowRight size={16} />
-                  </span>
-                </div>
-              </div>
+        {/* Search Bar */}
+        <div className="max-w-md mx-auto mb-12 relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
             </div>
-          ))}
+            <input
+                type="text"
+                className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-full leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-nature-500 focus:border-nature-500 sm:text-sm shadow-sm"
+                placeholder="Search destinations (e.g. Om Beach)..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+          {filteredLocations.length > 0 ? (
+            filteredLocations.map((loc) => (
+                <div 
+                key={loc.id} 
+                className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer group"
+                onClick={() => handleLocationClick(loc)}
+                >
+                <div className="h-48 overflow-hidden relative">
+                    <img 
+                    src={loc.imageUrl} 
+                    alt={loc.name} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-20 group-hover:bg-opacity-10 transition-all"></div>
+                </div>
+                <div className="p-6">
+                    <h3 className="text-xl font-bold text-nature-800 mb-2">{loc.name}</h3>
+                    <p className="text-gray-600 text-sm line-clamp-2 mb-4">{loc.description}</p>
+                    <div className="flex items-center justify-between mt-4">
+                    <span className="text-nature-600 font-medium text-sm bg-nature-50 px-3 py-1 rounded-full border border-nature-100">
+                        {loc.price ? `₹${loc.price} approx` : 'Ask for Price'}
+                    </span>
+                    <span className="text-nature-500 flex items-center gap-1 text-sm">
+                        Book Now <ArrowRight size={16} />
+                    </span>
+                    </div>
+                </div>
+                </div>
+            ))
+          ) : (
+              <div className="col-span-full text-center py-12 text-gray-500">
+                  <p>No locations found matching "{searchTerm}"</p>
+              </div>
+          )}
         </div>
         
         {/* Custom Package Section */}

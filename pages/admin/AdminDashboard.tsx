@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { Room, Booking, Driver, CabLocation, SiteSettings, PaymentStatus, PricingRule, GalleryItem, Review } from '../../types';
-import { Settings, Calendar, Truck, Map, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent, Download, MessageCircle, CheckCircle, BarChart2, Activity, Loader } from 'lucide-react';
+import { Settings, Calendar, Truck, Map, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent, Download, MessageCircle, CheckCircle, BarChart2, Activity, Loader, TrendingUp, DollarSign, Clock } from 'lucide-react';
 import ImageUploader from '../../components/ui/ImageUploader';
 
 const { useNavigate } = ReactRouterDOM as any;
@@ -118,36 +119,157 @@ const AdminDashboard = () => {
       }
   };
 
+  // --- ANALYTICS HELPERS ---
+  const getBookingStats = () => {
+      const totalRevenue = bookings.reduce((sum, b) => b.status === PaymentStatus.PAID ? sum + (typeof b.totalAmount === 'number' ? b.totalAmount : parseFloat(b.totalAmount)) : sum, 0);
+      const totalBookings = bookings.length;
+      const pendingCount = bookings.filter(b => b.status === PaymentStatus.PENDING).length;
+      const paidCount = bookings.filter(b => b.status === PaymentStatus.PAID).length;
+      const failedCount = bookings.filter(b => b.status === PaymentStatus.FAILED).length;
+
+      // Monthly Revenue (Last 6 Months)
+      const monthlyRevenue: Record<string, number> = {};
+      const months = [];
+      const today = new Date();
+      for (let i = 5; i >= 0; i--) {
+          const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+          const monthKey = d.toLocaleString('default', { month: 'short' });
+          months.push(monthKey);
+          monthlyRevenue[monthKey] = 0;
+      }
+
+      bookings.forEach(b => {
+          if (b.status === PaymentStatus.PAID) {
+              const d = new Date(b.createdAt);
+              const monthKey = d.toLocaleString('default', { month: 'short' });
+              if (monthlyRevenue[monthKey] !== undefined) {
+                  monthlyRevenue[monthKey] += (typeof b.totalAmount === 'number' ? b.totalAmount : parseFloat(b.totalAmount));
+              }
+          }
+      });
+
+      return { totalRevenue, totalBookings, pendingCount, paidCount, failedCount, monthlyRevenue, months };
+  };
+
   // --- RENDERERS ---
-  const renderBookings = () => (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-          <h3 className="font-bold text-gray-700">Guest Reservations</h3>
-          <button onClick={downloadBookingsCSV} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 shadow-sm"><Download size={16} /> CSV</button>
-      </div>
-      <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Guest</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dates</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th></tr></thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {bookings.map(b => (
-                <tr key={b.id}>
-                  <td className="px-6 py-4"><div className="text-sm font-medium text-gray-900">{b.guestName}</div><div className="text-sm text-gray-500">{b.guestPhone}</div></td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{b.checkIn} to {b.checkOut}</td>
-                  <td className="px-6 py-4 text-sm font-bold text-gray-900">₹{b.totalAmount}</td>
-                  <td className="px-6 py-4">
-                    <select value={b.status} onChange={(e) => updateBookingStatus(b.id, e.target.value as PaymentStatus)} className={`text-sm rounded-full px-3 py-1 font-semibold ${b.status === 'PAID' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                      <option value="PENDING">Pending</option><option value="PAID">Paid</option><option value="FAILED">Failed</option>
-                    </select>
-                  </td>
-                  <td className="px-6 py-4"><a href={`https://wa.me/${b.guestPhone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="text-green-600 hover:text-green-800 flex items-center gap-1 text-sm font-medium"><MessageCircle size={18} /> Chat</a></td>
-                </tr>
-              ))}
-              {bookings.length === 0 && <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">No bookings found.</td></tr>}
-            </tbody>
-          </table>
-      </div>
-    </div>
-  );
+  const renderBookings = () => {
+    const stats = getBookingStats();
+    const maxRevenue = Math.max(...Object.values(stats.monthlyRevenue), 1);
+
+    return (
+        <div className="space-y-8">
+            {/* Dashboard Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+                    <div className="p-3 bg-green-100 rounded-full text-green-600"><DollarSign size={24}/></div>
+                    <div>
+                        <p className="text-sm text-gray-500 font-medium">Total Revenue</p>
+                        <p className="text-2xl font-bold text-gray-800">₹{stats.totalRevenue.toLocaleString()}</p>
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+                    <div className="p-3 bg-blue-100 rounded-full text-blue-600"><Calendar size={24}/></div>
+                    <div>
+                        <p className="text-sm text-gray-500 font-medium">Total Bookings</p>
+                        <p className="text-2xl font-bold text-gray-800">{stats.totalBookings}</p>
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+                    <div className="p-3 bg-yellow-100 rounded-full text-yellow-600"><Clock size={24}/></div>
+                    <div>
+                        <p className="text-sm text-gray-500 font-medium">Pending Actions</p>
+                        <p className="text-2xl font-bold text-gray-800">{stats.pendingCount}</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Revenue Bar Chart */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 md:col-span-2">
+                    <h3 className="font-bold text-gray-700 mb-6 flex items-center gap-2"><BarChart2 size={18}/> Revenue (Last 6 Months)</h3>
+                    <div className="h-48 flex items-end justify-between gap-2 px-2">
+                        {stats.months.map(month => (
+                            <div key={month} className="flex flex-col items-center gap-2 w-full group">
+                                <div className="w-full relative h-40 flex items-end">
+                                    <div 
+                                        className="w-full bg-nature-500 rounded-t-sm hover:bg-nature-600 transition-all"
+                                        style={{ height: `${(stats.monthlyRevenue[month] / maxRevenue) * 100}%` }}
+                                    >
+                                        {/* Tooltip */}
+                                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                            ₹{stats.monthlyRevenue[month].toLocaleString()}
+                                        </div>
+                                    </div>
+                                </div>
+                                <span className="text-xs text-gray-500 font-medium">{month}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Status Breakdown */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 className="font-bold text-gray-700 mb-6 flex items-center gap-2"><Activity size={18}/> Booking Status</h3>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600 flex items-center gap-2"><span className="w-3 h-3 bg-green-500 rounded-full"></span> Paid</span>
+                            <span className="font-bold">{stats.paidCount}</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2">
+                            <div className="bg-green-500 h-2 rounded-full" style={{ width: `${(stats.paidCount / stats.totalBookings) * 100 || 0}%` }}></div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600 flex items-center gap-2"><span className="w-3 h-3 bg-yellow-500 rounded-full"></span> Pending</span>
+                            <span className="font-bold">{stats.pendingCount}</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2">
+                            <div className="bg-yellow-500 h-2 rounded-full" style={{ width: `${(stats.pendingCount / stats.totalBookings) * 100 || 0}%` }}></div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600 flex items-center gap-2"><span className="w-3 h-3 bg-red-500 rounded-full"></span> Failed</span>
+                            <span className="font-bold">{stats.failedCount}</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2">
+                            <div className="bg-red-500 h-2 rounded-full" style={{ width: `${(stats.failedCount / stats.totalBookings) * 100 || 0}%` }}></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Bookings Table */}
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                    <h3 className="font-bold text-gray-700">Recent Reservations</h3>
+                    <button onClick={downloadBookingsCSV} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 shadow-sm"><Download size={16} /> Export CSV</button>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Guest</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dates</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th></tr></thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                        {bookings.map(b => (
+                            <tr key={b.id}>
+                            <td className="px-6 py-4"><div className="text-sm font-medium text-gray-900">{b.guestName}</div><div className="text-sm text-gray-500">{b.guestPhone}</div></td>
+                            <td className="px-6 py-4 text-sm text-gray-500">{b.checkIn} to {b.checkOut}</td>
+                            <td className="px-6 py-4 text-sm font-bold text-gray-900">₹{b.totalAmount}</td>
+                            <td className="px-6 py-4">
+                                <select value={b.status} onChange={(e) => updateBookingStatus(b.id, e.target.value as PaymentStatus)} className={`text-sm rounded-full px-3 py-1 font-semibold cursor-pointer border-none outline-none focus:ring-2 focus:ring-offset-1 ${b.status === 'PAID' ? 'bg-green-100 text-green-800 focus:ring-green-500' : 'bg-yellow-100 text-yellow-800 focus:ring-yellow-500'}`}>
+                                <option value="PENDING">Pending</option><option value="PAID">Paid</option><option value="FAILED">Failed</option>
+                                </select>
+                            </td>
+                            <td className="px-6 py-4"><a href={`https://wa.me/${b.guestPhone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="text-green-600 hover:text-green-800 flex items-center gap-1 text-sm font-medium"><MessageCircle size={18} /> Chat</a></td>
+                            </tr>
+                        ))}
+                        {bookings.length === 0 && <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">No bookings found.</td></tr>}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+  };
 
   const renderRooms = () => (
     <div className="space-y-6">
@@ -346,6 +468,15 @@ const AdminDashboard = () => {
         <nav className="flex-grow py-4 overflow-y-auto">
           {['bookings', 'rooms', 'locations', 'drivers', 'pricing', 'gallery', 'reviews', 'home-content', 'settings'].map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full text-left px-6 py-3 flex items-center gap-3 hover:bg-nature-800 capitalize ${activeTab === tab ? 'bg-nature-800 border-r-4 border-green-400' : ''}`}>
+                {tab === 'bookings' && <Calendar size={18}/>}
+                {tab === 'rooms' && <Home size={18}/>}
+                {tab === 'locations' && <Map size={18}/>}
+                {tab === 'drivers' && <Truck size={18}/>}
+                {tab === 'pricing' && <Banknote size={18}/>}
+                {tab === 'gallery' && <ImageIcon size={18}/>}
+                {tab === 'reviews' && <MessageSquare size={18}/>}
+                {tab === 'home-content' && <LayoutTemplate size={18}/>}
+                {tab === 'settings' && <Settings size={18}/>}
                 {tab.replace('-', ' ')}
             </button>
           ))}
