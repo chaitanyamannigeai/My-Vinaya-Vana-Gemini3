@@ -13,6 +13,7 @@ const Navbar = () => {
   const navLinks = [
     { name: 'Home', path: '/' },
     { name: 'Accommodation', path: '/accommodation' },
+    { name: 'Availability', path: '/availability' }, // New Link
     { name: 'Gallery', path: '/gallery' },
     { name: 'Tariff', path: '/tariff' },
     { name: 'Cab Services', path: '/cabs' },
@@ -25,8 +26,7 @@ const Navbar = () => {
   return (
     <nav className="bg-nature-900 text-nature-50 sticky top-0 z-50 shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20"> {/* Increased height slightly for logo */}
-          {/* Logo */}
+        <div className="flex items-center justify-between h-20">
           <div className="flex items-center flex-shrink-0">
             <Link to="/" className="flex items-center">
               <Logo className="h-16 w-auto" light={true} />
@@ -54,7 +54,6 @@ const Navbar = () => {
               </Link>
             </div>
             
-            {/* Google Translate Desktop */}
             <div className="ml-4 flex items-center gap-2 pl-4 border-l border-nature-700">
                 <Globe size={16} className="text-nature-300"/>
                 <GoogleTranslate mobile={false} />
@@ -93,7 +92,6 @@ const Navbar = () => {
             ))}
              <Link to="/admin" onClick={() => setIsOpen(false)} className="block px-3 py-2 text-sm text-nature-400">Admin Panel</Link>
              
-             {/* Mobile Translate */}
              <div className="px-3 py-4 border-t border-nature-700 mt-2">
                 <div className="text-xs text-nature-400 mb-2 flex items-center gap-1 uppercase tracking-widest">Select Language</div>
                 <GoogleTranslate mobile={true} />

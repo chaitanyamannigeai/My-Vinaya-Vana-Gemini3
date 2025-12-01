@@ -4,6 +4,7 @@ import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import Home from './pages/public/Home';
 import Accommodation from './pages/public/Accommodation';
+import Availability from './pages/public/Availability'; // Import Availability
 import Gallery from './pages/public/Gallery';
 import Contact from './pages/public/Contact';
 import Cabs from './pages/public/Cabs';
@@ -12,7 +13,7 @@ import Docs from './pages/public/Docs';
 import Reviews from './pages/public/Reviews';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import Login from './pages/admin/Login';
-import { api } from './services/api'; // Import api to track hits
+import { api } from './services/api';
 
 const { HashRouter: Router, Routes, Route, useLocation } = ReactRouterDOM as any;
 
@@ -26,7 +27,7 @@ const HitTracker = () => {
       // Track hit silently, without awaiting to prevent blocking render
       api.analytics.trackHit().catch(e => console.warn("Analytics Error", e));
     }
-  }, [location.pathname]); // Re-run when the path changes
+  }, [location.pathname]);
 
   return null;
 };
@@ -36,7 +37,6 @@ function App() {
   return (
     <Router>
       <div className="flex flex-col min-h-screen font-sans">
-        {/* Hit Tracker always active */}
         <HitTracker />
 
         <Routes>
@@ -49,6 +49,7 @@ function App() {
             {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/accommodation" element={<Accommodation />} />
+            <Route path="/availability" element={<Availability />} /> {/* New Route */}
             <Route path="/gallery" element={<Gallery />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/cabs" element={<Cabs />} />
