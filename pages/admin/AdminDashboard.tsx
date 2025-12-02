@@ -309,7 +309,10 @@ const AdminDashboard = () => {
       if (!driver) return;
       try {
           await api.drivers.save(driver);
-          if (driver.isDefault) { setDrivers(prev => prev.map(d => d.id === id ? d : { ...d, isDefault: false })); }
+          // If this driver is default, update local state to reflect others are not default
+          if (driver.isDefault) {
+              setDrivers(prev => prev.map(d => d.id === id ? d : { ...d, isDefault: false }));
+          }
           alert("Driver Saved!");
       } catch (e) { alert("Error saving driver"); }
   };
@@ -327,7 +330,15 @@ const AdminDashboard = () => {
   };
   const saveLocation = async (id: string) => {
       const loc = locations.find(l => l.id === id);
-      if (loc) { try { await api.locations.save(loc); alert("Location Saved!"); } catch (e) { console.error(e); alert("Error saving location"); } }
+      if (loc) {
+          try {
+              await api.locations.save(loc);
+              alert("Location Saved!");
+          } catch (e) { 
+            console.error(e);
+            alert("Error saving location"); 
+          }
+      }
   };
   const deleteLocation = async (id: string) => {
       if (!window.confirm("Delete location?")) return;
