@@ -16,7 +16,7 @@ RUN npm install --include=dev
 COPY . .
 
 # 6. Build Frontend
-RUN npm run build
+RUN npm install --include=dev 
 
 # 7. Prune dev dependencies to keep image small (Optional, but good practice)
 # We keep 'dependencies' (express, mysql2) but remove 'devDependencies' (vite, tailwind)
