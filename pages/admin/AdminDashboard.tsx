@@ -9,7 +9,8 @@ const { useNavigate } = ReactRouterDOM as any;
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  // CRITICAL: Initialize authLoading to true. Blocks UI until check is done.
+  // CRITICAL: Start with authLoading = TRUE. 
+  // This blocks the dashboard from rendering until we verify the user.
   const [authLoading, setAuthLoading] = useState(true); 
   const [activeTab, setActiveTab] = useState('bookings');
   const [loading, setLoading] = useState(false);
@@ -24,17 +25,18 @@ const AdminDashboard = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
 
-  // Auth Check
+  // --- STRICT AUTH CHECK ---
   useEffect(() => {
-    const checkAuth = async () => {
+    const checkAuth = () => {
         const isAuth = localStorage.getItem('vv_admin_auth');
         if (isAuth !== 'true') {
-          // If not auth, redirect IMMEDIATELY and keep loading true
+          // If not authenticated, redirect IMMEDIATELY.
+          // Do NOT set authLoading to false.
           navigate('/admin/login');
         } else {
-          // Only if auth passes, reveal dashboard and load data
-          setAuthLoading(false); 
-          loadTab('bookings'); 
+          // Only if authenticated, allow the dashboard to load.
+          setAuthLoading(false);
+          loadTab('bookings'); // Load initial data
         }
     };
     checkAuth();
@@ -81,19 +83,59 @@ const AdminDashboard = () => {
     navigate('/');
   };
 
-  // --- BOOKINGS LOGIC ---
+  // --- ANALYTICS CALCULATIONS (Fixed for Date Matching) ---
+  const calculateAnalytics = () => {
+      const totalRevenue = bookings
+          .filter(b => b.status === 'PAID')
+          .reduce((sum, b) => sum + (parseFloat(b.totalAmount as any) || 0), 0);
+      
+      const totalBookings = bookings.length;
+      const pendingBookings = bookings.filter(b => b.status === 'PENDING').length;
+      const failedBookings = bookings.filter(b => b.status === 'FAILED').length;
+      const paidBookings = bookings.filter(b => b.status === 'PAID').length;
+
+      // Monthly Revenue (Last 6 Months)
+      const monthlyRevenue: Record<string, number> = {};
+      const months = [];
+      const today = new Date();
+      
+      for(let i=5; i>=0; i--) {
+          const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+          // Format as "Jan 24" or "Dec 25" depending on year
+          const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+          monthlyRevenue[key] = 0;
+          months.push(key);
+      }
+
+      bookings.forEach(b => {
+          if (b.status === 'PAID') {
+              const bookingDate = new Date(b.createdAt);
+              if (!isNaN(bookingDate.getTime())) {
+                  const key = bookingDate.toLocaleString('default', { month: 'short', year: '2-digit' });
+                  // Only add if this month is in our last 6 months view
+                  if (monthlyRevenue[key] !== undefined) {
+                      monthlyRevenue[key] += (parseFloat(b.totalAmount as any) || 0);
+                  }
+              }
+          }
+      });
+
+      return { totalRevenue, totalBookings, pendingBookings, failedBookings, paidBookings, monthlyRevenue, months };
+  };
+
+  const analytics = calculateAnalytics();
+
+  // --- RENDER HELPERS ---
   const updateBookingStatus = async (id: string, status: PaymentStatus) => {
-    // Optimistic update
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
     try {
         await api.bookings.updateStatus(id, status);
     } catch (e) {
         alert("Failed to update status on server");
-        loadAllData(); // Revert on fail
+        loadTab('bookings'); // Revert on fail
     }
   };
 
-  // --- MISSING FUNCTION ADDED HERE ---
   const downloadBookingsCSV = () => {
     if (bookings.length === 0) {
         alert("No bookings to export.");
@@ -114,280 +156,6 @@ const AdminDashboard = () => {
     link.click();
     document.body.removeChild(link);
   };
-
-  // --- ANALYTICS CALCULATIONS ---
-  const calculateAnalytics = () => {
-      const totalRevenue = bookings
-          .filter(b => b.status === 'PAID')
-          .reduce((sum, b) => sum + (parseFloat(b.totalAmount as any) || 0), 0);
-      
-      const totalBookings = bookings.length;
-      const pendingBookings = bookings.filter(b => b.status === 'PENDING').length;
-      const failedBookings = bookings.filter(b => b.status === 'FAILED').length;
-      const paidBookings = bookings.filter(b => b.status === 'PAID').length;
-
-      // Simple Monthly Revenue (Last 6 Months)
-      const monthlyRevenue: Record<string, number> = {};
-      const months = [];
-      for(let i=5; i>=0; i--) {
-          const d = new Date();
-          d.setMonth(d.getMonth() - i);
-          const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
-          monthlyRevenue[key] = 0;
-          months.push(key);
-      }
-
-      bookings.forEach(b => {
-          if (b.status === 'PAID') {
-              const d = new Date(b.createdAt);
-              const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
-              if (monthlyRevenue[key] !== undefined) {
-                  monthlyRevenue[key] += (parseFloat(b.totalAmount as any) || 0);
-              }
-          }
-      });
-
-      return { totalRevenue, totalBookings, pendingBookings, failedBookings, paidBookings, monthlyRevenue, months };
-  };
-
-  const analytics = calculateAnalytics();
-
-  // --- ROOMS LOGIC (Local Edit Pattern) ---
-  const addRoomLocal = () => {
-    const newRoom: Room = {
-        id: `r${Date.now()}`,
-        name: 'New Room',
-        description: 'Description here...',
-        basePrice: 3000,
-        capacity: 2,
-        amenities: ['Wifi', 'AC'],
-        images: ['https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&q=80&w=800']
-    };
-    setRooms([newRoom, ...rooms]);
-  };
-
-  const updateRoomLocal = (id: string, field: keyof Room, value: any) => {
-      setRooms(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
-  };
-
-  const updateRoomAmenitiesLocal = (id: string, val: string) => {
-      setRooms(prev => prev.map(r => r.id === id ? { ...r, amenities: val.split(',').map(s => s.trim()) } : r));
-  };
-
-  const saveRoom = async (id: string) => {
-      const room = rooms.find(r => r.id === id);
-      if (!room) return;
-      try {
-          await api.rooms.save(room);
-          alert("Room Saved Successfully!");
-      } catch (e) {
-          alert("Error saving room");
-          console.error(e);
-      }
-  };
-
-  const deleteRoom = async (id: string) => {
-      if (!window.confirm("Delete this room?")) return;
-      try {
-          await api.rooms.delete(id);
-          setRooms(prev => prev.filter(r => r.id !== id));
-      } catch (e) { alert("Error deleting room"); }
-  };
-
-  // --- DRIVERS LOGIC ---
-  const addDriverLocal = () => {
-      const newDriver: Driver = {
-          id: Date.now().toString(),
-          name: 'New Driver',
-          phone: '',
-          whatsapp: '',
-          isDefault: false,
-          active: true,
-          vehicleInfo: ''
-      };
-      setDrivers([newDriver, ...drivers]);
-  };
-
-  const updateDriverLocal = (id: string, field: keyof Driver, value: any) => {
-      setDrivers(prev => prev.map(d => d.id === id ? { ...d, [field]: value } : d));
-  };
-
-  const saveDriver = async (id: string) => {
-      const driver = drivers.find(d => d.id === id);
-      if (!driver) return;
-      try {
-          await api.drivers.save(driver);
-          // If this driver is default, update local state to reflect others are not default
-          if (driver.isDefault) {
-              setDrivers(prev => prev.map(d => d.id === id ? d : { ...d, isDefault: false }));
-          }
-          alert("Driver Saved!");
-      } catch (e) { alert("Error saving driver"); }
-  };
-
-  const deleteDriver = async (id: string) => {
-      if (!window.confirm("Delete this driver?")) return;
-      try {
-          await api.drivers.delete(id);
-          setDrivers(prev => prev.filter(d => d.id !== id));
-      } catch (e) { alert("Error deleting driver"); }
-  };
-
-  // --- LOCATIONS LOGIC ---
-  const addLocationLocal = () => {
-      const newLoc: CabLocation = {
-          id: Date.now().toString(),
-          name: 'New Location',
-          description: '',
-          imageUrl: 'https://images.unsplash.com/photo-1590664095612-2d4e5e0a8d7a?auto=format&fit=crop&q=80&w=400',
-          active: true,
-          driverId: null,
-          price: 0 // Initialize with 0 to allow proper database saving
-      };
-      setLocations([newLoc, ...locations]);
-  };
-
-  const updateLocationLocal = (id: string, field: keyof CabLocation, value: any) => {
-      setLocations(prev => prev.map(l => l.id === id ? { ...l, [field]: value } : l));
-  };
-
-  const saveLocation = async (id: string) => {
-      const loc = locations.find(l => l.id === id);
-      if (loc) {
-          try {
-              await api.locations.save(loc);
-              alert("Location Saved!");
-          } catch (e) { 
-            console.error(e);
-            alert("Error saving location"); 
-          }
-      }
-  };
-
-  const deleteLocation = async (id: string) => {
-      if (!window.confirm("Delete location?")) return;
-      try {
-          await api.locations.delete(id);
-          setLocations(prev => prev.filter(l => l.id !== id));
-      } catch (e) { alert("Error deleting location"); }
-  };
-
-  // --- PRICING LOGIC ---
-  const addPricingRuleLocal = () => {
-      const newRule: PricingRule = {
-          id: `pr${Date.now()}`,
-          name: 'New Season',
-          startDate: new Date().toISOString().split('T')[0],
-          endDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-          multiplier: 1.2
-      };
-      setPricingRules([newRule, ...pricingRules]);
-  };
-
-  const updatePricingRuleLocal = (id: string, field: keyof PricingRule, value: any) => {
-      setPricingRules(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
-  };
-
-  const savePricingRule = async (id: string) => {
-      const rule = pricingRules.find(r => r.id === id);
-      if (rule) {
-          try {
-              await api.pricing.save(rule);
-              alert("Pricing Rule Saved!");
-          } catch (e) { alert("Error saving rule"); }
-      }
-  };
-
-  const deletePricingRule = async (id: string) => {
-      if (!window.confirm("Delete rule?")) return;
-      try {
-          await api.pricing.delete(id);
-          setPricingRules(prev => prev.filter(r => r.id !== id));
-      } catch (e) { alert("Error deleting rule"); }
-  };
-
-  // --- GALLERY LOGIC ---
-  const addGalleryItemLocal = () => {
-      const newItem: GalleryItem = {
-          id: `g${Date.now()}`,
-          url: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&q=80&w=800',
-          category: 'Property',
-          caption: ''
-      };
-      setGallery([newItem, ...gallery]);
-  };
-
-  const updateGalleryItemLocal = (id: string, field: keyof GalleryItem, value: any) => {
-      setGallery(prev => prev.map(g => g.id === id ? { ...g, [field]: value } : g));
-  };
-
-  const saveGalleryItem = async (id: string) => {
-      const item = gallery.find(g => g.id === id);
-      if (item) {
-          try {
-              await api.gallery.save(item);
-              alert("Image Saved!");
-          } catch (e) { 
-              console.error(e);
-              alert("Error saving image"); 
-          }
-      }
-  };
-
-  const deleteGalleryItem = async (id: string) => {
-      if (!window.confirm("Delete image?")) return;
-      try {
-          await api.gallery.delete(id);
-          setGallery(prev => prev.filter(g => g.id !== id));
-      } catch (e) { alert("Error deleting image"); }
-  };
-
-  // --- REVIEWS LOGIC ---
-  const addReviewLocal = () => {
-      const newReview: Review = {
-          id: `rev${Date.now()}`,
-          guestName: 'Guest Name',
-          location: 'Location',
-          rating: 5,
-          comment: 'Review comment...',
-          date: new Date().toISOString().split('T')[0],
-          showOnHome: false
-      };
-      setReviews([newReview, ...reviews]);
-  };
-
-  const updateReviewLocal = (id: string, field: keyof Review, value: any) => {
-      setReviews(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
-  };
-
-  const saveReview = async (id: string) => {
-      const review = reviews.find(r => r.id === id);
-      if (review) {
-          try {
-              await api.reviews.save(review);
-              alert("Review Saved!");
-          } catch (e) { alert("Error saving review"); }
-      }
-  };
-
-  const deleteReview = async (id: string) => {
-      if (!window.confirm("Delete review?")) return;
-      try {
-          await api.reviews.delete(id);
-          setReviews(prev => prev.filter(r => r.id !== id));
-      } catch (e) { alert("Error deleting review"); }
-  };
-
-  // --- SETTINGS ---
-  const saveSettings = async () => {
-      try {
-          await api.settings.save(settings);
-          alert("Settings Saved!");
-      } catch (e) { alert("Error saving settings"); }
-  };
-
-
-  // --- RENDER HELPERS ---
   
   const renderBookings = () => (
     <div className="space-y-8">
@@ -427,16 +195,18 @@ const AdminDashboard = () => {
             <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
                 <TrendingUp size={20} className="text-nature-600"/> Monthly Revenue Trend
             </h3>
-            <div className="flex items-end justify-between h-48 gap-2 pt-4 border-b border-gray-200">
+            <div className="flex items-end justify-between h-48 gap-2 pt-4 border-b border-gray-200 px-4">
                 {analytics.months.map(month => {
                     const value = analytics.monthlyRevenue[month];
-                    const maxVal = Math.max(...Object.values(analytics.monthlyRevenue), 1); // Avoid div by 0
-                    const heightPercent = Math.max((value / maxVal) * 100, 5); // Min 5% height
+                    // Dynamic scaling: find max value in data to set 100% height
+                    const maxVal = Math.max(...Object.values(analytics.monthlyRevenue), 1000); 
+                    const heightPercent = Math.max((value / maxVal) * 100, 2); // Min 2% height so bar is visible
+                    
                     return (
                         <div key={month} className="flex flex-col items-center gap-2 w-full group relative">
-                            <div className="text-xs font-bold text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity absolute -top-6">₹{value/1000}k</div>
+                            <div className="text-xs font-bold text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity absolute -top-6 bg-white shadow px-2 py-1 rounded">₹{value.toLocaleString()}</div>
                             <div 
-                                className="w-full bg-nature-200 hover:bg-nature-500 rounded-t-md transition-all duration-500 relative"
+                                className={`w-full max-w-[40px] rounded-t-md transition-all duration-500 relative ${value > 0 ? 'bg-nature-500 hover:bg-nature-600' : 'bg-gray-100'}`}
                                 style={{ height: `${heightPercent}%` }}
                             ></div>
                             <span className="text-xs text-gray-500 font-medium">{month}</span>
@@ -531,7 +301,8 @@ const AdminDashboard = () => {
                     onChange={(val) => {
                         const newImgs = [...room.images];
                         newImgs[0] = val;
-                        updateRoomLocal(room.id, 'images', newImgs);
+                        // updateRoomLocal(room.id, 'images', newImgs); // Helper function needed inside
+                        setRooms(prev => prev.map(r => r.id === room.id ? { ...r, images: newImgs } : r));
                     }}
                  />
             </div>
@@ -543,7 +314,7 @@ const AdminDashboard = () => {
                         <input 
                             type="text" 
                             value={room.name}
-                            onChange={(e) => updateRoomLocal(room.id, 'name', e.target.value)}
+                            onChange={(e) => setRooms(prev => prev.map(r => r.id === room.id ? { ...r, name: e.target.value } : r))}
                             className="border rounded px-3 py-2 w-full font-bold"
                         />
                     </div>
@@ -552,7 +323,7 @@ const AdminDashboard = () => {
                         <input 
                             type="number" 
                             value={room.basePrice}
-                            onChange={(e) => updateRoomLocal(room.id, 'basePrice', parseInt(e.target.value))}
+                            onChange={(e) => setRooms(prev => prev.map(r => r.id === room.id ? { ...r, basePrice: parseInt(e.target.value) } : r))}
                             className="border rounded px-3 py-2 w-full"
                         />
                     </div>
@@ -562,7 +333,7 @@ const AdminDashboard = () => {
                     <label className="block text-xs text-gray-500">Description</label>
                     <textarea 
                         value={room.description}
-                        onChange={(e) => updateRoomLocal(room.id, 'description', e.target.value)}
+                        onChange={(e) => setRooms(prev => prev.map(r => r.id === room.id ? { ...r, description: e.target.value } : r))}
                         className="border rounded px-3 py-2 w-full h-20"
                     />
                 </div>
@@ -573,7 +344,7 @@ const AdminDashboard = () => {
                         <input 
                             type="number" 
                             value={room.capacity}
-                            onChange={(e) => updateRoomLocal(room.id, 'capacity', parseInt(e.target.value))}
+                            onChange={(e) => setRooms(prev => prev.map(r => r.id === room.id ? { ...r, capacity: parseInt(e.target.value) } : r))}
                             className="border rounded px-3 py-2 w-full"
                         />
                     </div>
@@ -582,7 +353,7 @@ const AdminDashboard = () => {
                         <input 
                             type="text" 
                             value={room.amenities.join(', ')}
-                            onChange={(e) => updateRoomAmenitiesLocal(room.id, e.target.value)}
+                            onChange={(e) => setRooms(prev => prev.map(r => r.id === room.id ? { ...r, amenities: e.target.value.split(',').map(s => s.trim()) } : r))}
                             className="border rounded px-3 py-2 w-full"
                         />
                     </div>
@@ -608,28 +379,28 @@ const AdminDashboard = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                         <div>
                             <label className="text-xs text-gray-500 block">Name</label>
-                            <input type="text" value={d.name} onChange={(e) => updateDriverLocal(d.id, 'name', e.target.value)} className="border w-full p-1 rounded"/>
+                            <input type="text" value={d.name} onChange={(e) => setDrivers(prev => prev.map(drv => drv.id === d.id ? { ...drv, name: e.target.value } : drv))} className="border w-full p-1 rounded"/>
                         </div>
                         <div>
                             <label className="text-xs text-gray-500 block">Phone</label>
-                            <input type="text" value={d.phone} onChange={(e) => updateDriverLocal(d.id, 'phone', e.target.value)} className="border w-full p-1 rounded"/>
+                            <input type="text" value={d.phone} onChange={(e) => setDrivers(prev => prev.map(drv => drv.id === d.id ? { ...drv, phone: e.target.value } : drv))} className="border w-full p-1 rounded"/>
                         </div>
                         <div>
                              <label className="text-xs text-gray-500 block">WhatsApp</label>
-                             <input type="text" value={d.whatsapp} onChange={(e) => updateDriverLocal(d.id, 'whatsapp', e.target.value)} className="border w-full p-1 rounded"/>
+                             <input type="text" value={d.whatsapp} onChange={(e) => setDrivers(prev => prev.map(drv => drv.id === d.id ? { ...drv, whatsapp: e.target.value } : drv))} className="border w-full p-1 rounded"/>
                         </div>
                         <div className="flex items-center gap-4 pt-4">
                             <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                <input type="checkbox" checked={d.isDefault} onChange={(e) => updateDriverLocal(d.id, 'isDefault', e.target.checked)} /> Default
+                                <input type="checkbox" checked={d.isDefault} onChange={(e) => setDrivers(prev => prev.map(drv => drv.id === d.id ? { ...drv, isDefault: e.target.checked } : drv))} /> Default
                             </label>
                              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                <input type="checkbox" checked={d.active} onChange={(e) => updateDriverLocal(d.id, 'active', e.target.checked)} /> Active
+                                <input type="checkbox" checked={d.active} onChange={(e) => setDrivers(prev => prev.map(drv => drv.id === d.id ? { ...drv, active: e.target.checked } : drv))} /> Active
                             </label>
                         </div>
                     </div>
                     <div className="mt-2">
                          <label className="text-xs text-gray-500 block">Vehicle Info</label>
-                         <input type="text" value={d.vehicleInfo || ''} onChange={(e) => updateDriverLocal(d.id, 'vehicleInfo', e.target.value)} className="border w-full p-1 rounded" placeholder="e.g. Toyota Innova"/>
+                         <input type="text" value={d.vehicleInfo || ''} onChange={(e) => setDrivers(prev => prev.map(drv => drv.id === d.id ? { ...drv, vehicleInfo: e.target.value } : drv))} className="border w-full p-1 rounded" placeholder="e.g. Toyota Innova"/>
                     </div>
                 </div>
             ))}
@@ -653,20 +424,20 @@ const AdminDashboard = () => {
                         <ImageUploader 
                             label="Location Image"
                             value={loc.imageUrl}
-                            onChange={(val) => updateLocationLocal(loc.id, 'imageUrl', val)}
+                            onChange={(val) => setLocations(prev => prev.map(l => l.id === loc.id ? { ...l, imageUrl: val } : l))}
                         />
                     </div>
                     <div className="space-y-2">
                          <input 
                             type="text" 
                             value={loc.name}
-                            onChange={(e) => updateLocationLocal(loc.id, 'name', e.target.value)}
+                            onChange={(e) => setLocations(prev => prev.map(l => l.id === loc.id ? { ...l, name: e.target.value } : l))}
                             className="font-bold border w-full p-1 rounded"
                             placeholder="Location Name"
                         />
                          <textarea 
                             value={loc.description}
-                            onChange={(e) => updateLocationLocal(loc.id, 'description', e.target.value)}
+                            onChange={(e) => setLocations(prev => prev.map(l => l.id === loc.id ? { ...l, description: e.target.value } : l))}
                             className="text-sm border w-full p-1 rounded h-20"
                             placeholder="Description"
                         />
@@ -677,9 +448,8 @@ const AdminDashboard = () => {
                                     type="number" 
                                     value={loc.price ?? ''} 
                                     onChange={(e) => {
-                                        // Safe number handling: empty string -> 0, otherwise parse float
                                         const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                                        updateLocationLocal(loc.id, 'price', val);
+                                        setLocations(prev => prev.map(l => l.id === loc.id ? { ...l, price: val } : l));
                                     }}
                                     className="border w-full p-1 rounded"
                                 />
@@ -688,7 +458,7 @@ const AdminDashboard = () => {
                                 <label className="text-xs block text-gray-500">Driver</label>
                                 <select 
                                     value={loc.driverId || ''} 
-                                    onChange={(e) => updateLocationLocal(loc.id, 'driverId', e.target.value || null)}
+                                    onChange={(e) => setLocations(prev => prev.map(l => l.id === loc.id ? { ...l, driverId: e.target.value || null } : l))}
                                     className="border w-full p-1 rounded text-sm"
                                 >
                                     <option value="">Default Driver</option>
@@ -718,19 +488,19 @@ const AdminDashboard = () => {
                     <div className="flex-grow grid grid-cols-1 md:grid-cols-4 gap-4 w-full mt-2 md:mt-0">
                         <div>
                             <label className="text-xs text-gray-500">Season Name</label>
-                            <input type="text" value={rule.name} onChange={(e) => updatePricingRuleLocal(rule.id, 'name', e.target.value)} className="border w-full p-2 rounded"/>
+                            <input type="text" value={rule.name} onChange={(e) => setPricingRules(prev => prev.map(r => r.id === rule.id ? { ...r, name: e.target.value } : r))} className="border w-full p-2 rounded"/>
                         </div>
                         <div>
                             <label className="text-xs text-gray-500">Start Date</label>
-                            <input type="date" value={rule.startDate} onChange={(e) => updatePricingRuleLocal(rule.id, 'startDate', e.target.value)} className="border w-full p-2 rounded"/>
+                            <input type="date" value={rule.startDate} onChange={(e) => setPricingRules(prev => prev.map(r => r.id === rule.id ? { ...r, startDate: e.target.value } : r))} className="border w-full p-2 rounded"/>
                         </div>
                         <div>
                             <label className="text-xs text-gray-500">End Date</label>
-                            <input type="date" value={rule.endDate} onChange={(e) => updatePricingRuleLocal(rule.id, 'endDate', e.target.value)} className="border w-full p-2 rounded"/>
+                            <input type="date" value={rule.endDate} onChange={(e) => setPricingRules(prev => prev.map(r => r.id === rule.id ? { ...r, endDate: e.target.value } : r))} className="border w-full p-2 rounded"/>
                         </div>
                         <div>
                             <label className="text-xs text-gray-500">Multiplier</label>
-                            <input type="number" step="0.1" value={rule.multiplier} onChange={(e) => updatePricingRuleLocal(rule.id, 'multiplier', parseFloat(e.target.value))} className="border w-full p-2 rounded font-bold text-nature-700"/>
+                            <input type="number" step="0.1" value={rule.multiplier} onChange={(e) => setPricingRules(prev => prev.map(r => r.id === rule.id ? { ...r, multiplier: parseFloat(e.target.value) } : r))} className="border w-full p-2 rounded font-bold text-nature-700"/>
                         </div>
                     </div>
                 </div>
@@ -754,17 +524,17 @@ const AdminDashboard = () => {
                       <div className="mb-3">
                           <ImageUploader 
                             value={item.url}
-                            onChange={(val) => updateGalleryItemLocal(item.id, 'url', val)}
+                            onChange={(val) => setGallery(prev => prev.map(g => g.id === item.id ? { ...g, url: val } : g))}
                           />
                       </div>
                       <div className="space-y-2">
                           <div>
                               <label className="text-xs text-gray-500">Category</label>
-                              <input type="text" value={item.category} onChange={(e) => updateGalleryItemLocal(item.id, 'category', e.target.value)} className="border w-full p-1 rounded text-sm"/>
+                              <input type="text" value={item.category} onChange={(e) => setGallery(prev => prev.map(g => g.id === item.id ? { ...g, category: e.target.value } : g))} className="border w-full p-1 rounded text-sm"/>
                           </div>
                           <div>
                               <label className="text-xs text-gray-500">Caption</label>
-                              <input type="text" value={item.caption || ''} onChange={(e) => updateGalleryItemLocal(item.id, 'caption', e.target.value)} className="border w-full p-1 rounded text-sm"/>
+                              <input type="text" value={item.caption || ''} onChange={(e) => setGallery(prev => prev.map(g => g.id === item.id ? { ...g, caption: e.target.value } : g))} className="border w-full p-1 rounded text-sm"/>
                           </div>
                       </div>
                   </div>
@@ -789,28 +559,28 @@ const AdminDashboard = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                         <div>
                             <label className="text-xs text-gray-500">Guest Name</label>
-                            <input type="text" value={rev.guestName} onChange={(e) => updateReviewLocal(rev.id, 'guestName', e.target.value)} className="border w-full p-1 rounded font-bold"/>
+                            <input type="text" value={rev.guestName} onChange={(e) => setReviews(prev => prev.map(r => r.id === rev.id ? { ...r, guestName: e.target.value } : r))} className="border w-full p-1 rounded font-bold"/>
                         </div>
                         <div>
                             <label className="text-xs text-gray-500">Location</label>
-                            <input type="text" value={rev.location} onChange={(e) => updateReviewLocal(rev.id, 'location', e.target.value)} className="border w-full p-1 rounded"/>
+                            <input type="text" value={rev.location} onChange={(e) => setReviews(prev => prev.map(r => r.id === rev.id ? { ...r, location: e.target.value } : r))} className="border w-full p-1 rounded"/>
                         </div>
                         <div>
                             <label className="text-xs text-gray-500">Rating (1-5)</label>
-                            <input type="number" min="1" max="5" value={rev.rating} onChange={(e) => updateReviewLocal(rev.id, 'rating', parseInt(e.target.value))} className="border w-full p-1 rounded"/>
+                            <input type="number" min="1" max="5" value={rev.rating} onChange={(e) => setReviews(prev => prev.map(r => r.id === rev.id ? { ...r, rating: parseInt(e.target.value) } : r))} className="border w-full p-1 rounded"/>
                         </div>
                     </div>
                     <div className="mb-4">
                          <label className="text-xs text-gray-500">Comment</label>
-                         <textarea value={rev.comment} onChange={(e) => updateReviewLocal(rev.id, 'comment', e.target.value)} className="border w-full p-2 rounded h-20 text-sm"></textarea>
+                         <textarea value={rev.comment} onChange={(e) => setReviews(prev => prev.map(r => r.id === rev.id ? { ...r, comment: e.target.value } : r))} className="border w-full p-2 rounded h-20 text-sm"></textarea>
                     </div>
                     <div className="flex items-center justify-between">
                         <div>
                              <label className="text-xs text-gray-500">Date</label>
-                             <input type="date" value={rev.date} onChange={(e) => updateReviewLocal(rev.id, 'date', e.target.value)} className="border ml-2 p-1 rounded"/>
+                             <input type="date" value={rev.date} onChange={(e) => setReviews(prev => prev.map(r => r.id === rev.id ? { ...r, date: e.target.value } : r))} className="border ml-2 p-1 rounded"/>
                         </div>
                         <div className="flex items-center gap-2">
-                             <input type="checkbox" checked={rev.showOnHome} onChange={(e) => updateReviewLocal(rev.id, 'showOnHome', e.target.checked)} id={`home-${rev.id}`} />
+                             <input type="checkbox" checked={rev.showOnHome} onChange={(e) => setReviews(prev => prev.map(r => r.id === rev.id ? { ...r, showOnHome: e.target.checked } : r))} id={`home-${rev.id}`} />
                              <label htmlFor={`home-${rev.id}`} className="text-sm font-medium cursor-pointer">Show on Home Page</label>
                         </div>
                     </div>
@@ -988,8 +758,8 @@ const AdminDashboard = () => {
                 {/* In the real file, call the actual render functions */}
                 {activeTab === 'bookings' && renderBookings()}
                 {activeTab === 'rooms' && renderRooms()}
-                {activeTab === 'drivers' && renderDrivers()}
                 {activeTab === 'locations' && renderLocations()}
+                {activeTab === 'drivers' && renderDrivers()}
                 {activeTab === 'pricing' && renderPricing()}
                 {activeTab === 'gallery' && renderGallery()}
                 {activeTab === 'reviews' && renderReviews()}
