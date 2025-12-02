@@ -11,17 +11,35 @@ import compression from 'compression';
 dotenv.config();
 
 const app = express();
+// CONFIGURATION: Dynamic Port for Northflank/Render
 const PORT = process.env.PORT || 3000;
 
+// CONFIGURATION: Handle __dirname in ESM modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// MIDDLEWARE
 app.use(cors());
 app.use(compression()); 
 app.use(express.json({ limit: '50mb' })); 
 
-const pool = mysql.createPool(process.env.DATABASE_URL || '');
+// --- DATABASE CONNECTION (FIXED FOR AIVEN/NORTHFLANK) ---
+const dbUrl = process.env.DATABASE_URL || '';
+if (!dbUrl) {
+    console.warn("⚠️  WARNING: DATABASE_URL is missing in Environment Variables!");
+}
 
+const pool = mysql.createPool({
+    uri: dbUrl,
+    ssl: {
+        rejectUnauthorized: false // CRITICAL: Fixes 'Self-signed certificate' errors on Aiven
+    },
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+});
+
+// --- DATABASE HELPERS ---
 const fixDatabaseSchema = async () => {
     try {
         const connection = await pool.getConnection();
@@ -34,7 +52,7 @@ const fixDatabaseSchema = async () => {
         console.log('✅ Database schema auto-corrected.');
         connection.release();
     } catch (err) {
-        console.log('ℹ️ Schema check skipped.');
+        console.log('ℹ️ Schema check skipped (Database might be initially empty).');
     }
 };
 
@@ -45,20 +63,10 @@ const testDbConnection = async () => {
         connection.release();
         await fixDatabaseSchema();
     } catch (err) {
-        console.error('❌ DATABASE CONNECTION FAILED', err.message);
+        console.error('❌ DATABASE CONNECTION FAILED:', err.message);
     }
 };
 testDbConnection();
-
-app.get('/api/health', async (req, res) => {
-    try {
-        const connection = await pool.getConnection();
-        connection.release();
-        res.json({ status: 'OK', database: 'Connected' });
-    } catch (err) {
-        res.status(500).json({ status: 'ERROR', error: err.message });
-    }
-});
 
 const parseJSON = (data) => {
     if (typeof data === 'string') {
@@ -71,6 +79,18 @@ const parseJSON = (data) => {
     }
     return data;
 };
+
+// --- API ROUTES ---
+
+app.get('/api/health', async (req, res) => {
+    try {
+        const connection = await pool.getConnection();
+        connection.release();
+        res.json({ status: 'OK', database: 'Connected' });
+    } catch (err) {
+        res.status(500).json({ status: 'ERROR', error: err.message });
+    }
+});
 
 app.post('/api/auth/login', async (req, res) => {
     const { password } = req.body;
@@ -98,7 +118,6 @@ app.post('/api/analytics/track-hit', async (req, res) => {
     } catch (err) { res.json({ success: false }); }
 });
 
-// --- API ENDPOINTS ---
 app.get('/api/rooms', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM rooms');
@@ -208,7 +227,6 @@ app.get('/api/weather', async (req, res) => {
             icon: weatherResponse.data.weather[0].icon,
         });
     } catch (err) { 
-        // THIS IS WHERE THE SYNTAX ERROR WAS. NOW FIXED:
         console.error("Weather error:", err.message);
         res.status(500).json({ error: "Weather fetch failed" });
     }
@@ -266,6 +284,7 @@ app.get('/api/docs/sql-script', (req, res) => {
     });
 });
 
+// --- SERVING FRONTEND (CATCH-ALL) ---
 app.use('/api/*', (req, res) => res.status(404).json({ error: `API endpoint not found` }));
 
 const distPath = path.join(__dirname, 'dist');
@@ -273,8 +292,9 @@ if (fs.existsSync(distPath)) {
     app.use(express.static(distPath));
     app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
 } else {
-    console.warn('WARNING: "dist" not found.');
-    app.get('*', (req, res) => res.send('<h1>Backend Running</h1><p>Frontend not built.</p>'));
+    console.warn('⚠️ WARNING: "dist" folder not found. Frontend will not load.');
+    app.get('*', (req, res) => res.send('<h1>Backend Running</h1><p>Frontend not built (dist folder missing).</p>'));
 }
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// START SERVER
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
