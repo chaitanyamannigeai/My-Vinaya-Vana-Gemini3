@@ -1,25 +1,52 @@
-// AdminDashboard.tsx
+// pages/admin/AdminDashboard.tsx
 import React, { useEffect, useMemo, useState } from "react";
-import * as ReactRouterDOM from "react-router-dom";
-import { api, DEFAULT_SETTINGS } from "././services/api";
-import type { Booking, Room, SiteSettings } from "././types";
-import { Download, Loader, LogOut, Clock, Activity, DollarSign } from "lucide-react";
-
-const { useNavigate } = ReactRouterDOM as any;
+import { useNavigate } from "react-router-dom";
 
 /**
- * Stable AdminDashboard
- * - Keeps legacy vv_admin_auth flow (redirects to /admin/login if not set)
- * - Fixes revenue parsing (handles "₹", commas, spaces)
- * - Computes monthly revenue (last 6 months) with proper scaling for chart
- * - Formats currency consistently
- * - Uses your existing api.* methods (no new endpoints required)
+ * Self-contained AdminDashboard
+ * - Uses fetch('/api/...') by default (change API_BASE if needed)
+ * - Falls back to window.api.* if your project exposes it
+ * - Fixes revenue parsing & chart
+ * - Keeps existing vv_admin_auth redirect behavior
  */
 
+/* ========== CONFIG ========== */
+// If your API is mounted at another base path, change this to e.g. '/api/v1'
+const API_BASE = "/api";
+
+/* ========== Types (light) ========== */
+type Booking = {
+  id?: string;
+  guestName?: string;
+  guestPhone?: string;
+  roomId?: string;
+  checkIn?: string;
+  checkOut?: string;
+  totalAmount?: string | number;
+  status?: string;
+  createdAt?: string;
+  [k: string]: any;
+};
+
+type Room = {
+  id?: string;
+  name?: string;
+  basePrice?: number | string;
+  capacity?: number;
+  [k: string]: any;
+};
+
+type SiteSettings = {
+  siteTitle?: string;
+  contactEmail?: string;
+  [k: string]: any;
+};
+
+/* ========== Helpers ========== */
 const parseAmountSafe = (amt: any): number => {
   if (amt == null) return 0;
   if (typeof amt === "number") return amt;
-  // Remove everything except digits, dot and minus
+  // Keep only digits, dot and minus sign
   const s = String(amt).replace(/[^\d.-]/g, "");
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : 0;
@@ -33,10 +60,17 @@ const formatCurrency = (n: number) => {
   }
 };
 
-const AdminDashboard: React.FC = () => {
+const safeFetchJson = async (path: string) => {
+  const resp = await fetch(path, { credentials: "same-origin" });
+  if (!resp.ok) throw new Error(`Fetch ${path} failed: ${resp.status}`);
+  return resp.json();
+};
+
+/* ========== Component ========== */
+export default function AdminDashboard(): JSX.Element {
   const navigate = useNavigate();
 
-  // auth + ui
+  // auth + UI
   const [authLoading, setAuthLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"bookings" | "rooms" | "settings">("bookings");
@@ -44,14 +78,14 @@ const AdminDashboard: React.FC = () => {
   // data
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<SiteSettings>({});
 
-  // --- Auth behavior: same as original app (vv_admin_auth flag) ---
+  /* ---------- Auth: preserve legacy behavior ---------- */
   useEffect(() => {
     const checkAuth = () => {
       const isAuth = localStorage.getItem("vv_admin_auth");
       if (isAuth !== "true") {
-        // Not authenticated — redirect to your admin login page (keeps existing behavior)
+        // redirect to original login path
         navigate("/admin/login");
       } else {
         setAuthLoading(false);
@@ -60,14 +94,23 @@ const AdminDashboard: React.FC = () => {
     checkAuth();
   }, [navigate]);
 
-  // --- Loaders using your existing api client ---
+  /* ---------- Loaders: try window.api first, else fetch endpoints ---------- */
   const loadBookings = async () => {
     setLoading(true);
     try {
-      const data = await api.bookings.getAll();
+      // If your project exposes window.api, prefer it
+      // @ts-ignore
+      if (typeof window !== "undefined" && (window as any).api?.bookings?.getAll) {
+        // @ts-ignore
+        const data = await (window as any).api.bookings.getAll();
+        setBookings(Array.isArray(data) ? data : []);
+        return;
+      }
+      // default endpoint
+      const data = await safeFetchJson(`${API_BASE}/bookings`);
       setBookings(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error("Failed to load bookings", e);
+    } catch (err) {
+      console.error("loadBookings error:", err);
       setBookings([]);
     } finally {
       setLoading(false);
@@ -77,10 +120,17 @@ const AdminDashboard: React.FC = () => {
   const loadRooms = async () => {
     setLoading(true);
     try {
-      const data = await api.rooms.getAll();
+      // @ts-ignore
+      if (typeof window !== "undefined" && (window as any).api?.rooms?.getAll) {
+        // @ts-ignore
+        const data = await (window as any).api.rooms.getAll();
+        setRooms(Array.isArray(data) ? data : []);
+        return;
+      }
+      const data = await safeFetchJson(`${API_BASE}/rooms`);
       setRooms(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error("Failed to load rooms", e);
+    } catch (err) {
+      console.error("loadRooms error:", err);
       setRooms([]);
     } finally {
       setLoading(false);
@@ -90,57 +140,58 @@ const AdminDashboard: React.FC = () => {
   const loadSettings = async () => {
     setLoading(true);
     try {
-      const s = await api.settings.get();
-      setSettings(s || DEFAULT_SETTINGS);
-    } catch (e) {
-      console.error("Failed to load settings", e);
-      setSettings(DEFAULT_SETTINGS);
+      // @ts-ignore
+      if (typeof window !== "undefined" && (window as any).api?.settings?.get) {
+        // @ts-ignore
+        const s = await (window as any).api.settings.get();
+        setSettings(s || {});
+        return;
+      }
+      const s = await safeFetchJson(`${API_BASE}/settings`);
+      setSettings(s || {});
+    } catch (err) {
+      console.error("loadSettings error:", err);
+      setSettings({});
     } finally {
       setLoading(false);
     }
   };
 
-  // When auth validated, load the active tab
+  // load when tab or after auth
   useEffect(() => {
     if (authLoading) return;
-    if (activeTab === "bookings") {
-      loadBookings();
-    } else if (activeTab === "rooms") {
-      loadRooms();
-    } else if (activeTab === "settings") {
-      loadSettings();
-    }
+    if (activeTab === "bookings") loadBookings();
+    else if (activeTab === "rooms") loadRooms();
+    else if (activeTab === "settings") loadSettings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, authLoading]);
 
-  const handleLogout = () => {
+  const logout = () => {
     localStorage.removeItem("vv_admin_auth");
     navigate("/");
   };
 
-  // --- ANALYTICS: robust, memoized ---
+  /* ---------- Analytics (memoized) ---------- */
   const analytics = useMemo(() => {
-    // bookings summary
     const totalBookings = bookings.length;
     const paidBookingsList = bookings.filter(b => ((b.status || "") as string).toUpperCase() === "PAID");
     const pendingBookings = bookings.filter(b => ((b.status || "") as string).toUpperCase() === "PENDING").length;
     const failedBookings = bookings.filter(b => ((b.status || "") as string).toUpperCase() === "FAILED").length;
     const paidBookings = paidBookingsList.length;
 
-    const totalRevenue = paidBookingsList.reduce((s, b) => s + parseAmountSafe((b as any).totalAmount), 0);
+    const totalRevenue = paidBookingsList.reduce((sum, b) => sum + parseAmountSafe((b as any).totalAmount), 0);
 
-    // last 6 months keys
+    // last 6 months
     const monthlyRevenue: Record<string, number> = {};
     const months: string[] = [];
     const today = new Date();
     for (let i = 5; i >= 0; i--) {
       const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      const key = d.toLocaleString("default", { month: "short", year: "2-digit" }); // e.g., "Aug 25"
+      const key = d.toLocaleString("default", { month: "short", year: "2-digit" });
       months.push(key);
       monthlyRevenue[key] = 0;
     }
 
-    // accumulate per month using createdAt or fallback to checkIn
     paidBookingsList.forEach(b => {
       const dateStr = b.createdAt || b.checkIn || null;
       if (!dateStr) return;
@@ -155,9 +206,9 @@ const AdminDashboard: React.FC = () => {
     return { totalRevenue, totalBookings, pendingBookings, failedBookings, paidBookings, monthlyRevenue, months };
   }, [bookings]);
 
-  // --- CSV export ---
+  /* ---------- CSV export ---------- */
   const downloadBookingsCSV = () => {
-    if (!bookings.length) {
+    if (!bookings || bookings.length === 0) {
       alert("No bookings to export");
       return;
     }
@@ -178,34 +229,29 @@ const AdminDashboard: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `bookings_export_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `bookings_export_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  // --- Chart subcomponent ---
+  /* ---------- Chart component ---------- */
   const MonthlyBarChart: React.FC<{ data: Record<string, number>, months: string[] }> = ({ data, months }) => {
-    // compute values and scale once
     const values = months.map(m => data[m] || 0);
-    const maxVal = Math.max(...values, 1); // avoid division by zero; 1 is minimal so small real values show
+    const maxVal = Math.max(...values, 1); // fallback 1 to avoid division by zero but small enough not to hide values
+
     return (
-      <div className="flex items-end justify-between h-48 gap-2 pt-4 border-b border-gray-200 px-4">
-        {months.map(month => {
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", height: 192, gap: 8, padding: "12px 8px", borderBottom: "1px solid #e5e7eb" }}>
+        {months.map((month) => {
           const value = data[month] || 0;
-          // scale to percent
           const rawPercent = (value / maxVal) * 100;
-          // ensure tiny values are still visible; if value is zero show very faint small bar
-          const heightPercent = value === 0 ? 2 : Math.max(rawPercent, 6);
+          const heightPercent = value === 0 ? 6 : Math.max(rawPercent, 6); // ensure tiny bars visible
           return (
-            <div key={month} className="flex flex-col items-center gap-2 w-full group relative">
-              <div className="text-xs font-bold text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity absolute -top-6 bg-white shadow px-2 py-1 rounded">
+            <div key={month} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8, visibility: "hidden" }} className="bar-label">
                 ₹{formatCurrency(value)}
               </div>
-              <div
-                className={`w-full max-w-[40px] rounded-t-md transition-all duration-500 relative ${value > 0 ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-gray-100'}`}
-                style={{ height: `${heightPercent}%` }}
-              />
-              <span className="text-xs text-gray-500 font-medium">{month.split(" ")[0]}</span>
+              <div title={`₹${formatCurrency(value)}`} style={{ width: 36, borderTopLeftRadius: 6, borderTopRightRadius: 6, background: value > 0 ? "#16a34a" : "#e5e7eb", height: `${heightPercent}%`, transition: "height 0.35s" }} />
+              <div style={{ fontSize: 12, color: "#6b7280", marginTop: 8 }}>{month.split(" ")[0]}</div>
             </div>
           );
         })}
@@ -213,76 +259,58 @@ const AdminDashboard: React.FC = () => {
     );
   };
 
-  // --- Renders ---
+  /* ---------- Renderers for tabs ---------- */
   const renderBookingsTab = () => (
-    <div className="space-y-8">
-      {/* Top stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-          <div>
-            <p className="text-gray-500 text-sm font-medium">Total Revenue</p>
-            <h3 className="text-2xl font-bold text-gray-800 mt-1">₹{formatCurrency(analytics.totalRevenue)}</h3>
-          </div>
-          <div className="bg-green-100 p-3 rounded-full text-green-600"><DollarSign size={24} /></div>
+    <>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
+        <div style={{ background: "#fff", padding: 16, borderRadius: 8, boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
+          <div style={{ fontSize: 13, color: "#6b7280" }}>Total Revenue</div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>₹{formatCurrency(analytics.totalRevenue)}</div>
         </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-          <div>
-            <p className="text-gray-500 text-sm font-medium">Total Bookings</p>
-            <h3 className="text-2xl font-bold text-gray-800 mt-1">{analytics.totalBookings}</h3>
-          </div>
-          <div className="bg-blue-100 p-3 rounded-full text-blue-600"><Activity size={24} /></div>
+        <div style={{ background: "#fff", padding: 16, borderRadius: 8 }}>
+          <div style={{ fontSize: 13, color: "#6b7280" }}>Total Bookings</div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>{analytics.totalBookings}</div>
         </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-          <div>
-            <p className="text-gray-500 text-sm font-medium">Pending Actions</p>
-            <h3 className="text-2xl font-bold text-gray-800 mt-1">{analytics.pendingBookings}</h3>
-          </div>
-          <div className="bg-yellow-100 p-3 rounded-full text-yellow-600"><Clock size={24} /></div>
+        <div style={{ background: "#fff", padding: 16, borderRadius: 8 }}>
+          <div style={{ fontSize: 13, color: "#6b7280" }}>Pending</div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>{analytics.pendingBookings}</div>
         </div>
       </div>
 
-      {/* Monthly revenue chart */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <h3 className="text-lg font-bold text-gray-800 mb-6">Monthly Revenue Trend</h3>
+      <div style={{ background: "#fff", padding: 16, borderRadius: 8, marginBottom: 20 }}>
+        <h3 style={{ marginTop: 0 }}>Monthly Revenue Trend</h3>
         <MonthlyBarChart data={analytics.monthlyRevenue} months={analytics.months} />
       </div>
 
-      {/* Bookings table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-          <h3 className="font-bold text-gray-700">Guest Reservations</h3>
-          <button onClick={downloadBookingsCSV} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 shadow-sm">
-            <Download size={16} /> Export CSV
-          </button>
+      <div style={{ background: "#fff", borderRadius: 8, overflow: "hidden" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", padding: 12, borderBottom: "1px solid #f3f4f6", background: "#fbfbfb" }}>
+          <strong>Guest Reservations</strong>
+          <button onClick={downloadBookingsCSV} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "8px 12px", borderRadius: 6 }}>Export CSV</button>
         </div>
 
         {bookings.length === 0 ? (
-          <div className="p-6 text-sm text-gray-500">No bookings found.</div>
+          <div style={{ padding: 16, color: "#6b7280" }}>No bookings found.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Guest</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dates</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: "1px solid #f3f4f6" }}>
+                  <th style={{ padding: 12 }}>Guest</th>
+                  <th style={{ padding: 12 }}>Dates</th>
+                  <th style={{ padding: 12 }}>Amount</th>
+                  <th style={{ padding: 12 }}>Status</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {bookings.map((b: any) => (
-                  <tr key={b.id || Math.random()}>
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900">{b.guestName || "—"}</div>
-                      <div className="text-sm text-gray-500">{b.guestPhone || ""}</div>
+              <tbody>
+                {bookings.map((b) => (
+                  <tr key={b.id || Math.random()} style={{ borderBottom: "1px solid #fafafa" }}>
+                    <td style={{ padding: 12 }}>
+                      <div style={{ fontWeight: 600 }}>{b.guestName || "—"}</div>
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>{b.guestPhone || ""}</div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {(b.checkIn ? new Date(b.checkIn).toLocaleDateString() : "—")} to {(b.checkOut ? new Date(b.checkOut).toLocaleDateString() : "—")}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-bold text-gray-900">₹{formatCurrency(parseAmountSafe((b as any).totalAmount))}</td>
-                    <td className="px-6 py-4 text-sm text-gray-700">{b.status || ""}</td>
+                    <td style={{ padding: 12 }}>{b.checkIn ? new Date(b.checkIn).toLocaleDateString() : "—"} to {b.checkOut ? new Date(b.checkOut).toLocaleDateString() : "—"}</td>
+                    <td style={{ padding: 12, fontWeight: 700 }}>₹{formatCurrency(parseAmountSafe((b as any).totalAmount))}</td>
+                    <td style={{ padding: 12 }}>{b.status || ""}</td>
                   </tr>
                 ))}
               </tbody>
@@ -290,19 +318,18 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 
   const renderRoomsTab = () => (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Rooms (read-only for now)</h2>
-      {rooms.length === 0 ? <p className="text-sm text-gray-500">No rooms loaded.</p> : (
-        <div className="grid gap-4">
-          {rooms.map(room => (
-            <div key={room.id} className="bg-white p-4 rounded-lg shadow border border-gray-100">
-              <h3 className="font-bold text-gray-800">{room.name}</h3>
-              <p className="text-sm text-gray-600 mt-1">Base price: ₹{room.basePrice}</p>
-              <p className="text-xs text-gray-500 mt-1">Capacity: {room.capacity}</p>
+    <div>
+      <h3>Rooms</h3>
+      {rooms.length === 0 ? <p style={{ color: "#6b7280" }}>No rooms loaded.</p> : (
+        <div style={{ display: "grid", gap: 12 }}>
+          {rooms.map(r => (
+            <div key={r.id} style={{ background: "#fff", padding: 12, borderRadius: 8 }}>
+              <div style={{ fontWeight: 700 }}>{r.name}</div>
+              <div style={{ fontSize: 13, color: "#6b7280" }}>Base price: ₹{r.basePrice}</div>
             </div>
           ))}
         </div>
@@ -311,66 +338,84 @@ const AdminDashboard: React.FC = () => {
   );
 
   const renderSettingsTab = () => (
-    <div className="bg-white p-6 rounded-lg shadow max-w-xl space-y-4">
-      <h2 className="text-lg font-semibold mb-2">Basic Settings</h2>
-      <p className="text-sm text-gray-500">These values are loaded from your existing settings API.</p>
-      <div className="space-y-3">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Site Title</label>
-          <input className="mt-1 block w-full border p-2 rounded" value={settings.siteTitle || ""} onChange={(e) => setSettings({ ...settings, siteTitle: e.target.value })} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Email</label>
-          <input className="mt-1 block w-full border p-2 rounded" value={settings.contactEmail || ""} onChange={(e) => setSettings({ ...settings, contactEmail: e.target.value })} />
+    <div style={{ maxWidth: 720 }}>
+      <h3>Settings</h3>
+      <div style={{ background: "#fff", padding: 12, borderRadius: 8 }}>
+        <label style={{ display: "block", marginBottom: 6, fontSize: 13 }}>Site Title</label>
+        <input value={settings.siteTitle || ""} onChange={(e) => setSettings({ ...settings, siteTitle: e.target.value })} style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #e5e7eb", marginBottom: 10 }} />
+        <label style={{ display: "block", marginBottom: 6, fontSize: 13 }}>Contact Email</label>
+        <input value={settings.contactEmail || ""} onChange={(e) => setSettings({ ...settings, contactEmail: e.target.value })} style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #e5e7eb" }} />
+        <div style={{ marginTop: 12 }}>
+          <button onClick={async () => {
+            try {
+              // try window.api if present
+              // @ts-ignore
+              if (typeof window !== "undefined" && (window as any).api?.settings?.save) {
+                // @ts-ignore
+                await (window as any).api.settings.save(settings);
+                alert("Settings saved");
+                return;
+              }
+              // otherwise try POST
+              const resp = await fetch(`${API_BASE}/settings`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(settings),
+              });
+              if (!resp.ok) throw new Error("Save failed");
+              alert("Settings saved");
+            } catch (err) {
+              console.error("save settings error:", err);
+              alert("Failed to save settings");
+            }
+          }} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "8px 12px", borderRadius: 6 }}>Save Settings</button>
         </div>
       </div>
-      <button onClick={async () => { try { await api.settings.save(settings); alert("Settings saved."); } catch (e) { console.error(e); alert("Failed to save settings."); } }} className="mt-4 bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700">Save Settings</button>
     </div>
   );
 
-  // --- initial auth loading UI ---
+  /* ---------- UI while auth loading ---------- */
   if (authLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-100">
-        <Loader className="animate-spin text-emerald-600" size={40} />
+      <div style={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center", background: "#f3f4f6" }}>
+        <div style={{ fontSize: 16, color: "#16a34a" }}>Checking auth…</div>
       </div>
     );
   }
 
-  // --- main layout ---
+  /* ---------- Main layout ---------- */
   return (
-    <div className="min-h-screen bg-gray-100 flex">
-      {/* Sidebar */}
-      <div className="w-64 bg-emerald-950 text-white flex flex-col shrink-0">
-        <div className="p-6 font-serif font-bold text-xl border-b border-emerald-800">Admin Panel</div>
-        <nav className="flex-grow py-4 overflow-y-auto">
-          {["bookings", "rooms", "settings"].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab as "bookings" | "rooms" | "settings")} className={`w-full text-left px-6 py-3 flex items-center gap-3 hover:bg-emerald-800 capitalize ${activeTab === tab ? "bg-emerald-800 border-r-4 border-green-400" : ""}`}>
-              <span className="capitalize">{tab.replace("-", " ")}</span>
-            </button>
-          ))}
+    <div style={{ display: "flex", minHeight: "100vh", background: "#f3f4f6", fontFamily: "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial" }}>
+      <aside style={{ width: 220, background: "#0f2f25", color: "#fff", padding: 20 }}>
+        <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 20 }}>Admin Panel</div>
+        <nav style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <button onClick={() => setActiveTab("bookings")} style={{ background: activeTab === "bookings" ? "#14532d" : "transparent", color: "#fff", padding: "8px 10px", border: "none", textAlign: "left", borderRadius: 6 }}>Bookings</button>
+          <button onClick={() => setActiveTab("rooms")} style={{ background: activeTab === "rooms" ? "#14532d" : "transparent", color: "#fff", padding: "8px 10px", border: "none", textAlign: "left", borderRadius: 6 }}>Rooms</button>
+          <button onClick={() => setActiveTab("settings")} style={{ background: activeTab === "settings" ? "#14532d" : "transparent", color: "#fff", padding: "8px 10px", border: "none", textAlign: "left", borderRadius: 6 }}>Settings</button>
         </nav>
-        <button onClick={handleLogout} className="p-6 flex items-center gap-2 text-red-300 hover:text-white border-t border-emerald-800"><LogOut size={18} /> Logout</button>
-      </div>
+        <div style={{ marginTop: "auto" }}>
+          <button onClick={logout} style={{ marginTop: 18, background: "transparent", color: "#fca5a5", border: "none" }}>Logout</button>
+        </div>
+      </aside>
 
-      {/* Main content */}
-      <div className="flex-grow p-8 h-screen overflow-auto">
-        <h1 className="text-2xl font-bold text-gray-800 capitalize mb-6">{activeTab.replace("-", " ")}</h1>
+      <main style={{ flex: 1, padding: 24 }}>
+        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <h1 style={{ margin: 0 }}>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h1>
+          <div />
+        </header>
 
-        {loading ? (
-          <div className="flex justify-center p-12">
-            <Loader className="animate-spin text-emerald-600" size={40} />
-          </div>
-        ) : (
-          <div className="max-w-6xl space-y-8">
-            {activeTab === "bookings" && renderBookingsTab()}
-            {activeTab === "rooms" && renderRoomsTab()}
-            {activeTab === "settings" && renderSettingsTab()}
-          </div>
-        )}
-      </div>
+        <section style={{ maxWidth: 1100 }}>
+          {loading ? (
+            <div style={{ padding: 20 }}>Loading…</div>
+          ) : (
+            <>
+              {activeTab === "bookings" && renderBookingsTab()}
+              {activeTab === "rooms" && renderRoomsTab()}
+              {activeTab === "settings" && renderSettingsTab()}
+            </>
+          )}
+        </section>
+      </main>
     </div>
   );
-};
-
-export default AdminDashboard;
+}
