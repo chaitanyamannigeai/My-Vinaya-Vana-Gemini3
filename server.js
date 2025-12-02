@@ -11,6 +11,7 @@ import compression from 'compression';
 dotenv.config();
 
 const app = express();
+// CRITICAL: Use port provided by environment or 3000
 const PORT = process.env.PORT || 3000;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -208,7 +209,6 @@ app.get('/api/weather', async (req, res) => {
             icon: weatherResponse.data.weather[0].icon,
         });
     } catch (err) { 
-        // THIS IS WHERE THE SYNTAX ERROR WAS. NOW FIXED:
         console.error("Weather error:", err.message);
         res.status(500).json({ error: "Weather fetch failed" });
     }
@@ -277,4 +277,5 @@ if (fs.existsSync(distPath)) {
     app.get('*', (req, res) => res.send('<h1>Backend Running</h1><p>Frontend not built.</p>'));
 }
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// CRITICAL FIX: Bind to 0.0.0.0 so Docker/Northflank can route traffic
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
