@@ -1,8 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
+import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { Room, Booking, PaymentStatus, PricingRule } from '../../types';
 import { CheckCircle, Users, Home, Utensils, Monitor, Droplet, Calendar as CalendarIcon, XCircle, MessageCircle, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+
+const { useLocation } = ReactRouterDOM as any;
 
 // Declaration for Razorpay on window object
 declare global {
@@ -33,6 +35,9 @@ const Accommodation = () => {
 
   // Calendar State
   const [viewDate, setViewDate] = useState(new Date());
+  
+  // Router Location to get query params
+  const location = useLocation();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -53,12 +58,20 @@ const Accommodation = () => {
             setBookingForm(prev => ({ ...prev, roomId: fetchedRooms[0].id }));
             setSelectedRoom(fetchedRooms[0]);
         }
+        
+        // Check for URL query parameter for date
+        const params = new URLSearchParams(location.search);
+        const dateParam = params.get('date');
+        if (dateParam) {
+            setBookingForm(prev => ({ ...prev, checkIn: dateParam }));
+        }
+
       } catch (err) {
           console.error("Failed to load initial data", err);
       }
     };
     fetchData();
-  }, []);
+  }, [location.search]);
 
   useEffect(() => {
     if (bookingForm.roomId) {
@@ -262,9 +275,6 @@ const Accommodation = () => {
       status: PaymentStatus.PAID,
       createdAt: new Date().toISOString()
     };
-
-    // If real payment, we could store paymentId in DB (schema update needed for strictness, but flexible JSON/notes works)
-    // For now we just mark as PAID.
 
     try {
         await api.bookings.add(newBooking);

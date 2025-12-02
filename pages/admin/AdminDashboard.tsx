@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
@@ -10,6 +9,7 @@ const { useNavigate } = ReactRouterDOM as any;
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const [authLoading, setAuthLoading] = useState(true); // New strict auth state
   const [activeTab, setActiveTab] = useState('bookings');
   const [loading, setLoading] = useState(false);
   
@@ -25,45 +25,53 @@ const AdminDashboard = () => {
 
   // Auth Check
   useEffect(() => {
-    const isAuth = localStorage.getItem('vv_admin_auth');
-    if (isAuth !== 'true') {
-      navigate('/admin/login');
-    }
+    const checkAuth = async () => {
+        const isAuth = localStorage.getItem('vv_admin_auth');
+        if (isAuth !== 'true') {
+          navigate('/admin/login');
+        } else {
+          setAuthLoading(false); // Only reveal dashboard if auth is true
+          loadTab('bookings'); // Load initial tab data
+        }
+    };
+    checkAuth();
   }, [navigate]);
 
   // Lazy Load Data based on Active Tab
+  const loadTab = async (tab: string) => {
+      setLoading(true);
+      try {
+          if (tab === 'bookings' && bookings.length === 0) {
+              setBookings(await api.bookings.getAll());
+          } else if (tab === 'rooms' && rooms.length === 0) {
+              setRooms(await api.rooms.getAll());
+          } else if (tab === 'locations' && locations.length === 0) {
+              setLocations(await api.locations.getAll());
+              if (drivers.length === 0) setDrivers(await api.drivers.getAll());
+          } else if (tab === 'drivers' && drivers.length === 0) {
+              setDrivers(await api.drivers.getAll());
+          } else if (tab === 'pricing' && pricingRules.length === 0) {
+              setPricingRules(await api.pricing.getAll());
+          } else if (tab === 'gallery' && gallery.length === 0) {
+              setGallery(await api.gallery.getAll());
+          } else if (tab === 'reviews' && reviews.length === 0) {
+              setReviews(await api.reviews.getAll());
+          } else if ((tab === 'settings' || tab === 'home-content')) {
+              const s = await api.settings.get();
+              setSettings(s);
+          }
+      } catch (e) {
+          console.error("Failed to load tab data", e);
+      } finally {
+          setLoading(false);
+      }
+  };
+
   useEffect(() => {
-    const loadTab = async () => {
-        setLoading(true);
-        try {
-            if (activeTab === 'bookings' && bookings.length === 0) {
-                setBookings(await api.bookings.getAll());
-            } else if (activeTab === 'rooms' && rooms.length === 0) {
-                setRooms(await api.rooms.getAll());
-            } else if (activeTab === 'locations' && locations.length === 0) {
-                setLocations(await api.locations.getAll());
-                if (drivers.length === 0) setDrivers(await api.drivers.getAll()); // Need drivers for locations dropdown
-            } else if (activeTab === 'drivers' && drivers.length === 0) {
-                setDrivers(await api.drivers.getAll());
-            } else if (activeTab === 'pricing' && pricingRules.length === 0) {
-                setPricingRules(await api.pricing.getAll());
-            } else if (activeTab === 'gallery' && gallery.length === 0) {
-                setGallery(await api.gallery.getAll());
-            } else if (activeTab === 'reviews' && reviews.length === 0) {
-                setReviews(await api.reviews.getAll());
-            } else if ((activeTab === 'settings' || activeTab === 'home-content')) {
-                // Settings might be needed for home content too
-                const s = await api.settings.get();
-                setSettings(s);
-            }
-        } catch (e) {
-            console.error("Failed to load tab data", e);
-        } finally {
-            setLoading(false);
-        }
-    };
-    loadTab();
-  }, [activeTab]);
+      if (!authLoading) {
+          loadTab(activeTab);
+      }
+  }, [activeTab, authLoading]);
 
   const handleLogout = () => {
     localStorage.removeItem('vv_admin_auth');
@@ -90,7 +98,6 @@ const AdminDashboard = () => {
   // --- GENERIC HANDLERS ---
   const addItem = <T,>(setter: React.Dispatch<React.SetStateAction<T[]>>, item: T) => setter(prev => [item, ...prev]);
   
-  // Explicitly typed updateItem to fix TS inference error
   const updateItem = <T extends { id: string }, K extends keyof T>(
       setter: React.Dispatch<React.SetStateAction<T[]>>, 
       id: string, 
@@ -127,7 +134,6 @@ const AdminDashboard = () => {
       const paidCount = bookings.filter(b => b.status === PaymentStatus.PAID).length;
       const failedCount = bookings.filter(b => b.status === PaymentStatus.FAILED).length;
 
-      // Monthly Revenue (Last 6 Months)
       const monthlyRevenue: Record<string, number> = {};
       const months = [];
       const today = new Date();
@@ -158,88 +164,45 @@ const AdminDashboard = () => {
 
     return (
         <div className="space-y-8">
-            {/* Dashboard Overview */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
                     <div className="p-3 bg-green-100 rounded-full text-green-600"><DollarSign size={24}/></div>
-                    <div>
-                        <p className="text-sm text-gray-500 font-medium">Total Revenue</p>
-                        <p className="text-2xl font-bold text-gray-800">₹{stats.totalRevenue.toLocaleString()}</p>
-                    </div>
+                    <div><p className="text-sm text-gray-500 font-medium">Total Revenue</p><p className="text-2xl font-bold text-gray-800">₹{stats.totalRevenue.toLocaleString()}</p></div>
                 </div>
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
                     <div className="p-3 bg-blue-100 rounded-full text-blue-600"><Calendar size={24}/></div>
-                    <div>
-                        <p className="text-sm text-gray-500 font-medium">Total Bookings</p>
-                        <p className="text-2xl font-bold text-gray-800">{stats.totalBookings}</p>
-                    </div>
+                    <div><p className="text-sm text-gray-500 font-medium">Total Bookings</p><p className="text-2xl font-bold text-gray-800">{stats.totalBookings}</p></div>
                 </div>
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
                     <div className="p-3 bg-yellow-100 rounded-full text-yellow-600"><Clock size={24}/></div>
-                    <div>
-                        <p className="text-sm text-gray-500 font-medium">Pending Actions</p>
-                        <p className="text-2xl font-bold text-gray-800">{stats.pendingCount}</p>
-                    </div>
+                    <div><p className="text-sm text-gray-500 font-medium">Pending Actions</p><p className="text-2xl font-bold text-gray-800">{stats.pendingCount}</p></div>
                 </div>
             </div>
 
-            {/* Charts Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Revenue Bar Chart */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 md:col-span-2">
                     <h3 className="font-bold text-gray-700 mb-6 flex items-center gap-2"><BarChart2 size={18}/> Revenue (Last 6 Months)</h3>
                     <div className="h-48 flex items-end justify-between gap-2 px-2">
                         {stats.months.map(month => (
                             <div key={month} className="flex flex-col items-center gap-2 w-full group">
                                 <div className="w-full relative h-40 flex items-end">
-                                    <div 
-                                        className="w-full bg-nature-500 rounded-t-sm hover:bg-nature-600 transition-all"
-                                        style={{ height: `${(stats.monthlyRevenue[month] / maxRevenue) * 100}%` }}
-                                    >
-                                        {/* Tooltip */}
-                                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                                            ₹{stats.monthlyRevenue[month].toLocaleString()}
-                                        </div>
-                                    </div>
+                                    <div className="w-full bg-nature-500 rounded-t-sm hover:bg-nature-600 transition-all" style={{ height: `${(stats.monthlyRevenue[month] / maxRevenue) * 100}%` }}></div>
                                 </div>
                                 <span className="text-xs text-gray-500 font-medium">{month}</span>
                             </div>
                         ))}
                     </div>
                 </div>
-
-                {/* Status Breakdown */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                     <h3 className="font-bold text-gray-700 mb-6 flex items-center gap-2"><Activity size={18}/> Booking Status</h3>
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600 flex items-center gap-2"><span className="w-3 h-3 bg-green-500 rounded-full"></span> Paid</span>
-                            <span className="font-bold">{stats.paidCount}</span>
-                        </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2">
-                            <div className="bg-green-500 h-2 rounded-full" style={{ width: `${(stats.paidCount / stats.totalBookings) * 100 || 0}%` }}></div>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600 flex items-center gap-2"><span className="w-3 h-3 bg-yellow-500 rounded-full"></span> Pending</span>
-                            <span className="font-bold">{stats.pendingCount}</span>
-                        </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2">
-                            <div className="bg-yellow-500 h-2 rounded-full" style={{ width: `${(stats.pendingCount / stats.totalBookings) * 100 || 0}%` }}></div>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600 flex items-center gap-2"><span className="w-3 h-3 bg-red-500 rounded-full"></span> Failed</span>
-                            <span className="font-bold">{stats.failedCount}</span>
-                        </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2">
-                            <div className="bg-red-500 h-2 rounded-full" style={{ width: `${(stats.failedCount / stats.totalBookings) * 100 || 0}%` }}></div>
-                        </div>
+                        <div className="flex items-center justify-between"><span className="text-sm text-gray-600 flex items-center gap-2"><span className="w-3 h-3 bg-green-500 rounded-full"></span> Paid</span><span className="font-bold">{stats.paidCount}</span></div>
+                        <div className="flex items-center justify-between"><span className="text-sm text-gray-600 flex items-center gap-2"><span className="w-3 h-3 bg-yellow-500 rounded-full"></span> Pending</span><span className="font-bold">{stats.pendingCount}</span></div>
+                        <div className="flex items-center justify-between"><span className="text-sm text-gray-600 flex items-center gap-2"><span className="w-3 h-3 bg-red-500 rounded-full"></span> Failed</span><span className="font-bold">{stats.failedCount}</span></div>
                     </div>
                 </div>
             </div>
 
-            {/* Bookings Table */}
             <div className="bg-white rounded-lg shadow overflow-hidden">
                 <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
                     <h3 className="font-bold text-gray-700">Recent Reservations</h3>
@@ -262,7 +225,6 @@ const AdminDashboard = () => {
                             <td className="px-6 py-4"><a href={`https://wa.me/${b.guestPhone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="text-green-600 hover:text-green-800 flex items-center gap-1 text-sm font-medium"><MessageCircle size={18} /> Chat</a></td>
                             </tr>
                         ))}
-                        {bookings.length === 0 && <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">No bookings found.</td></tr>}
                         </tbody>
                     </table>
                 </div>
@@ -460,6 +422,8 @@ const AdminDashboard = () => {
         <button onClick={() => api.settings.save(settings).then(() => alert("Saved!"))} className="flex items-center gap-2 bg-nature-600 text-white px-6 py-2 rounded-md hover:bg-nature-700 w-full justify-center"><Save size={18} /> Save Settings</button>
     </div>
   );
+
+  if (authLoading) return <div className="flex h-screen items-center justify-center bg-gray-100"><Loader className="animate-spin text-nature-600" size={40} /></div>;
 
   return (
     <div className="min-h-screen bg-gray-100 flex">

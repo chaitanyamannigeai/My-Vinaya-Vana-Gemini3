@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import * as ReactRouterDOM from 'react-router-dom';
 import { api } from '../../services/api';
 import { Room, Booking, PaymentStatus } from '../../types';
 import { ChevronLeft, ChevronRight, CheckCircle, XCircle, Calendar } from 'lucide-react';
+
+const { useNavigate } = ReactRouterDOM as any;
 
 const Availability = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [viewDate, setViewDate] = useState(new Date());
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -37,6 +41,10 @@ const Availability = () => {
       const end = new Date(b.checkOut).getTime();
       return target >= start && target < end;
     });
+  };
+
+  const handleDateClick = (dateStr: string) => {
+      navigate(`/accommodation?date=${dateStr}`);
   };
 
   const daysInMonth = getDaysInMonth(viewDate.getFullYear(), viewDate.getMonth());
@@ -95,8 +103,12 @@ const Availability = () => {
                             <XCircle size={16} className="text-red-400" />
                           </div>
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center" title="Available">
-                            <CheckCircle size={14} className="text-nature-200 opacity-50" />
+                          <div 
+                            className="w-full h-full flex items-center justify-center bg-green-100 cursor-pointer hover:bg-green-200 transition-colors" 
+                            title="Available - Click to Book"
+                            onClick={() => handleDateClick(dateStr)}
+                          >
+                            <CheckCircle size={16} className="text-green-600" />
                           </div>
                         )}
                       </div>
@@ -108,7 +120,7 @@ const Availability = () => {
           </div>
           
           <div className="p-4 bg-gray-50 flex gap-6 text-sm text-gray-600 justify-center">
-             <div className="flex items-center gap-2"><CheckCircle size={16} className="text-nature-200"/> Available</div>
+             <div className="flex items-center gap-2"><CheckCircle size={16} className="text-green-600"/> Available (Click to Book)</div>
              <div className="flex items-center gap-2"><XCircle size={16} className="text-red-400"/> Booked</div>
              <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-200 rounded"></div> Past</div>
           </div>
