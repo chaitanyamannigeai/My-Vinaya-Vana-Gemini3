@@ -81,332 +81,160 @@ const AdminDashboard = () => {
     navigate('/');
   };
 
-  // --- BOOKINGS LOGIC ---
-  const updateBookingStatus = async (id: string, status: PaymentStatus) => {
-    // Optimistic update
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
-    try {
-        await api.bookings.updateStatus(id, status);
-    } catch (e) {
-        alert("Failed to update status on server");
-        loadAllData(); // Revert on fail
-    }
-  };
+  // --- ANALYTICS CALCULATIONS ---
+  const calculateAnalytics = () => {
+      const totalRevenue = bookings
+          .filter(b => b.status === 'PAID')
+          .reduce((sum, b) => sum + (parseFloat(b.totalAmount as any) || 0), 0);
+      
+      const totalBookings = bookings.length;
+      const pendingBookings = bookings.filter(b => b.status === 'PENDING').length;
+      const failedBookings = bookings.filter(b => b.status === 'FAILED').length;
+      const paidBookings = bookings.filter(b => b.status === 'PAID').length;
 
-  const downloadBookingsCSV = () => {
-    if (bookings.length === 0) {
-        alert("No bookings to export.");
-        return;
-    }
-    const headers = ["Booking ID", "Guest Name", "Phone", "Room ID", "Check In", "Check Out", "Total Amount", "Status", "Booked Date"];
-    const rows = bookings.map(b => [
-        b.id, `"${b.guestName}"`, `"${b.guestPhone}"`, b.roomId, b.checkIn, b.checkOut, b.totalAmount, b.status, b.createdAt.split('T')[0]
-    ]);
-    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `VinayaVana_Bookings_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // --- ROOMS LOGIC (Local Edit Pattern) ---
-  const addRoomLocal = () => {
-    const newRoom: Room = {
-        id: `r${Date.now()}`,
-        name: 'New Room',
-        description: 'Description here...',
-        basePrice: 3000,
-        capacity: 2,
-        amenities: ['Wifi', 'AC'],
-        images: ['https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&q=80&w=800']
-    };
-    setRooms([newRoom, ...rooms]);
-  };
-
-  const updateRoomLocal = (id: string, field: keyof Room, value: any) => {
-      setRooms(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
-  };
-
-  const updateRoomAmenitiesLocal = (id: string, val: string) => {
-      setRooms(prev => prev.map(r => r.id === id ? { ...r, amenities: val.split(',').map(s => s.trim()) } : r));
-  };
-
-  const saveRoom = async (id: string) => {
-      const room = rooms.find(r => r.id === id);
-      if (!room) return;
-      try {
-          await api.rooms.save(room);
-          alert("Room Saved Successfully!");
-      } catch (e) {
-          alert("Error saving room");
-          console.error(e);
+      // Simple Monthly Revenue (Last 6 Months)
+      const monthlyRevenue: Record<string, number> = {};
+      const months = [];
+      for(let i=5; i>=0; i--) {
+          const d = new Date();
+          d.setMonth(d.getMonth() - i);
+          const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+          monthlyRevenue[key] = 0;
+          months.push(key);
       }
-  };
 
-  const deleteRoom = async (id: string) => {
-      if (!window.confirm("Delete this room?")) return;
-      try {
-          await api.rooms.delete(id);
-          setRooms(prev => prev.filter(r => r.id !== id));
-      } catch (e) { alert("Error deleting room"); }
-  };
-
-  // --- DRIVERS LOGIC ---
-  const addDriverLocal = () => {
-      const newDriver: Driver = {
-          id: Date.now().toString(),
-          name: 'New Driver',
-          phone: '',
-          whatsapp: '',
-          isDefault: false,
-          active: true,
-          vehicleInfo: ''
-      };
-      setDrivers([newDriver, ...drivers]);
-  };
-
-  const updateDriverLocal = (id: string, field: keyof Driver, value: any) => {
-      setDrivers(prev => prev.map(d => d.id === id ? { ...d, [field]: value } : d));
-  };
-
-  const saveDriver = async (id: string) => {
-      const driver = drivers.find(d => d.id === id);
-      if (!driver) return;
-      try {
-          await api.drivers.save(driver);
-          // If this driver is default, update local state to reflect others are not default
-          if (driver.isDefault) {
-              setDrivers(prev => prev.map(d => d.id === id ? d : { ...d, isDefault: false }));
+      bookings.forEach(b => {
+          if (b.status === 'PAID') {
+              const d = new Date(b.createdAt);
+              const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+              if (monthlyRevenue[key] !== undefined) {
+                  monthlyRevenue[key] += (parseFloat(b.totalAmount as any) || 0);
+              }
           }
-          alert("Driver Saved!");
-      } catch (e) { alert("Error saving driver"); }
+      });
+
+      return { totalRevenue, totalBookings, pendingBookings, failedBookings, paidBookings, monthlyRevenue, months };
   };
 
-  const deleteDriver = async (id: string) => {
-      if (!window.confirm("Delete this driver?")) return;
-      try {
-          await api.drivers.delete(id);
-          setDrivers(prev => prev.filter(d => d.id !== id));
-      } catch (e) { alert("Error deleting driver"); }
-  };
-
-  // --- LOCATIONS LOGIC ---
-  const addLocationLocal = () => {
-      const newLoc: CabLocation = {
-          id: Date.now().toString(),
-          name: 'New Location',
-          description: '',
-          imageUrl: 'https://images.unsplash.com/photo-1590664095612-2d4e5e0a8d7a?auto=format&fit=crop&q=80&w=400',
-          active: true,
-          driverId: null,
-          price: 0 // Initialize with 0 to allow proper database saving
-      };
-      setLocations([newLoc, ...locations]);
-  };
-
-  const updateLocationLocal = (id: string, field: keyof CabLocation, value: any) => {
-      setLocations(prev => prev.map(l => l.id === id ? { ...l, [field]: value } : l));
-  };
-
-  const saveLocation = async (id: string) => {
-      const loc = locations.find(l => l.id === id);
-      if (loc) {
-          try {
-              await api.locations.save(loc);
-              alert("Location Saved!");
-          } catch (e) { 
-            console.error(e);
-            alert("Error saving location"); 
-          }
-      }
-  };
-
-  const deleteLocation = async (id: string) => {
-      if (!window.confirm("Delete location?")) return;
-      try {
-          await api.locations.delete(id);
-          setLocations(prev => prev.filter(l => l.id !== id));
-      } catch (e) { alert("Error deleting location"); }
-  };
-
-  // --- PRICING LOGIC ---
-  const addPricingRuleLocal = () => {
-      const newRule: PricingRule = {
-          id: `pr${Date.now()}`,
-          name: 'New Season',
-          startDate: new Date().toISOString().split('T')[0],
-          endDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-          multiplier: 1.2
-      };
-      setPricingRules([newRule, ...pricingRules]);
-  };
-
-  const updatePricingRuleLocal = (id: string, field: keyof PricingRule, value: any) => {
-      setPricingRules(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
-  };
-
-  const savePricingRule = async (id: string) => {
-      const rule = pricingRules.find(r => r.id === id);
-      if (rule) {
-          try {
-              await api.pricing.save(rule);
-              alert("Pricing Rule Saved!");
-          } catch (e) { alert("Error saving rule"); }
-      }
-  };
-
-  const deletePricingRule = async (id: string) => {
-      if (!window.confirm("Delete rule?")) return;
-      try {
-          await api.pricing.delete(id);
-          setPricingRules(prev => prev.filter(r => r.id !== id));
-      } catch (e) { alert("Error deleting rule"); }
-  };
-
-  // --- GALLERY LOGIC ---
-  const addGalleryItemLocal = () => {
-      const newItem: GalleryItem = {
-          id: `g${Date.now()}`,
-          url: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&q=80&w=800',
-          category: 'Property',
-          caption: ''
-      };
-      setGallery([newItem, ...gallery]);
-  };
-
-  const updateGalleryItemLocal = (id: string, field: keyof GalleryItem, value: any) => {
-      setGallery(prev => prev.map(g => g.id === id ? { ...g, [field]: value } : g));
-  };
-
-  const saveGalleryItem = async (id: string) => {
-      const item = gallery.find(g => g.id === id);
-      if (item) {
-          try {
-              await api.gallery.save(item);
-              alert("Image Saved!");
-          } catch (e) { 
-              console.error(e);
-              alert("Error saving image"); 
-          }
-      }
-  };
-
-  const deleteGalleryItem = async (id: string) => {
-      if (!window.confirm("Delete image?")) return;
-      try {
-          await api.gallery.delete(id);
-          setGallery(prev => prev.filter(g => g.id !== id));
-      } catch (e) { alert("Error deleting image"); }
-  };
-
-  // --- REVIEWS LOGIC ---
-  const addReviewLocal = () => {
-      const newReview: Review = {
-          id: `rev${Date.now()}`,
-          guestName: 'Guest Name',
-          location: 'Location',
-          rating: 5,
-          comment: 'Review comment...',
-          date: new Date().toISOString().split('T')[0],
-          showOnHome: false
-      };
-      setReviews([newReview, ...reviews]);
-  };
-
-  const updateReviewLocal = (id: string, field: keyof Review, value: any) => {
-      setReviews(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
-  };
-
-  const saveReview = async (id: string) => {
-      const review = reviews.find(r => r.id === id);
-      if (review) {
-          try {
-              await api.reviews.save(review);
-              alert("Review Saved!");
-          } catch (e) { alert("Error saving review"); }
-      }
-  };
-
-  const deleteReview = async (id: string) => {
-      if (!window.confirm("Delete review?")) return;
-      try {
-          await api.reviews.delete(id);
-          setReviews(prev => prev.filter(r => r.id !== id));
-      } catch (e) { alert("Error deleting review"); }
-  };
-
-  // --- SETTINGS ---
-  const saveSettings = async () => {
-      try {
-          await api.settings.save(settings);
-          alert("Settings Saved!");
-      } catch (e) { alert("Error saving settings"); }
-  };
-
+  const analytics = calculateAnalytics();
 
   // --- RENDER HELPERS ---
+  
   const renderBookings = () => (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-          <h3 className="font-bold text-gray-700">Guest Reservations</h3>
-          <button onClick={downloadBookingsCSV} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 shadow-sm">
-              <Download size={16} /> Export CSV
-          </button>
-      </div>
-      <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Guest</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dates</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {bookings.map(b => (
-                <tr key={b.id}>
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-900">{b.guestName}</div>
-                    <div className="text-sm text-gray-500">{b.guestPhone}</div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{b.checkIn} to {b.checkOut}</td>
-                  <td className="px-6 py-4 text-sm font-bold text-gray-900">₹{b.totalAmount}</td>
-                  <td className="px-6 py-4">
-                    <select 
-                      value={b.status}
-                      onChange={(e) => updateBookingStatus(b.id, e.target.value as PaymentStatus)}
-                      className={`text-sm rounded-full px-3 py-1 font-semibold cursor-pointer border-none outline-none focus:ring-2 focus:ring-offset-1 ${
-                        b.status === 'PAID' ? 'bg-green-100 text-green-800 focus:ring-green-500' : 'bg-yellow-100 text-yellow-800 focus:ring-yellow-500'
-                      }`}
-                    >
-                      <option value="PENDING">Pending</option>
-                      <option value="PAID">Paid</option>
-                      <option value="FAILED">Failed</option>
-                    </select>
-                  </td>
-                  <td className="px-6 py-4">
-                      <a 
-                        href={`https://wa.me/${b.guestPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${b.guestName}, greeting from Vinaya Vana Farmhouse!`)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-green-600 hover:text-green-800 flex items-center gap-1 text-sm font-medium"
-                      >
-                          <MessageCircle size={18} /> Chat
-                      </a>
-                  </td>
-                </tr>
-              ))}
-              {bookings.length === 0 && <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">No bookings found.</td></tr>}
-            </tbody>
-          </table>
-      </div>
+    <div className="space-y-8">
+        {/* Business Overview Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                <div>
+                    <p className="text-gray-500 text-sm font-medium">Total Revenue</p>
+                    <h3 className="text-2xl font-bold text-gray-800 mt-1">₹{analytics.totalRevenue.toLocaleString()}</h3>
+                </div>
+                <div className="bg-green-100 p-3 rounded-full text-green-600">
+                    <DollarSign size={24} />
+                </div>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                <div>
+                    <p className="text-gray-500 text-sm font-medium">Total Bookings</p>
+                    <h3 className="text-2xl font-bold text-gray-800 mt-1">{analytics.totalBookings}</h3>
+                </div>
+                <div className="bg-blue-100 p-3 rounded-full text-blue-600">
+                    <Activity size={24} />
+                </div>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                <div>
+                    <p className="text-gray-500 text-sm font-medium">Pending Actions</p>
+                    <h3 className="text-2xl font-bold text-gray-800 mt-1">{analytics.pendingBookings}</h3>
+                </div>
+                <div className="bg-yellow-100 p-3 rounded-full text-yellow-600">
+                    <Clock size={24} />
+                </div>
+            </div>
+        </div>
+
+        {/* Revenue Chart (CSS only) */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <TrendingUp size={20} className="text-nature-600"/> Monthly Revenue Trend
+            </h3>
+            <div className="flex items-end justify-between h-48 gap-2 pt-4 border-b border-gray-200">
+                {analytics.months.map(month => {
+                    const value = analytics.monthlyRevenue[month];
+                    const maxVal = Math.max(...Object.values(analytics.monthlyRevenue), 1); // Avoid div by 0
+                    const heightPercent = Math.max((value / maxVal) * 100, 5); // Min 5% height
+                    return (
+                        <div key={month} className="flex flex-col items-center gap-2 w-full group relative">
+                            <div className="text-xs font-bold text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity absolute -top-6">₹{value/1000}k</div>
+                            <div 
+                                className="w-full bg-nature-200 hover:bg-nature-500 rounded-t-md transition-all duration-500 relative"
+                                style={{ height: `${heightPercent}%` }}
+                            ></div>
+                            <span className="text-xs text-gray-500 font-medium">{month}</span>
+                        </div>
+                    )
+                })}
+            </div>
+        </div>
+
+        {/* Bookings Table */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                <h3 className="font-bold text-gray-700">Guest Reservations</h3>
+                <button onClick={downloadBookingsCSV} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 shadow-sm">
+                    <Download size={16} /> Export CSV
+                </button>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                    <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Guest</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dates</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                    </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                    {bookings.map(b => (
+                        <tr key={b.id}>
+                        <td className="px-6 py-4">
+                            <div className="text-sm font-medium text-gray-900">{b.guestName}</div>
+                            <div className="text-sm text-gray-500">{b.guestPhone}</div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{b.checkIn} to {b.checkOut}</td>
+                        <td className="px-6 py-4 text-sm font-bold text-gray-900">₹{b.totalAmount}</td>
+                        <td className="px-6 py-4">
+                            <select 
+                            value={b.status}
+                            onChange={(e) => updateBookingStatus(b.id, e.target.value as PaymentStatus)}
+                            className={`text-sm rounded-full px-3 py-1 font-semibold cursor-pointer border-none outline-none focus:ring-2 focus:ring-offset-1 ${
+                                b.status === 'PAID' ? 'bg-green-100 text-green-800 focus:ring-green-500' : 'bg-yellow-100 text-yellow-800 focus:ring-yellow-500'
+                            }`}
+                            >
+                            <option value="PENDING">Pending</option>
+                            <option value="PAID">Paid</option>
+                            <option value="FAILED">Failed</option>
+                            </select>
+                        </td>
+                        <td className="px-6 py-4">
+                            <a 
+                                href={`https://wa.me/${b.guestPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${b.guestName}, greeting from Vinaya Vana Farmhouse!`)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-green-600 hover:text-green-800 flex items-center gap-1 text-sm font-medium"
+                            >
+                                <MessageCircle size={18} /> Chat
+                            </a>
+                        </td>
+                        </tr>
+                    ))}
+                    {bookings.length === 0 && <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">No bookings found.</td></tr>}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
   );
 
