@@ -98,7 +98,7 @@ app.post('/api/analytics/track-hit', async (req, res) => {
     } catch (err) { res.json({ success: false }); }
 });
 
-// --- API ENDPOINTS (Simplified for brevity, ensuring logic handles snake_case/camelCase) ---
+// --- API ENDPOINTS ---
 app.get('/api/rooms', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM rooms');
