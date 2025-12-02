@@ -209,6 +209,7 @@ app.get('/api/weather', async (req, res) => {
             icon: weatherResponse.data.weather[0].icon,
         });
     } catch (err) { 
+        // FIXED: Removed ': any' to fix Node.js crash
         console.error("Weather error:", err.message);
         res.status(500).json({ error: "Weather fetch failed" });
     }
@@ -277,5 +278,5 @@ if (fs.existsSync(distPath)) {
     app.get('*', (req, res) => res.send('<h1>Backend Running</h1><p>Frontend not built.</p>'));
 }
 
-// CRITICAL FIX: Bind to 0.0.0.0 so Docker/Northflank can route traffic
+// CRITICAL FIX: Bind to 0.0.0.0 for Northflank
 app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
