@@ -9,7 +9,7 @@ const { useNavigate } = ReactRouterDOM as any;
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  // CRITICAL: Initialize authLoading to true. Blocks UI until check is done.
+  // CRITICAL: Start with authLoading = TRUE. Blocks UI until check is done.
   const [authLoading, setAuthLoading] = useState(true); 
   const [activeTab, setActiveTab] = useState('bookings');
   const [loading, setLoading] = useState(false);
@@ -24,17 +24,18 @@ const AdminDashboard = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
 
-  // Auth Check
+  // --- STRICT AUTH CHECK ---
   useEffect(() => {
-    const checkAuth = async () => {
+    const checkAuth = () => {
         const isAuth = localStorage.getItem('vv_admin_auth');
         if (isAuth !== 'true') {
-          // If not auth, redirect IMMEDIATELY and keep loading true
+          // If not authenticated, redirect IMMEDIATELY.
+          // Do NOT set authLoading to false.
           navigate('/admin/login');
         } else {
-          // Only if auth passes, reveal dashboard and load data
-          setAuthLoading(false); 
-          loadTab('bookings'); 
+          // Only if authenticated, allow the dashboard to load.
+          setAuthLoading(false);
+          loadTab('bookings'); // Load initial data
         }
     };
     checkAuth();
@@ -81,7 +82,7 @@ const AdminDashboard = () => {
     navigate('/');
   };
 
-  // --- ANALYTICS CALCULATIONS ---
+  // --- ANALYTICS CALCULATIONS (Fixed for Date Matching) ---
   const calculateAnalytics = () => {
       const totalRevenue = bookings
           .filter(b => b.status === 'PAID')
@@ -92,15 +93,14 @@ const AdminDashboard = () => {
       const failedBookings = bookings.filter(b => b.status === 'FAILED').length;
       const paidBookings = bookings.filter(b => b.status === 'PAID').length;
 
-      // Monthly Revenue (Last 6 Months) - FIXED DATE LOGIC
+      // Monthly Revenue (Last 6 Months)
       const monthlyRevenue: Record<string, number> = {};
       const months = [];
       const today = new Date();
       
       for(let i=5; i>=0; i--) {
-          // Create a date for the 1st of each month
           const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-          // Key format: "Dec 25"
+          // Format as "Jan 24" or "Dec 25" depending on year
           const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
           monthlyRevenue[key] = 0;
           months.push(key);
@@ -111,7 +111,7 @@ const AdminDashboard = () => {
               const bookingDate = new Date(b.createdAt);
               if (!isNaN(bookingDate.getTime())) {
                   const key = bookingDate.toLocaleString('default', { month: 'short', year: '2-digit' });
-                  // Only add if this month is in our tracked list
+                  // Only add if this month is in our last 6 months view
                   if (monthlyRevenue.hasOwnProperty(key)) {
                       monthlyRevenue[key] += (parseFloat(b.totalAmount as any) || 0);
                   }
@@ -124,7 +124,7 @@ const AdminDashboard = () => {
 
   const analytics = calculateAnalytics();
 
-  // --- HELPER FUNCTIONS ---
+  // --- RENDER HELPERS ---
   const updateBookingStatus = async (id: string, status: PaymentStatus) => {
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
     try {
@@ -155,8 +155,7 @@ const AdminDashboard = () => {
     link.click();
     document.body.removeChild(link);
   };
-
-  // --- RENDER FUNCTIONS ---
+  
   const renderBookings = () => (
     <div className="space-y-8">
         {/* Business Overview Section */}
@@ -190,7 +189,7 @@ const AdminDashboard = () => {
             </div>
         </div>
 
-        {/* Revenue Chart */}
+        {/* Revenue Chart (CSS only) */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
                 <TrendingUp size={20} className="text-nature-600"/> Monthly Revenue Trend
@@ -198,8 +197,9 @@ const AdminDashboard = () => {
             <div className="flex items-end justify-between h-48 gap-2 pt-4 border-b border-gray-200 px-4">
                 {analytics.months.map(month => {
                     const value = analytics.monthlyRevenue[month];
+                    // Dynamic scaling: find max value in data to set 100% height
                     const maxVal = Math.max(...Object.values(analytics.monthlyRevenue), 1000); 
-                    const heightPercent = Math.max((value / maxVal) * 100, 2);
+                    const heightPercent = Math.max((value / maxVal) * 100, 2); // Min 2% height so bar is visible
                     
                     return (
                         <div key={month} className="flex flex-col items-center gap-2 w-full group relative">
@@ -335,7 +335,7 @@ const AdminDashboard = () => {
   };
 
   const addPricingRuleLocal = () => {
-      const newRule: PricingRule = { id: `pr${Date.now()}`, name: 'New Season', startDate: new Date().toISOString().split('T')[0], endDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], multiplier: 1.2 };
+      const newRule: PricingRule = { id: `pr${Date.now()}`, name: 'New Season', startDate: new Date().toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0], multiplier: 1.2 };
       setPricingRules([newRule, ...pricingRules]);
   };
   const updatePricingRuleLocal = (id: string, field: keyof PricingRule, value: any) => {
