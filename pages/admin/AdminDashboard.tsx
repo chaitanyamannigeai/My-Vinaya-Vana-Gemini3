@@ -81,6 +81,40 @@ const AdminDashboard = () => {
     navigate('/');
   };
 
+  // --- BOOKINGS LOGIC ---
+  const updateBookingStatus = async (id: string, status: PaymentStatus) => {
+    // Optimistic update
+    setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
+    try {
+        await api.bookings.updateStatus(id, status);
+    } catch (e) {
+        alert("Failed to update status on server");
+        loadAllData(); // Revert on fail
+    }
+  };
+
+  // --- MISSING FUNCTION ADDED HERE ---
+  const downloadBookingsCSV = () => {
+    if (bookings.length === 0) {
+        alert("No bookings to export.");
+        return;
+    }
+    const headers = ["Booking ID", "Guest Name", "Phone", "Room ID", "Check In", "Check Out", "Total Amount", "Status", "Booked Date"];
+    const rows = bookings.map(b => [
+        b.id, `"${b.guestName}"`, `"${b.guestPhone}"`, b.roomId, b.checkIn, b.checkOut, b.totalAmount, b.status, b.createdAt.split('T')[0]
+    ]);
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `VinayaVana_Bookings_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // --- ANALYTICS CALCULATIONS ---
   const calculateAnalytics = () => {
       const totalRevenue = bookings
@@ -117,6 +151,241 @@ const AdminDashboard = () => {
   };
 
   const analytics = calculateAnalytics();
+
+  // --- ROOMS LOGIC (Local Edit Pattern) ---
+  const addRoomLocal = () => {
+    const newRoom: Room = {
+        id: `r${Date.now()}`,
+        name: 'New Room',
+        description: 'Description here...',
+        basePrice: 3000,
+        capacity: 2,
+        amenities: ['Wifi', 'AC'],
+        images: ['https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&q=80&w=800']
+    };
+    setRooms([newRoom, ...rooms]);
+  };
+
+  const updateRoomLocal = (id: string, field: keyof Room, value: any) => {
+      setRooms(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+  };
+
+  const updateRoomAmenitiesLocal = (id: string, val: string) => {
+      setRooms(prev => prev.map(r => r.id === id ? { ...r, amenities: val.split(',').map(s => s.trim()) } : r));
+  };
+
+  const saveRoom = async (id: string) => {
+      const room = rooms.find(r => r.id === id);
+      if (!room) return;
+      try {
+          await api.rooms.save(room);
+          alert("Room Saved Successfully!");
+      } catch (e) {
+          alert("Error saving room");
+          console.error(e);
+      }
+  };
+
+  const deleteRoom = async (id: string) => {
+      if (!window.confirm("Delete this room?")) return;
+      try {
+          await api.rooms.delete(id);
+          setRooms(prev => prev.filter(r => r.id !== id));
+      } catch (e) { alert("Error deleting room"); }
+  };
+
+  // --- DRIVERS LOGIC ---
+  const addDriverLocal = () => {
+      const newDriver: Driver = {
+          id: Date.now().toString(),
+          name: 'New Driver',
+          phone: '',
+          whatsapp: '',
+          isDefault: false,
+          active: true,
+          vehicleInfo: ''
+      };
+      setDrivers([newDriver, ...drivers]);
+  };
+
+  const updateDriverLocal = (id: string, field: keyof Driver, value: any) => {
+      setDrivers(prev => prev.map(d => d.id === id ? { ...d, [field]: value } : d));
+  };
+
+  const saveDriver = async (id: string) => {
+      const driver = drivers.find(d => d.id === id);
+      if (!driver) return;
+      try {
+          await api.drivers.save(driver);
+          // If this driver is default, update local state to reflect others are not default
+          if (driver.isDefault) {
+              setDrivers(prev => prev.map(d => d.id === id ? d : { ...d, isDefault: false }));
+          }
+          alert("Driver Saved!");
+      } catch (e) { alert("Error saving driver"); }
+  };
+
+  const deleteDriver = async (id: string) => {
+      if (!window.confirm("Delete this driver?")) return;
+      try {
+          await api.drivers.delete(id);
+          setDrivers(prev => prev.filter(d => d.id !== id));
+      } catch (e) { alert("Error deleting driver"); }
+  };
+
+  // --- LOCATIONS LOGIC ---
+  const addLocationLocal = () => {
+      const newLoc: CabLocation = {
+          id: Date.now().toString(),
+          name: 'New Location',
+          description: '',
+          imageUrl: 'https://images.unsplash.com/photo-1590664095612-2d4e5e0a8d7a?auto=format&fit=crop&q=80&w=400',
+          active: true,
+          driverId: null,
+          price: 0 // Initialize with 0 to allow proper database saving
+      };
+      setLocations([newLoc, ...locations]);
+  };
+
+  const updateLocationLocal = (id: string, field: keyof CabLocation, value: any) => {
+      setLocations(prev => prev.map(l => l.id === id ? { ...l, [field]: value } : l));
+  };
+
+  const saveLocation = async (id: string) => {
+      const loc = locations.find(l => l.id === id);
+      if (loc) {
+          try {
+              await api.locations.save(loc);
+              alert("Location Saved!");
+          } catch (e) { 
+            console.error(e);
+            alert("Error saving location"); 
+          }
+      }
+  };
+
+  const deleteLocation = async (id: string) => {
+      if (!window.confirm("Delete location?")) return;
+      try {
+          await api.locations.delete(id);
+          setLocations(prev => prev.filter(l => l.id !== id));
+      } catch (e) { alert("Error deleting location"); }
+  };
+
+  // --- PRICING LOGIC ---
+  const addPricingRuleLocal = () => {
+      const newRule: PricingRule = {
+          id: `pr${Date.now()}`,
+          name: 'New Season',
+          startDate: new Date().toISOString().split('T')[0],
+          endDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+          multiplier: 1.2
+      };
+      setPricingRules([newRule, ...pricingRules]);
+  };
+
+  const updatePricingRuleLocal = (id: string, field: keyof PricingRule, value: any) => {
+      setPricingRules(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+  };
+
+  const savePricingRule = async (id: string) => {
+      const rule = pricingRules.find(r => r.id === id);
+      if (rule) {
+          try {
+              await api.pricing.save(rule);
+              alert("Pricing Rule Saved!");
+          } catch (e) { alert("Error saving rule"); }
+      }
+  };
+
+  const deletePricingRule = async (id: string) => {
+      if (!window.confirm("Delete rule?")) return;
+      try {
+          await api.pricing.delete(id);
+          setPricingRules(prev => prev.filter(r => r.id !== id));
+      } catch (e) { alert("Error deleting rule"); }
+  };
+
+  // --- GALLERY LOGIC ---
+  const addGalleryItemLocal = () => {
+      const newItem: GalleryItem = {
+          id: `g${Date.now()}`,
+          url: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&q=80&w=800',
+          category: 'Property',
+          caption: ''
+      };
+      setGallery([newItem, ...gallery]);
+  };
+
+  const updateGalleryItemLocal = (id: string, field: keyof GalleryItem, value: any) => {
+      setGallery(prev => prev.map(g => g.id === id ? { ...g, [field]: value } : g));
+  };
+
+  const saveGalleryItem = async (id: string) => {
+      const item = gallery.find(g => g.id === id);
+      if (item) {
+          try {
+              await api.gallery.save(item);
+              alert("Image Saved!");
+          } catch (e) { 
+              console.error(e);
+              alert("Error saving image"); 
+          }
+      }
+  };
+
+  const deleteGalleryItem = async (id: string) => {
+      if (!window.confirm("Delete image?")) return;
+      try {
+          await api.gallery.delete(id);
+          setGallery(prev => prev.filter(g => g.id !== id));
+      } catch (e) { alert("Error deleting image"); }
+  };
+
+  // --- REVIEWS LOGIC ---
+  const addReviewLocal = () => {
+      const newReview: Review = {
+          id: `rev${Date.now()}`,
+          guestName: 'Guest Name',
+          location: 'Location',
+          rating: 5,
+          comment: 'Review comment...',
+          date: new Date().toISOString().split('T')[0],
+          showOnHome: false
+      };
+      setReviews([newReview, ...reviews]);
+  };
+
+  const updateReviewLocal = (id: string, field: keyof Review, value: any) => {
+      setReviews(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+  };
+
+  const saveReview = async (id: string) => {
+      const review = reviews.find(r => r.id === id);
+      if (review) {
+          try {
+              await api.reviews.save(review);
+              alert("Review Saved!");
+          } catch (e) { alert("Error saving review"); }
+      }
+  };
+
+  const deleteReview = async (id: string) => {
+      if (!window.confirm("Delete review?")) return;
+      try {
+          await api.reviews.delete(id);
+          setReviews(prev => prev.filter(r => r.id !== id));
+      } catch (e) { alert("Error deleting review"); }
+  };
+
+  // --- SETTINGS ---
+  const saveSettings = async () => {
+      try {
+          await api.settings.save(settings);
+          alert("Settings Saved!");
+      } catch (e) { alert("Error saving settings"); }
+  };
+
 
   // --- RENDER HELPERS ---
   

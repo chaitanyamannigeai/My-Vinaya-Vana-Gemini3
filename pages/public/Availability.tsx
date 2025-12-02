@@ -128,6 +128,7 @@ const Availability = () => {
       </div>
     </div>
   );
-};
+  
+}; 
 
 export default Availability;
