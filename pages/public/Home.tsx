@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
-import { ArrowRight, Coffee, Wifi, Wind, Palmtree, Star, Play, Quote, Sun, Cloud, CloudRain, CloudFog, CloudLightning, CloudDrizzle, Snowflake, Droplets, Thermometer, Moon, Wind as WindIcon } from 'lucide-react'; // Added more icons
-import { Review, Room, SiteSettings, WeatherData } from '../../types'; // Import WeatherData from types
+import { ArrowRight, Coffee, Wifi, Wind, Palmtree, Star, Play, Quote, Sun, Cloud, CloudRain, CloudFog, CloudLightning, CloudDrizzle, Snowflake, Droplets, Thermometer, Moon, Wind as WindIcon, MessageCircle } from 'lucide-react'; // Added MessageCircle
+import { Review, Room, SiteSettings, WeatherData } from '../../types'; 
 
 const { Link } = ReactRouterDOM as any;
 
@@ -103,12 +103,25 @@ const Home = () => {
           <p className="text-xl md:text-2xl text-nature-50 mb-10 font-light leading-relaxed">
             Experience tranquility in our beautiful bungalow surrounded by 1 acre of lush coconut and betelnut trees.
           </p>
-          <Link 
-            to="/accommodation" 
-            className="inline-flex items-center gap-2 bg-nature-600 hover:bg-nature-500 text-white font-bold py-4 px-10 rounded-full transition-all hover:scale-105 shadow-xl border border-nature-400"
-          >
-            Check Availability <ArrowRight size={20} />
-          </Link>
+          
+          {/* CTA Buttons Wrapper - Updated for WhatsApp First */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link 
+              to="/accommodation" 
+              className="inline-flex items-center gap-2 bg-nature-600 hover:bg-nature-500 text-white font-bold py-4 px-10 rounded-full transition-all hover:scale-105 shadow-xl border border-nature-400 w-full sm:w-auto justify-center"
+            >
+              Check Availability <ArrowRight size={20} />
+            </Link>
+            
+            <a 
+              href={`https://wa.me/${settings.contactPhone || '919999999999'}?text=Hi, I am interested in booking a stay at Vinaya Vana.`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-4 px-10 rounded-full transition-all hover:scale-105 shadow-xl border border-white/20 w-full sm:w-auto justify-center"
+            >
+              Chat on WhatsApp <MessageCircle size={20} />
+            </a>
+          </div>
           
           {/* Weather Widget */}
           {settings.weatherApiKey && (
