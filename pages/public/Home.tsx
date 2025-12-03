@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
-import { ArrowRight, Coffee, Wifi, Wind, Palmtree, Star, Play, Quote, Sun, Cloud, CloudRain, CloudFog, CloudLightning, CloudDrizzle, Snowflake, Droplets, Thermometer, Moon, Wind as WindIcon, MessageCircle } from 'lucide-react'; // Added MessageCircle
+import { ArrowRight, Coffee, Wifi, Wind, Palmtree, Star, Play, Quote, Sun, Cloud, CloudRain, CloudFog, CloudLightning, CloudDrizzle, Snowflake, Droplets, Thermometer, Moon, Wind as WindIcon, MessageCircle, CalendarCheck } from 'lucide-react'; // Added CalendarCheck
 import { Review, Room, SiteSettings, WeatherData } from '../../types'; 
 
 const { Link } = ReactRouterDOM as any;
@@ -12,6 +12,10 @@ const Home = () => {
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
+  
+  // NEW: State for the sticky bar
+  const [showStickyNav, setShowStickyNav] = useState(false);
+
   const featuredRoom = rooms[0];
 
   useEffect(() => {
@@ -30,7 +34,7 @@ const Home = () => {
         if (fetchedSettings.weatherApiKey) {
             setWeatherLoading(true);
             try {
-                const weatherData = await api.weather.getForecast('Gokarna'); // Hardcoded location for now
+                const weatherData = await api.weather.getForecast('Gokarna'); 
                 setWeather(weatherData);
             } catch (weatherErr) {
                 console.error("Failed to fetch weather:", weatherErr);
@@ -44,10 +48,18 @@ const Home = () => {
 
       } catch (err) {
           console.error("Failed to load initial data", err);
-          setWeatherLoading(false); // Ensure loading state is reset even if main data fails
+          setWeatherLoading(false); 
       }
     };
     fetchData();
+
+    // NEW: Scroll Listener for Sticky Bar
+    const handleScroll = () => {
+        // Show bar after user scrolls past 600px (approx hero height)
+        setShowStickyNav(window.scrollY > 600);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   // Extract YouTube Video ID robustly
@@ -62,33 +74,36 @@ const Home = () => {
   const videoEmbedUrl = getYoutubeEmbedUrl(settings.youtubeVideoUrl);
 
   const getWeatherIcon = (iconCode: string) => {
-    // Mapping OpenWeatherMap icons to Lucide icons
-    // See https://openweathermap.org/weather-conditions#Weather-condition-codes-2
     if (!iconCode) return <Sun size={24} className="text-yellow-400" />;
     
-    if (iconCode.startsWith('01d')) return <Sun size={24} className="text-yellow-400" />; // Clear sky day
-    if (iconCode.startsWith('01n')) return <Moon size={24} className="text-blue-200" />; // Clear sky night
-    if (iconCode.startsWith('02d')) return <Cloud size={24} className="text-gray-300" />; // Few clouds day
-    if (iconCode.startsWith('02n')) return <Cloud size={24} className="text-gray-300" />; // Few clouds night
-    if (iconCode.startsWith('03')) return <Cloud size={24} className="text-gray-400" />; // Scattered clouds
-    if (iconCode.startsWith('04')) return <Cloud size={24} className="text-gray-500" />; // Broken clouds
-    if (iconCode.startsWith('09')) return <CloudRain size={24} className="text-blue-400" />; // Shower rain
-    if (iconCode.startsWith('10d')) return <CloudDrizzle size={24} className="text-blue-400" />; // Rain day
-    if (iconCode.startsWith('10n')) return <CloudDrizzle size={24} className="text-blue-400" />; // Rain night
-    if (iconCode.startsWith('11')) return <CloudLightning size={24} className="text-gray-400" />; // Thunderstorm
-    if (iconCode.startsWith('13')) return <Snowflake size={24} className="text-blue-200" />; // Snow
-    if (iconCode.startsWith('50')) return <CloudFog size={24} className="text-gray-400" />; // Mist
+    if (iconCode.startsWith('01d')) return <Sun size={24} className="text-yellow-400" />; 
+    if (iconCode.startsWith('01n')) return <Moon size={24} className="text-blue-200" />; 
+    if (iconCode.startsWith('02d')) return <Cloud size={24} className="text-gray-300" />; 
+    if (iconCode.startsWith('02n')) return <Cloud size={24} className="text-gray-300" />; 
+    if (iconCode.startsWith('03')) return <Cloud size={24} className="text-gray-400" />; 
+    if (iconCode.startsWith('04')) return <Cloud size={24} className="text-gray-500" />; 
+    if (iconCode.startsWith('09')) return <CloudRain size={24} className="text-blue-400" />; 
+    if (iconCode.startsWith('10d')) return <CloudDrizzle size={24} className="text-blue-400" />; 
+    if (iconCode.startsWith('10n')) return <CloudDrizzle size={24} className="text-blue-400" />; 
+    if (iconCode.startsWith('11')) return <CloudLightning size={24} className="text-gray-400" />; 
+    if (iconCode.startsWith('13')) return <Snowflake size={24} className="text-blue-200" />; 
+    if (iconCode.startsWith('50')) return <CloudFog size={24} className="text-gray-400" />; 
 
-    return <Sun size={24} className="text-yellow-400" />; // Default fallback
+    return <Sun size={24} className="text-yellow-400" />; 
   }
 
+  // Common WhatsApp Link Generator
+  const whatsappLink = `https://wa.me/${settings.contactPhone || '919999999999'}?text=Hi, I am interested in booking a stay at Vinaya Vana.`;
+
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen pb-20 md:pb-0"> {/* Added padding bottom on mobile so content isn't hidden behind sticky bar */}
+      
       {/* Dynamic Hero Section */}
       <div 
         className="relative h-[85vh] bg-cover bg-center flex items-center justify-center transition-all duration-1000"
         style={{ 
-            backgroundImage: `url("${settings.heroImageUrl}")` 
+            backgroundImage: `url("${settings.heroImageUrl}")`,
+            backgroundAttachment: 'fixed' // Optional: Adds a slight parallax feel immediately
         }}
       >
         <div className="absolute inset-0 bg-black bg-opacity-40"></div>
@@ -104,7 +119,7 @@ const Home = () => {
             Experience tranquility in our beautiful bungalow surrounded by 1 acre of lush coconut and betelnut trees.
           </p>
           
-          {/* CTA Buttons Wrapper - Updated for WhatsApp First */}
+          {/* CTA Buttons Wrapper */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link 
               to="/accommodation" 
@@ -114,7 +129,7 @@ const Home = () => {
             </Link>
             
             <a 
-              href={`https://wa.me/${settings.contactPhone || '919999999999'}?text=Hi, I am interested in booking a stay at Vinaya Vana.`}
+              href={whatsappLink}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-4 px-10 rounded-full transition-all hover:scale-105 shadow-xl border border-white/20 w-full sm:w-auto justify-center"
@@ -286,6 +301,49 @@ const Home = () => {
           </div>
         </div>
       )}
+
+      {/* NEW: Sticky Mobile/Desktop Booking Bar */}
+      {/* Moves up when scrolling past Hero */}
+      <div 
+        className={`fixed bottom-0 left-0 right-0 z-50 p-4 bg-white/95 backdrop-blur-md border-t border-nature-100 shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] transition-transform duration-500 ease-in-out ${
+            showStickyNav ? 'translate-y-0' : 'translate-y-[150%]'
+        }`}
+      >
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            {/* Left: Price/Title Info (Desktop only) */}
+            <div className="hidden md:block">
+                <p className="font-serif font-bold text-nature-900 text-lg">Vinaya Vana</p>
+                {featuredRoom && (
+                    <p className="text-sm text-gray-500">
+                        Starts from <span className="font-bold text-nature-700">₹{featuredRoom.basePrice.toLocaleString()}</span> / night
+                    </p>
+                )}
+            </div>
+            
+            {/* Right: Actions (Full width on mobile) */}
+            <div className="flex gap-3 w-full md:w-auto">
+                 <a 
+                  href={whatsappLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md"
+                >
+                  <MessageCircle size={20} />
+                  <span className="hidden sm:inline">WhatsApp</span>
+                  <span className="sm:hidden">Chat</span>
+                </a>
+                
+                <Link 
+                  to="/accommodation" 
+                  className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-nature-800 hover:bg-nature-900 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md"
+                >
+                  <CalendarCheck size={20} />
+                  Book Now
+                </Link>
+            </div>
+        </div>
+      </div>
+
     </div>
   );
 };
