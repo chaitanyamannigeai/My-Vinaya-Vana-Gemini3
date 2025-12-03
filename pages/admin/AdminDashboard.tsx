@@ -43,7 +43,7 @@ const AdminDashboard = () => {
     checkAuth();
   }, [navigate]);
 
-  // Lazy Load Data based on Active Tab
+  // Lazy Load Data based on Active Tab changed by CM
   const loadTab = async (tab: string) => {
       setLoading(true);
       try {
@@ -86,7 +86,6 @@ const AdminDashboard = () => {
           setLoading(false);
       }
   };
-
   useEffect(() => {
       if (!authLoading) {
           loadTab(activeTab);
