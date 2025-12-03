@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
-import { Phone, MapPin, Mail, Send, MessageCircle } from 'lucide-react';
+// Added weather-related icons to imports
+import { Phone, MapPin, Mail, Send, MessageCircle, Sun, Cloud, CloudRain, Moon, CloudFog, CloudLightning, CloudDrizzle, Snowflake } from 'lucide-react';
+import { WeatherData } from '../../types';
 
 const Contact = () => {
-  // 1. State for Site Settings (Map URL, Phone, Address)
+  // 1. State for Site Settings
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   
   // 2. State for Contact Form Data
@@ -13,47 +15,57 @@ const Contact = () => {
     message: ''
   });
 
-  // 3. Fetch Admin Settings on Component Load
+  // 3. State for Weather
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+
+  // 4. Fetch Data on Component Load
   useEffect(() => {
-    api.settings.get().then(setSettings).catch(console.error);
+    // Chain requests: Get settings first, then check if we can fetch weather
+    api.settings.get().then(fetchedSettings => {
+      setSettings(fetchedSettings);
+      
+      // Only fetch weather if API Key is configured (matching Home.tsx logic)
+      if (fetchedSettings.weatherApiKey) {
+        api.weather.getForecast('Gokarna')
+          .then(data => setWeather(data))
+          .catch(err => console.error("Failed to load weather:", err));
+      }
+    }).catch(console.error);
   }, []);
 
-  // 4. Handle Form Input Changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  // 5. Submit Handler -> Redirects to WhatsApp
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Construct the pre-filled message
     const text = `*New Inquiry from Website*
 Name: ${formData.name}
 Phone: ${formData.phone || 'Not provided'}
 Message: ${formData.message}`;
-
-    // Encode the text for a URL
     const encodedText = encodeURIComponent(text);
-    
-    // Construct the WhatsApp URL using the number from settings
     const waUrl = `https://wa.me/${settings.whatsappNumber}?text=${encodedText}`;
-    
-    // Open WhatsApp in a new tab
     window.open(waUrl, '_blank');
   };
 
-  /**
-   * Helper: Ensures the Map URL is a valid Embed URL.
-   * If the admin accidentally pastes a "Share" link, this attempts to handle it gracefully,
-   * though the best practice is to paste the 'Embed a map' src link.
-   */
   const getEmbedUrl = (url: string) => {
     if (!url) return '';
-    // If it's already an embed link (has /embed), return it as is
     if (url.includes('/embed')) return url;
-    // Fallback: return the url provided (Google Maps sometimes redirects automatically)
     return url; 
+  };
+
+  // Helper: Map API icon codes to Lucide icons (reused from Home.tsx)
+  const getWeatherIcon = (iconCode: string) => {
+    if (!iconCode) return <Sun size={32} className="text-yellow-500" />;
+    if (iconCode.startsWith('01d')) return <Sun size={32} className="text-yellow-500" />;
+    if (iconCode.startsWith('01n')) return <Moon size={32} className="text-blue-400" />;
+    if (iconCode.startsWith('02')) return <Cloud size={32} className="text-gray-400" />;
+    if (iconCode.startsWith('03') || iconCode.startsWith('04')) return <Cloud size={32} className="text-gray-500" />;
+    if (iconCode.startsWith('09') || iconCode.startsWith('10')) return <CloudRain size={32} className="text-blue-500" />;
+    if (iconCode.startsWith('11')) return <CloudLightning size={32} className="text-yellow-600" />;
+    if (iconCode.startsWith('13')) return <Snowflake size={32} className="text-blue-300" />;
+    if (iconCode.startsWith('50')) return <CloudFog size={32} className="text-gray-400" />;
+    return <Sun size={32} className="text-yellow-500" />;
   };
 
   return (
@@ -72,49 +84,66 @@ Message: ${formData.message}`;
           
           {/* --- LEFT COLUMN: Contact Details --- */}
           <div className="space-y-8 h-full">
-            <div className="bg-white p-8 rounded-2xl shadow-md border border-nature-100 h-full flex flex-col justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-nature-800 mb-8">Contact Info</h2>
-                <div className="space-y-8">
-                  
-                  {/* Address Item */}
-                  <div className="flex items-start gap-4">
-                    <div className="bg-nature-100 p-3 rounded-full text-nature-600 shrink-0">
-                      <MapPin size={24} />
+            <div className="bg-white p-8 rounded-2xl shadow-md border border-nature-100 h-full flex flex-col">
+              <h2 className="text-2xl font-bold text-nature-800 mb-8">Contact Info</h2>
+              
+              {/* NEW: Weather Widget inserted here */}
+              {weather && (
+                <div className="mb-8 p-4 bg-nature-50 rounded-xl border border-nature-200 flex items-center gap-4 animate-fade-in">
+                  <div className="bg-white p-3 rounded-full shadow-sm">
+                    {getWeatherIcon(weather.icon)}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-nature-600 uppercase tracking-wider">Current Conditions</p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-bold text-gray-900">{Math.round(weather.temp)}°C</span>
+                      <span className="text-gray-600 capitalize text-sm">{weather.description}</span>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 text-lg">Address</h3>
-                      <div className="text-gray-600 whitespace-pre-line leading-relaxed mt-1">
-                          {settings.address}
-                      </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Feels like {Math.round(weather.feelsLike)}°C • Humidity {weather.humidity}%
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-8 flex-grow">
+                {/* Address Item */}
+                <div className="flex items-start gap-4">
+                  <div className="bg-nature-100 p-3 rounded-full text-nature-600 shrink-0">
+                    <MapPin size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-lg">Address</h3>
+                    <div className="text-gray-600 whitespace-pre-line leading-relaxed mt-1">
+                        {settings.address}
                     </div>
                   </div>
+                </div>
 
-                  {/* Phone Item */}
-                  <div className="flex items-start gap-4">
-                    <div className="bg-nature-100 p-3 rounded-full text-nature-600 shrink-0">
-                      <Phone size={24} />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 text-lg">Phone</h3>
-                      <p className="text-gray-600 font-mono mt-1">+91 {settings.whatsappNumber}</p>
-                    </div>
+                {/* Phone Item */}
+                <div className="flex items-start gap-4">
+                  <div className="bg-nature-100 p-3 rounded-full text-nature-600 shrink-0">
+                    <Phone size={24} />
                   </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-lg">Phone</h3>
+                    <p className="text-gray-600 font-mono mt-1">+91 {settings.whatsappNumber}</p>
+                  </div>
+                </div>
 
-                  {/* Email Item */}
-                  <div className="flex items-start gap-4">
-                    <div className="bg-nature-100 p-3 rounded-full text-nature-600 shrink-0">
-                      <Mail size={24} />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 text-lg">Email</h3>
-                      <p className="text-gray-600 mt-1">{settings.contactEmail}</p>
-                    </div>
+                {/* Email Item */}
+                <div className="flex items-start gap-4">
+                  <div className="bg-nature-100 p-3 rounded-full text-nature-600 shrink-0">
+                    <Mail size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-lg">Email</h3>
+                    <p className="text-gray-600 mt-1">{settings.contactEmail}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Direct WhatsApp Button (Optional extra CTA) */}
+              {/* Direct WhatsApp Button */}
               <div className="mt-8 pt-8 border-t border-gray-100">
                  <p className="text-gray-500 text-sm mb-4">Prefer to chat directly?</p>
                  <a 
@@ -136,7 +165,6 @@ Message: ${formData.message}`;
             <p className="text-gray-500 mb-6 text-sm">Fill this form to start a WhatsApp conversation with us.</p>
             
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Name Input */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
                 <input
@@ -150,7 +178,6 @@ Message: ${formData.message}`;
                 />
               </div>
               
-              {/* Phone Input */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number (Optional)</label>
                 <input
@@ -163,7 +190,6 @@ Message: ${formData.message}`;
                 />
               </div>
 
-              {/* Message Input */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">How can we help?</label>
                 <textarea
@@ -177,7 +203,6 @@ Message: ${formData.message}`;
                 />
               </div>
 
-              {/* Submit Button */}
               <button
                 type="submit"
                 className="w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-4 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 transform active:scale-[0.98]"
