@@ -2,18 +2,25 @@ import React, { useState, useEffect } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { Room, Booking, PaymentStatus, PricingRule } from '../../types';
-import { CheckCircle, Users, Home, Utensils, Monitor, Droplet, Calendar as CalendarIcon, XCircle, MessageCircle, ChevronLeft, ChevronRight, Sparkles, Wifi, Wind, Car, Coffee, Tv, waves, Sun } from 'lucide-react';
+import { CheckCircle, Users, Home, Utensils, Monitor, Droplet, Calendar as CalendarIcon, XCircle, MessageCircle, ChevronLeft, ChevronRight, Sparkles, Wifi, Wind, Car, Coffee, Tv, Sun } from 'lucide-react';
 
 const { useLocation } = ReactRouterDOM as any;
 
-// Declaration for Razorpay on window object
 declare global {
   interface Window {
     Razorpay: any;
   }
 }
 
-// --- HELPER: Amenity Icon Mapper ---
+// --- HELPER: Safe Local Date Formatting ---
+// Prevents timezone shifts (e.g. Jan 1 becoming Dec 31)
+const formatDateLocal = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 const getAmenityIcon = (amenity: string) => {
     const lower = amenity.toLowerCase();
     if (lower.includes('wifi') || lower.includes('net')) return <Wifi size={16} />;
@@ -24,10 +31,9 @@ const getAmenityIcon = (amenity: string) => {
     if (lower.includes('geyser') || lower.includes('hot')) return <Droplet size={16} />;
     if (lower.includes('coffee') || lower.includes('tea')) return <Coffee size={16} />;
     if (lower.includes('view') || lower.includes('balcony')) return <Sun size={16} />;
-    return <CheckCircle size={16} />; // Default icon
+    return <CheckCircle size={16} />;
 };
 
-// --- SUB-COMPONENT: Room Image Carousel ---
 const RoomCarousel = ({ images, name }: { images: string[], name: string }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -48,30 +54,17 @@ const RoomCarousel = ({ images, name }: { images: string[], name: string }) => {
                 alt={`${name} view ${currentIndex + 1}`} 
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
             />
-            
-            {/* Navigation Arrows (Only if more than 1 image) */}
             {images.length > 1 && (
                 <>
-                    <button 
-                        onClick={prevSlide}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/60 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
+                    <button onClick={prevSlide} className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/60 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                         <ChevronLeft size={24} />
                     </button>
-                    <button 
-                        onClick={nextSlide}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/60 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
+                    <button onClick={nextSlide} className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/60 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                         <ChevronRight size={24} />
                     </button>
-                    
-                    {/* Dots Indicator */}
                     <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
                         {images.map((_, idx) => (
-                            <div 
-                                key={idx} 
-                                className={`w-1.5 h-1.5 rounded-full shadow-sm ${idx === currentIndex ? 'bg-white scale-125' : 'bg-white/50'}`}
-                            />
+                            <div key={idx} className={`w-1.5 h-1.5 rounded-full shadow-sm ${idx === currentIndex ? 'bg-white scale-125' : 'bg-white/50'}`} />
                         ))}
                     </div>
                 </>
@@ -100,9 +93,7 @@ const Accommodation = () => {
   const [pricingBreakdown, setPricingBreakdown] = useState<{avgPrice: number, days: number, discountApplied: number} | null>(null);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
 
-  // Calendar State
   const [viewDate, setViewDate] = useState(new Date());
-  
   const location = useLocation();
 
   useEffect(() => {
@@ -130,7 +121,6 @@ const Accommodation = () => {
         if (dateParam) {
             setBookingForm(prev => ({ ...prev, checkIn: dateParam }));
         }
-
       } catch (err) {
           console.error("Failed to load initial data", err);
       }
@@ -145,10 +135,8 @@ const Accommodation = () => {
     }
   }, [bookingForm.roomId, rooms]);
 
-  // --- Helpers for Booking ---
   const handleSelectRoom = (roomId: string) => {
       setBookingForm(prev => ({ ...prev, roomId }));
-      // Scroll to booking form smoothly
       document.getElementById('booking-sidebar')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
@@ -160,6 +148,7 @@ const Accommodation = () => {
       for (const b of roomBookings) {
           const bStart = new Date(b.checkIn).getTime();
           const bEnd = new Date(b.checkOut).getTime();
+          // Logic: If requested start is before booking end AND requested end is after booking start -> Overlap
           if (start < bEnd && end > bStart) return false; 
       }
       return true;
@@ -178,36 +167,46 @@ const Accommodation = () => {
         return maxMultiplier;
   };
 
+  // --- CORE: Price Calculation ---
   useEffect(() => {
     setAvailabilityError(null);
     setPricingBreakdown(null);
     setTotalPrice(0);
 
     if (selectedRoom && bookingForm.checkIn && bookingForm.checkOut) {
-      if (new Date(bookingForm.checkIn) >= new Date(bookingForm.checkOut)) {
+      const d1 = new Date(bookingForm.checkIn);
+      const d2 = new Date(bookingForm.checkOut);
+
+      // Validation 1: Invalid Range
+      if (d1 >= d2) {
           setAvailabilityError("Check-out must be after Check-in");
           return;
       }
 
+      // Validation 2: Availability
       const isAvailable = checkAvailability(selectedRoom.id, bookingForm.checkIn, bookingForm.checkOut);
       if (!isAvailable) {
           setAvailabilityError("Selected dates are not available.");
           return;
       }
 
+      // Calculation Loop
       let calculatedTotal = 0;
-      let currentDate = new Date(bookingForm.checkIn);
-      const endDate = new Date(bookingForm.checkOut);
+      let loopDate = new Date(d1);
       let days = 0;
 
-      while (currentDate < endDate) {
-          const dateStr = currentDate.toISOString().split('T')[0];
+      // Loop day by day
+      while (loopDate < d2) {
+          // FIX: Use formatDateLocal to ensure we check the correct calendar day
+          const dateStr = formatDateLocal(loopDate);
           const multiplier = getMultiplierForDate(dateStr);
           calculatedTotal += (selectedRoom.basePrice * multiplier);
+          
           days++;
-          currentDate.setDate(currentDate.getDate() + 1);
+          loopDate.setDate(loopDate.getDate() + 1);
       }
       
+      // Apply Discounts
       if (days > 0) {
         let discountAmount = 0;
         const discountSettings = settings.longStayDiscount;
@@ -230,6 +229,7 @@ const Accommodation = () => {
     setBookingForm(prev => ({ ...prev, [name]: value }));
   };
 
+  // --- Payment Handling ---
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
       const script = document.createElement('script');
@@ -294,7 +294,8 @@ const Accommodation = () => {
         setBookings(updatedBookings);
         setShowSimulatedPayment(false);
         setBookingSuccess(true);
-        setBookingForm({ roomId: rooms[0]?.id || '', guestName: '', guestPhone: '', checkIn: '', checkOut: '' });
+        // Reset form but keep room selected
+        setBookingForm(prev => ({ ...prev, guestName: '', guestPhone: '', checkIn: '', checkOut: '' }));
         setTotalPrice(0);
     } catch (err) { alert("Booking failed to save."); }
   };
@@ -307,23 +308,65 @@ const Accommodation = () => {
   };
 
   // --- Calendar Render Logic ---
+  const isDateBooked = (dateStr: string) => {
+    const target = new Date(dateStr).getTime();
+    const currentRoomBookings = bookings.filter(b => b.roomId === bookingForm.roomId && b.status !== PaymentStatus.FAILED);
+    return currentRoomBookings.some(b => {
+      const start = new Date(b.checkIn).getTime();
+      const end = new Date(b.checkOut).getTime(); 
+      return target >= start && target < end; 
+    });
+  };
+
+  const handleDateClick = (day: number) => {
+    // Construct date safely using current viewDate's year/month and clicked day
+    const clickedDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
+    const dateStr = formatDateLocal(clickedDate);
+
+    if (isDateBooked(dateStr)) return;
+
+    const currentIn = bookingForm.checkIn ? new Date(bookingForm.checkIn) : null;
+    const currentOut = bookingForm.checkOut ? new Date(bookingForm.checkOut) : null;
+
+    // Logic: If no dates, or both filled -> Start new selection
+    if (!currentIn || (currentIn && currentOut)) {
+      setBookingForm(prev => ({ ...prev, checkIn: dateStr, checkOut: '' }));
+    } 
+    // Logic: If start selected, select end
+    else if (currentIn && !currentOut) {
+      if (new Date(dateStr) > currentIn) {
+          setBookingForm(prev => ({ ...prev, checkOut: dateStr }));
+      } else {
+          // If clicked date is before start, reset start to clicked date
+          setBookingForm(prev => ({ ...prev, checkIn: dateStr, checkOut: '' }));
+      }
+    }
+  };
+
+  const changeMonth = (offset: number) => {
+    const newDate = new Date(viewDate);
+    newDate.setMonth(newDate.getMonth() + offset);
+    setViewDate(newDate);
+  };
+
   const renderCalendar = () => {
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const firstDay = new Date(year, month, 1).getDay();
-    const today = new Date();
-    today.setHours(0,0,0,0);
+    
+    // Normalize "today" to YYYY-MM-DD for comparison
+    const todayStr = formatDateLocal(new Date());
 
     const days = [];
     for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="h-10"></div>);
 
     for (let day = 1; day <= daysInMonth; day++) {
-      const dateObj = new Date(year, month, day);
-      const dateStr = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset()*60000)).toISOString().split('T')[0];
+      const currentDate = new Date(year, month, day);
+      const dateStr = formatDateLocal(currentDate);
       
       const booked = isDateBooked(dateStr);
-      const isPast = dateObj < today;
+      const isPast = dateStr < todayStr; // String comparison works for YYYY-MM-DD
       const isCheckIn = bookingForm.checkIn === dateStr;
       const isCheckOut = bookingForm.checkOut === dateStr;
       const isInRange = bookingForm.checkIn && bookingForm.checkOut && dateStr > bookingForm.checkIn && dateStr < bookingForm.checkOut;
@@ -331,7 +374,7 @@ const Accommodation = () => {
       let bgClass = "bg-white hover:bg-nature-50 text-gray-700 cursor-pointer";
       if (isPast) bgClass = "bg-gray-100 text-gray-300 cursor-not-allowed";
       else if (booked) bgClass = "bg-red-50 text-red-300 cursor-not-allowed line-through"; 
-      else if (isCheckIn || isCheckOut) bgClass = "bg-nature-600 text-white font-bold";
+      else if (isCheckIn || isCheckOut) bgClass = "bg-nature-600 text-white font-bold shadow-md transform scale-105";
       else if (isInRange) bgClass = "bg-nature-100 text-nature-800";
 
       days.push(
@@ -345,35 +388,6 @@ const Accommodation = () => {
       );
     }
     return days;
-  };
-
-  const isDateBooked = (dateStr: string) => {
-    const target = new Date(dateStr).getTime();
-    const currentRoomBookings = bookings.filter(b => b.roomId === bookingForm.roomId && b.status !== PaymentStatus.FAILED);
-    return currentRoomBookings.some(b => {
-      const start = new Date(b.checkIn).getTime();
-      const end = new Date(b.checkOut).getTime(); 
-      return target >= start && target < end; 
-    });
-  };
-
-  const handleDateClick = (day: number) => {
-    const year = viewDate.getFullYear();
-    const month = viewDate.getMonth();
-    const dateObj = new Date(year, month, day);
-    const dateStr = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset()*60000)).toISOString().split('T')[0];
-
-    if (isDateBooked(dateStr)) return;
-
-    const currentIn = bookingForm.checkIn ? new Date(bookingForm.checkIn) : null;
-    const currentOut = bookingForm.checkOut ? new Date(bookingForm.checkOut) : null;
-
-    if (!currentIn || (currentIn && currentOut)) {
-      setBookingForm(prev => ({ ...prev, checkIn: dateStr, checkOut: '' }));
-    } else if (currentIn && !currentOut) {
-      if (new Date(dateStr) > currentIn) setBookingForm(prev => ({ ...prev, checkOut: dateStr }));
-      else setBookingForm(prev => ({ ...prev, checkIn: dateStr, checkOut: '' }));
-    }
   };
 
   return (
@@ -392,7 +406,6 @@ const Accommodation = () => {
                 key={room.id} 
                 className={`bg-white rounded-2xl overflow-hidden shadow-md border-2 transition-all ${selectedRoom?.id === room.id ? 'border-nature-500 ring-4 ring-nature-100' : 'border-transparent hover:border-nature-200'}`}
               >
-                {/* Image Carousel Component */}
                 <RoomCarousel images={room.images} name={room.name} />
 
                 <div className="p-6 md:p-8">
@@ -412,7 +425,6 @@ const Accommodation = () => {
                   
                   <p className="text-gray-600 mb-6 leading-relaxed line-clamp-3">{room.description}</p>
                   
-                  {/* Smart Amenities Icons */}
                   <div className="flex flex-wrap gap-3 mb-6">
                     {room.amenities.map((am, i) => (
                       <span key={i} className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-700 border border-gray-200">
