@@ -62,24 +62,27 @@ const AdminDashboard = () => {
               setGallery(await api.gallery.getAll());
           } else if (tab === 'reviews' && reviews.length === 0) {
               setReviews(await api.reviews.getAll());
-} else if ((tab === 'settings' || tab === 'home-content')) {
+          } else if ((tab === 'settings' || tab === 'home-content')) {
               const s = await api.settings.get();
               setSettings(s);
-              
-              // NEW CODE STARTS HERE
-              // Only fetch traffic chart data if we are looking at the Home Content tab
+
+              // --- NEW CODE START: Fetch Traffic Data ---
               if (tab === 'home-content') {
                   try {
                       const res = await fetch('/api/analytics/traffic');
-                      if(res.ok) setTrafficStats(await res.json());
-                  } catch(e) { console.error("Traffic fetch failed", e); }
+                      if (res.ok) {
+                          const data = await res.json();
+                          setTrafficStats(data);
+                      }
+                  } catch (e) {
+                      console.error("Traffic fetch failed", e);
+                  }
               }
-              // NEW CODE ENDS HERE
-          } 
-           catch (e) {
+              // --- NEW CODE END ---
+          }
+      } catch (e) {
           console.error("Failed to load tab data", e);
-      } 
-          finally {
+      } finally {
           setLoading(false);
       }
   };
