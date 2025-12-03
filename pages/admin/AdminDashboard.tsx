@@ -93,14 +93,15 @@ const AdminDashboard = () => {
       const failedBookings = bookings.filter(b => b.status === 'FAILED').length;
       const paidBookings = bookings.filter(b => b.status === 'PAID').length;
 
-      // Monthly Revenue (Last 6 Months)
+     // Monthly Revenue (Trend: 3 Months Past + Current + 2 Months Future) made changes by CM
       const monthlyRevenue: Record<string, number> = {};
       const months = [];
       const today = new Date();
       
-      for(let i=5; i>=0; i--) {
-          const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-          // Format as "Jan 24" or "Dec 25" depending on year
+      // Loop from -3 (3 months ago) to +2 (2 months in future)
+      for(let i = -3; i <= 2; i++) {
+          const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+          // Format as "Jan 24" or "Dec 25"
           const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
           monthlyRevenue[key] = 0;
           months.push(key);
@@ -108,16 +109,18 @@ const AdminDashboard = () => {
 
       bookings.forEach(b => {
           if (b.status === 'PAID') {
-              const bookingDate = new Date(b.createdAt);
+              // FIX: Use checkIn date instead of createdAt to show future revenue
+              const bookingDate = new Date(b.checkIn);
               if (!isNaN(bookingDate.getTime())) {
                   const key = bookingDate.toLocaleString('default', { month: 'short', year: '2-digit' });
-                  // Only add if this month is in our last 6 months view
+                  // Add amount if this month falls within our chart window
                   if (monthlyRevenue.hasOwnProperty(key)) {
                       monthlyRevenue[key] += (parseFloat(b.totalAmount as any) || 0);
                   }
               }
           }
       });
+//untill this line 
 
       return { totalRevenue, totalBookings, pendingBookings, failedBookings, paidBookings, monthlyRevenue, months };
   };
