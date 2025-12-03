@@ -205,7 +205,7 @@ const AdminDashboard = () => {
                         <div key={month} className="flex flex-col items-center gap-2 w-full group relative">
                             <div className="text-xs font-bold text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity absolute -top-6 bg-white shadow px-2 py-1 rounded">₹{value.toLocaleString()}</div>
                             <div 
-                                className={`w-full max-w-[40px] rounded-t-md transition-all duration-500 relative ${value > 0 ? 'bg-green-500 hover:bg-nature-600' : 'bg-gray-100'}`}
+                                className={`w-full max-w-[40px] rounded-t-md transition-all duration-500 relative ${value > 0 ? 'bg-green-600 hover:bg-nature-700' : 'bg-gray-100'}`}
                                 style={{ height: `${heightPercent}%` }}
                             ></div>
                             <span className="text-xs text-gray-500 font-medium">{month}</span>
