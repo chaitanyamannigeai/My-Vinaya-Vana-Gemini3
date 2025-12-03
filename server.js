@@ -52,19 +52,55 @@ const testDbConnection = async () => {
 testDbConnection();
 
 // --- NEW ANALYTICS SETUP --- made by CM
-// 1. Create the "Diary" (Table) to store visit dates
+// --- NEW ANALYTICS SETUP ---
+// 1. Create/Update the "Diary" to store visit dates AND Device Type
 const createVisitTable = async () => {
     try {
+        // Create table if missing
         await pool.query(`
             CREATE TABLE IF NOT EXISTS visit_logs (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 visit_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-                ip_address VARCHAR(45)
+                ip_address VARCHAR(45),
+                device_type VARCHAR(20) DEFAULT 'Desktop'
             )
         `);
-        console.log("✅ Analytics table ready");
+        // Upgrade existing table if it lacks the 'device_type' column (For your existing data)
+        try {
+            await pool.query("ALTER TABLE visit_logs ADD COLUMN device_type VARCHAR(20) DEFAULT 'Desktop'");
+        } catch(e) { 
+            // Ignore error if column already exists
+        }
+        console.log("✅ Analytics table ready with Device Tracking");
     } catch (e) { console.log("Analytics table error:", e.message); }
 };
+createVisitTable();
+
+// 2. Endpoint: Get Monthly Traffic
+app.get('/api/analytics/traffic', async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT DATE_FORMAT(visit_date, '%b %y') as month, COUNT(*) as count 
+            FROM visit_logs 
+            WHERE visit_date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+            GROUP BY DATE_FORMAT(visit_date, '%Y-%m'), month
+            ORDER BY DATE_FORMAT(visit_date, '%Y-%m') ASC
+        `);
+        res.json(rows);
+    } catch (e) { res.status(500).json({ error: 'Failed to fetch traffic' }); }
+});
+
+// 3. NEW Endpoint: Get Device Breakdown (Mobile vs Desktop)
+app.get('/api/analytics/devices', async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT device_type, COUNT(*) as count 
+            FROM visit_logs 
+            GROUP BY device_type
+        `);
+        res.json(rows);
+    } catch (e) { res.status(500).json({ error: 'Failed to fetch device stats' }); }
+});
 createVisitTable();
 
 // 2. New Endpoint: Read the "Diary" to get monthly stats
@@ -129,14 +165,20 @@ app.post('/api/auth/login', async (req, res) => {
 //Update the "Track Hit" Endpoint. The other part of logic is Create the Table & Add Analytics Endpoint File by CM
 app.post('/api/analytics/track-hit', async (req, res) => {
     try {
-        // 1. Update the Total Counter (Keep existing logic)
+        // 1. Update the Total Counter
         const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
         let settings = rows.length > 0 ? parseJSON(rows[0].value) : {};
         settings.websiteHits = (settings.websiteHits || 0) + 1;
         await pool.query("INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) AS new_vals ON DUPLICATE KEY UPDATE value=new_vals.value", [JSON.stringify(settings)]);
 
-        // 2. NEW: Write into the Diary (Log the visit)
-        await pool.query('INSERT INTO visit_logs (ip_address) VALUES (?)', [req.ip || '0.0.0.0']);
+        // 2. NEW: Detect Device Type (Mobile or Desktop)
+        const userAgent = req.headers['user-agent'] || '';
+        const isMobile = /mobile/i.test(userAgent);
+        const deviceType = isMobile ? 'Mobile' : 'Desktop';
+
+        // 3. Write into the Diary
+        await pool.query('INSERT INTO visit_logs (ip_address, device_type) VALUES (?, ?)', 
+            [req.ip || '0.0.0.0', deviceType]);
 
         res.json({ success: true, newHits: settings.websiteHits });
     } catch (err) { res.json({ success: false }); }

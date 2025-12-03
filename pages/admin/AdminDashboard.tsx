@@ -25,6 +25,9 @@ const AdminDashboard = () => {
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
   // PASTE THIS NEW LINE HERE:By CM
   const [trafficStats, setTrafficStats] = useState<{month: string, count: number}[]>([]);
+  // NEW LINE:
+  const [deviceStats, setDeviceStats] = useState<{device_type: string, count: number}[]>([]);
+  
 
   // --- STRICT AUTH CHECK ---
   useEffect(() => {
@@ -66,16 +69,24 @@ const AdminDashboard = () => {
               const s = await api.settings.get();
               setSettings(s);
 
-              // --- NEW CODE START: Fetch Traffic Data ---
+              // --- NEW CODE START: Fetch Traffic AND Device Data ---
               if (tab === 'home-content') {
                   try {
-                      const res = await fetch('/api/analytics/traffic');
-                      if (res.ok) {
-                          const data = await res.json();
+                      // 1. Fetch Monthly Traffic
+                      const resTraffic = await fetch('/api/analytics/traffic');
+                      if (resTraffic.ok) {
+                          const data = await resTraffic.json();
                           setTrafficStats(data);
                       }
+
+                      // 2. Fetch Device Stats (Mobile vs Desktop)
+                      const resDevice = await fetch('/api/analytics/devices');
+                      if (resDevice.ok) {
+                          const data = await resDevice.json();
+                          setDeviceStats(data);
+                      }
                   } catch (e) {
-                      console.error("Traffic fetch failed", e);
+                      console.error("Analytics fetch failed", e);
                   }
               }
               // --- NEW CODE END ---
@@ -88,7 +99,7 @@ const AdminDashboard = () => {
   };
 
 
-  
+
   useEffect(() => {
       if (!authLoading) {
           loadTab(activeTab);
@@ -730,8 +741,7 @@ const AdminDashboard = () => {
         </div>
     </div>
   );
-
-  const renderHomePageContent = () => (
+const renderHomePageContent = () => (
     <div className="bg-white p-8 rounded-lg shadow max-w-3xl space-y-8">
          <div>
             <h3 className="text-lg font-bold mb-4 border-b pb-2 flex items-center gap-2">
@@ -763,7 +773,7 @@ const AdminDashboard = () => {
             </div>
         </div>
 
-{/* Website Hits Counter & Monthly Chart */}
+        {/* Website Hits Counter & Monthly Chart & Device Stats */}
         <div className="bg-white p-6 rounded-lg shadow border border-gray-100">
             <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-nature-900">
                 <BarChart2 size={20}/> Website Traffic Analytics
@@ -780,7 +790,6 @@ const AdminDashboard = () => {
                 <h4 className="text-sm font-bold text-gray-500 mb-4 uppercase">Monthly Unique Visits (Last 6 Months)</h4>
                 <div className="flex items-end justify-between h-48 gap-2 pt-4 border-b border-gray-200 px-4">
                     {trafficStats.length > 0 ? trafficStats.map(stat => {
-                        // Dynamic scaling: find max value in data to set 100% height
                         const maxVal = Math.max(...trafficStats.map(s => s.count), 10);
                         const heightPercent = Math.max((stat.count / maxVal) * 100, 2);
                         return (
@@ -802,9 +811,34 @@ const AdminDashboard = () => {
                     )}
                 </div>
             </div>
-            <p className="text-xs text-gray-500 mt-4">This chart updates automatically as new visitors arrive.</p>
-        </div>
+            
+            {/* NEW: Device Breakdown (Mobile vs Desktop) */}
+            <div className="mt-8 pt-6 border-t border-gray-100">
+                <h4 className="text-sm font-bold text-gray-500 mb-4 uppercase flex items-center gap-2">
+                    <User size={16}/> Visitor Devices
+                </h4>
+                <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-lg">
+                    {deviceStats.length > 0 ? deviceStats.map(stat => (
+                        <div key={stat.device_type} className="flex-1">
+                            <div className="flex justify-between text-xs font-bold text-gray-600 mb-1">
+                                <span>{stat.device_type}</span>
+                                <span>{stat.count} visits</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                <div 
+                                    className={`h-2.5 rounded-full ${stat.device_type === 'Mobile' ? 'bg-purple-500' : 'bg-blue-500'}`} 
+                                    style={{ width: `${(stat.count / deviceStats.reduce((a, b) => a + b.count, 0)) * 100}%` }}
+                                ></div>
+                            </div>
+                        </div>
+                    )) : (
+                        <p className="text-xs text-gray-400 w-full text-center">No device data yet.</p>
+                    )}
+                </div>
+            </div>
 
+            <p className="text-xs text-gray-500 mt-4">These charts update automatically as new visitors arrive.</p>
+        </div>
 
         <button onClick={saveSettings} className="flex items-center gap-2 bg-nature-600 text-white px-6 py-2 rounded-md hover:bg-nature-700 w-full justify-center">
             <Save size={18} /> Save Content
