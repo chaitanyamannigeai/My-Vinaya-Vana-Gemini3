@@ -27,7 +27,7 @@ const AdminDashboard = () => {
   // --- STRICT AUTH CHECK ---
   useEffect(() => {
     const checkAuth = () => {
-        const isAuth = localStorage.getItem('vv_admin_auth');
+        const isAuth = sessionStorage.getItem('vv_admin_auth'); // Changed to sessionStorage by CM
         if (isAuth !== 'true') {
           // If not authenticated, redirect IMMEDIATELY.
           // Do NOT set authLoading to false.
@@ -78,7 +78,7 @@ const AdminDashboard = () => {
   }, [activeTab, authLoading]);
 
   const handleLogout = () => {
-    localStorage.removeItem('vv_admin_auth');
+    sessionStorage.removeItem('vv_admin_auth'); // Changed to sessionStorage by CM
     navigate('/');
   };
 

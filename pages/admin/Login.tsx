@@ -20,7 +20,7 @@ const Login = () => {
     try {
         // New optimized login check (Does not download large settings images)
         await api.auth.login(password);
-        localStorage.setItem('vv_admin_auth', 'true');
+       sessionStorage.setItem('vv_admin_auth', 'true'); // Changed to sessionStorage by CM
         navigate('/admin');
     } catch (err: any) {
         console.error(err);
