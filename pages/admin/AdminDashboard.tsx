@@ -23,6 +23,8 @@ const AdminDashboard = () => {
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
+  // PASTE THIS NEW LINE HERE:By CM
+  const [trafficStats, setTrafficStats] = useState<{month: string, count: number}[]>([]);
 
   // --- STRICT AUTH CHECK ---
   useEffect(() => {
@@ -60,13 +62,24 @@ const AdminDashboard = () => {
               setGallery(await api.gallery.getAll());
           } else if (tab === 'reviews' && reviews.length === 0) {
               setReviews(await api.reviews.getAll());
-          } else if ((tab === 'settings' || tab === 'home-content')) {
+} else if ((tab === 'settings' || tab === 'home-content')) {
               const s = await api.settings.get();
               setSettings(s);
-          }
-      } catch (e) {
+              
+              // NEW CODE STARTS HERE
+              // Only fetch traffic chart data if we are looking at the Home Content tab
+              if (tab === 'home-content') {
+                  try {
+                      const res = await fetch('/api/analytics/traffic');
+                      if(res.ok) setTrafficStats(await res.json());
+                  } catch(e) { console.error("Traffic fetch failed", e); }
+              }
+              // NEW CODE ENDS HERE
+          } 
+           catch (e) {
           console.error("Failed to load tab data", e);
-      } finally {
+      } 
+          finally {
           setLoading(false);
       }
   };
@@ -745,13 +758,46 @@ const AdminDashboard = () => {
             </div>
         </div>
 
-        {/* Website Hits Counter */}
-        <div className="bg-nature-50 p-4 rounded-lg border border-nature-200">
-            <h3 className="text-lg font-bold mb-2 flex items-center gap-2 text-nature-900">
-                <BarChart2 size={20}/> Website Traffic
+{/* Website Hits Counter & Monthly Chart */}
+        <div className="bg-white p-6 rounded-lg shadow border border-gray-100">
+            <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-nature-900">
+                <BarChart2 size={20}/> Website Traffic Analytics
             </h3>
-            <p className="text-gray-700">Total unique visits to public pages: <span className="font-bold text-nature-700 text-xl">{settings.websiteHits || 0}</span></p>
-            <p className="text-xs text-gray-500 mt-1">This counter increments on each page load on public facing pages.</p>
+            
+            {/* Total Counter */}
+            <div className="mb-8 bg-nature-50 p-4 rounded-lg border border-nature-200 inline-block">
+                <p className="text-gray-700 text-sm">Total Historical Visits</p>
+                <p className="font-bold text-nature-700 text-2xl">{settings.websiteHits?.toLocaleString() || 0}</p>
+            </div>
+
+            {/* Monthly Chart */}
+            <div className="mt-4">
+                <h4 className="text-sm font-bold text-gray-500 mb-4 uppercase">Monthly Unique Visits (Last 6 Months)</h4>
+                <div className="flex items-end justify-between h-48 gap-2 pt-4 border-b border-gray-200 px-4">
+                    {trafficStats.length > 0 ? trafficStats.map(stat => {
+                        // Dynamic scaling: find max value in data to set 100% height
+                        const maxVal = Math.max(...trafficStats.map(s => s.count), 10);
+                        const heightPercent = Math.max((stat.count / maxVal) * 100, 2);
+                        return (
+                            <div key={stat.month} className="flex flex-col items-center gap-2 w-full group relative h-full justify-end">
+                                <div className="text-xs font-bold text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 bg-white shadow px-2 py-1 rounded">
+                                    {stat.count.toLocaleString()}
+                                </div>
+                                <div 
+                                    className="w-full max-w-[40px] rounded-t-md transition-all duration-500 bg-blue-500 hover:bg-blue-600 relative"
+                                    style={{ height: `${heightPercent}%` }}
+                                ></div>
+                                <span className="text-xs text-gray-500 font-medium">{stat.month}</span>
+                            </div>
+                        );
+                    }) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+                            Waiting for visitor data...
+                        </div>
+                    )}
+                </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-4">This chart updates automatically as new visitors arrive.</p>
         </div>
 
 

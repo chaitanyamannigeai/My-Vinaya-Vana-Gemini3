@@ -51,6 +51,43 @@ const testDbConnection = async () => {
 };
 testDbConnection();
 
+// --- NEW ANALYTICS SETUP --- made by CM
+// 1. Create the "Diary" (Table) to store visit dates
+const createVisitTable = async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS visit_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                visit_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                ip_address VARCHAR(45)
+            )
+        `);
+        console.log("✅ Analytics table ready");
+    } catch (e) { console.log("Analytics table error:", e.message); }
+};
+createVisitTable();
+
+// 2. New Endpoint: Read the "Diary" to get monthly stats
+app.get('/api/analytics/traffic', async (req, res) => {
+    try {
+        // Get traffic for the last 6 months grouped by Month
+        const [rows] = await pool.query(`
+            SELECT 
+                DATE_FORMAT(visit_date, '%b %y') as month, 
+                COUNT(*) as count 
+            FROM visit_logs 
+            WHERE visit_date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+            GROUP BY DATE_FORMAT(visit_date, '%Y-%m'), month
+            ORDER BY DATE_FORMAT(visit_date, '%Y-%m') ASC
+        `);
+        res.json(rows);
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: 'Failed to fetch traffic stats' });
+    }
+});
+
+
 app.get('/api/health', async (req, res) => {
     try {
         const connection = await pool.getConnection();
@@ -89,12 +126,18 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
+//Update the "Track Hit" Endpoint. The other part of logic is Create the Table & Add Analytics Endpoint File by CM
 app.post('/api/analytics/track-hit', async (req, res) => {
     try {
+        // 1. Update the Total Counter (Keep existing logic)
         const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
         let settings = rows.length > 0 ? parseJSON(rows[0].value) : {};
         settings.websiteHits = (settings.websiteHits || 0) + 1;
         await pool.query("INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) AS new_vals ON DUPLICATE KEY UPDATE value=new_vals.value", [JSON.stringify(settings)]);
+
+        // 2. NEW: Write into the Diary (Log the visit)
+        await pool.query('INSERT INTO visit_logs (ip_address) VALUES (?)', [req.ip || '0.0.0.0']);
+
         res.json({ success: true, newHits: settings.websiteHits });
     } catch (err) { res.json({ success: false }); }
 });
