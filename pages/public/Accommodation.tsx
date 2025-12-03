@@ -13,7 +13,6 @@ declare global {
 }
 
 // --- HELPER: Safe Local Date Formatting ---
-// Prevents timezone shifts (e.g. Jan 1 becoming Dec 31)
 const formatDateLocal = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -148,7 +147,6 @@ const Accommodation = () => {
       for (const b of roomBookings) {
           const bStart = new Date(b.checkIn).getTime();
           const bEnd = new Date(b.checkOut).getTime();
-          // Logic: If requested start is before booking end AND requested end is after booking start -> Overlap
           if (start < bEnd && end > bStart) return false; 
       }
       return true;
@@ -177,27 +175,22 @@ const Accommodation = () => {
       const d1 = new Date(bookingForm.checkIn);
       const d2 = new Date(bookingForm.checkOut);
 
-      // Validation 1: Invalid Range
       if (d1 >= d2) {
           setAvailabilityError("Check-out must be after Check-in");
           return;
       }
 
-      // Validation 2: Availability
       const isAvailable = checkAvailability(selectedRoom.id, bookingForm.checkIn, bookingForm.checkOut);
       if (!isAvailable) {
           setAvailabilityError("Selected dates are not available.");
           return;
       }
 
-      // Calculation Loop
       let calculatedTotal = 0;
       let loopDate = new Date(d1);
       let days = 0;
 
-      // Loop day by day
       while (loopDate < d2) {
-          // FIX: Use formatDateLocal to ensure we check the correct calendar day
           const dateStr = formatDateLocal(loopDate);
           const multiplier = getMultiplierForDate(dateStr);
           calculatedTotal += (selectedRoom.basePrice * multiplier);
@@ -206,7 +199,6 @@ const Accommodation = () => {
           loopDate.setDate(loopDate.getDate() + 1);
       }
       
-      // Apply Discounts
       if (days > 0) {
         let discountAmount = 0;
         const discountSettings = settings.longStayDiscount;
@@ -229,7 +221,6 @@ const Accommodation = () => {
     setBookingForm(prev => ({ ...prev, [name]: value }));
   };
 
-  // --- Payment Handling ---
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
       const script = document.createElement('script');
@@ -294,7 +285,6 @@ const Accommodation = () => {
         setBookings(updatedBookings);
         setShowSimulatedPayment(false);
         setBookingSuccess(true);
-        // Reset form but keep room selected
         setBookingForm(prev => ({ ...prev, guestName: '', guestPhone: '', checkIn: '', checkOut: '' }));
         setTotalPrice(0);
     } catch (err) { alert("Booking failed to save."); }
@@ -304,10 +294,10 @@ const Accommodation = () => {
       if (!selectedRoom) return '#';
       let msg = `Hi, I want to book ${selectedRoom.name}`;
       if (bookingForm.checkIn && bookingForm.checkOut) msg += ` from ${bookingForm.checkIn} to ${bookingForm.checkOut}`;
-      return `https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent(msg)}`;
+      const phone = settings.contactPhone || settings.whatsappNumber || '919999999999';
+      return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
   };
 
-  // --- Calendar Render Logic ---
   const isDateBooked = (dateStr: string) => {
     const target = new Date(dateStr).getTime();
     const currentRoomBookings = bookings.filter(b => b.roomId === bookingForm.roomId && b.status !== PaymentStatus.FAILED);
@@ -319,7 +309,6 @@ const Accommodation = () => {
   };
 
   const handleDateClick = (day: number) => {
-    // Construct date safely using current viewDate's year/month and clicked day
     const clickedDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
     const dateStr = formatDateLocal(clickedDate);
 
@@ -328,16 +317,13 @@ const Accommodation = () => {
     const currentIn = bookingForm.checkIn ? new Date(bookingForm.checkIn) : null;
     const currentOut = bookingForm.checkOut ? new Date(bookingForm.checkOut) : null;
 
-    // Logic: If no dates, or both filled -> Start new selection
     if (!currentIn || (currentIn && currentOut)) {
       setBookingForm(prev => ({ ...prev, checkIn: dateStr, checkOut: '' }));
     } 
-    // Logic: If start selected, select end
     else if (currentIn && !currentOut) {
       if (new Date(dateStr) > currentIn) {
           setBookingForm(prev => ({ ...prev, checkOut: dateStr }));
       } else {
-          // If clicked date is before start, reset start to clicked date
           setBookingForm(prev => ({ ...prev, checkIn: dateStr, checkOut: '' }));
       }
     }
@@ -354,8 +340,6 @@ const Accommodation = () => {
     const month = viewDate.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const firstDay = new Date(year, month, 1).getDay();
-    
-    // Normalize "today" to YYYY-MM-DD for comparison
     const todayStr = formatDateLocal(new Date());
 
     const days = [];
@@ -366,7 +350,7 @@ const Accommodation = () => {
       const dateStr = formatDateLocal(currentDate);
       
       const booked = isDateBooked(dateStr);
-      const isPast = dateStr < todayStr; // String comparison works for YYYY-MM-DD
+      const isPast = dateStr < todayStr;
       const isCheckIn = bookingForm.checkIn === dateStr;
       const isCheckOut = bookingForm.checkOut === dateStr;
       const isInRange = bookingForm.checkIn && bookingForm.checkOut && dateStr > bookingForm.checkIn && dateStr < bookingForm.checkOut;
@@ -391,168 +375,184 @@ const Accommodation = () => {
   };
 
   return (
-    <div className="bg-nature-50 min-h-screen py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-            <h1 className="text-4xl font-serif font-bold text-nature-900 mb-2">Our Accommodation</h1>
-            <p className="text-gray-600">Choose the perfect room for your getaway.</p>
+    <div className="flex flex-col min-h-screen">
+      {/* 1. NEW VISUAL HEADER (Matches Home Page) */}
+      <div 
+        className="relative h-[40vh] bg-cover bg-center flex items-center justify-center"
+        style={{ 
+            backgroundImage: `url("${settings.heroImageUrl}")`,
+            backgroundColor: '#1a2e1a' // Fallback color
+        }}
+      >
+        <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+        <div className="relative z-10 text-center px-4 animate-fade-in-up">
+            <h1 className="text-4xl md:text-5xl font-serif font-bold text-white mb-4 shadow-sm">
+                Our Accommodation
+            </h1>
+            <p className="text-lg text-nature-100 font-light max-w-2xl mx-auto">
+                Choose the perfect sanctuary for your stay.
+            </p>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          {/* LEFT COLUMN: ROOM LIST */}
-          <div className="lg:col-span-2 space-y-10">
-            {rooms.map((room) => (
-              <div 
-                key={room.id} 
-                className={`bg-white rounded-2xl overflow-hidden shadow-md border-2 transition-all ${selectedRoom?.id === room.id ? 'border-nature-500 ring-4 ring-nature-100' : 'border-transparent hover:border-nature-200'}`}
-              >
-                <RoomCarousel images={room.images} name={room.name} />
+      <div className="bg-nature-50 flex-grow py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            {/* LEFT COLUMN: ROOM LIST */}
+            <div className="lg:col-span-2 space-y-10">
+                {rooms.map((room) => (
+                <div 
+                    key={room.id} 
+                    className={`bg-white rounded-2xl overflow-hidden shadow-md border-2 transition-all ${selectedRoom?.id === room.id ? 'border-nature-500 ring-4 ring-nature-100' : 'border-transparent hover:border-nature-200'}`}
+                >
+                    <RoomCarousel images={room.images} name={room.name} />
 
-                <div className="p-6 md:p-8">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h2 className="text-2xl font-serif font-bold text-gray-900">{room.name}</h2>
-                      <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                        <span className="flex items-center gap-1"><Users size={16} /> Max {room.capacity} Guests</span>
-                        <span className="flex items-center gap-1"><Home size={16} /> 2BHK</span>
-                      </div>
-                    </div>
-                    <div className="text-right bg-nature-50 px-4 py-2 rounded-lg">
-                      <span className="text-2xl font-bold text-nature-700">₹{room.basePrice.toLocaleString()}</span>
-                      <span className="text-gray-500 text-xs block font-medium uppercase tracking-wider">Per Night</span>
-                    </div>
-                  </div>
-                  
-                  <p className="text-gray-600 mb-6 leading-relaxed line-clamp-3">{room.description}</p>
-                  
-                  <div className="flex flex-wrap gap-3 mb-6">
-                    {room.amenities.map((am, i) => (
-                      <span key={i} className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-700 border border-gray-200">
-                        {getAmenityIcon(am)}
-                        {am}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="pt-6 border-t border-gray-100 flex justify-end">
-                      <button 
-                        onClick={() => handleSelectRoom(room.id)}
-                        className="bg-nature-800 hover:bg-nature-900 text-white px-6 py-2 rounded-lg font-medium transition-all shadow-md hover:shadow-lg flex items-center gap-2"
-                      >
-                          Book This Room <ChevronRight size={16}/>
-                      </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* RIGHT COLUMN: BOOKING SIDEBAR */}
-          <div className="lg:col-span-1">
-            <div id="booking-sidebar" className="bg-white p-6 rounded-2xl shadow-xl sticky top-24 border-t-4 border-nature-600">
-              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                  <CalendarIcon className="text-nature-600"/> Check Availability
-              </h3>
-              
-              {bookingSuccess ? (
-                <div className="bg-green-100 text-green-800 p-6 rounded-lg text-center animate-fade-in">
-                  <CheckCircle className="h-12 w-12 mx-auto mb-3 text-green-600" />
-                  <p className="font-bold text-lg">Booking Confirmed!</p>
-                  <button onClick={() => setBookingSuccess(false)} className="mt-4 text-sm underline hover:text-green-900">Book another</button>
-                </div>
-              ) : (
-                <form onSubmit={handleBookingSubmit} className="space-y-5">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Select Room</label>
-                    <select 
-                      name="roomId" 
-                      value={bookingForm.roomId} 
-                      onChange={handleInputChange}
-                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-nature-500 outline-none font-medium"
-                    >
-                      {rooms.map(r => <option key={r.id} value={r.id}>{r.name} - ₹{r.basePrice}</option>)}
-                    </select>
-                  </div>
-
-                  {/* Calendar Widget */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-4">
-                     <div className="flex items-center justify-between mb-4">
-                        <button type="button" onClick={() => changeMonth(-1)} className="p-1 hover:bg-gray-100 rounded-full"><ChevronLeft size={20}/></button>
-                        <span className="font-bold text-gray-800">{viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
-                        <button type="button" onClick={() => changeMonth(1)} className="p-1 hover:bg-gray-100 rounded-full"><ChevronRight size={20}/></button>
-                     </div>
-                     <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-gray-400 mb-2">
-                        <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
-                     </div>
-                     <div className="grid grid-cols-7 gap-1">
-                        {renderCalendar()}
-                     </div>
-                     <div className="flex justify-center gap-4 mt-3 text-[10px] text-gray-500 uppercase tracking-wider">
-                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-nature-600"></span> Selected</span>
-                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-200"></span> Booked</span>
-                     </div>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <input type="text" name="guestName" value={bookingForm.guestName} onChange={handleInputChange} required placeholder="Full Name" className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-nature-500 outline-none" />
-                    <input type="tel" name="guestPhone" value={bookingForm.guestPhone} onChange={handleInputChange} required placeholder="Phone Number" className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-nature-500 outline-none" />
-                  </div>
-
-                  {/* Errors */}
-                  {availabilityError && (
-                      <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm flex gap-2 items-start">
-                          <XCircle size={16} className="mt-0.5 shrink-0" />
-                          {availabilityError}
-                      </div>
-                  )}
-
-                  {/* Price Summary */}
-                  {totalPrice > 0 && !availabilityError && pricingBreakdown && (
-                    <div className="bg-gray-50 p-4 rounded-xl space-y-3 animate-fade-in">
-                      {pricingBreakdown.discountApplied > 0 && (
-                        <div className="flex items-center gap-2 text-green-700 bg-green-100 px-3 py-2 rounded-lg text-sm font-medium">
-                            <Sparkles size={16} />
-                            <span>Long stay discount applied: -₹{pricingBreakdown.discountApplied}</span>
+                    <div className="p-6 md:p-8">
+                    <div className="flex justify-between items-start mb-4">
+                        <div>
+                        <h2 className="text-2xl font-serif font-bold text-gray-900">{room.name}</h2>
+                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                            <span className="flex items-center gap-1"><Users size={16} /> Max {room.capacity} Guests</span>
+                            <span className="flex items-center gap-1"><Home size={16} /> 2BHK</span>
                         </div>
-                      )}
-                      <div className="flex justify-between text-sm text-gray-600">
-                        <span>{pricingBreakdown.days} Nights x ₹{pricingBreakdown.avgPrice}</span>
-                        <span>₹{totalPrice}</span>
-                      </div>
-                      <div className="flex justify-between font-bold text-lg text-gray-900 border-t pt-2">
-                        <span>Total</span>
-                        <span>₹{totalPrice}</span>
-                      </div>
+                        </div>
+                        <div className="text-right bg-nature-50 px-4 py-2 rounded-lg">
+                        <span className="text-2xl font-bold text-nature-700">₹{room.basePrice.toLocaleString()}</span>
+                        <span className="text-gray-500 text-xs block font-medium uppercase tracking-wider">Per Night</span>
+                        </div>
                     </div>
-                  )}
+                    
+                    <p className="text-gray-600 mb-6 leading-relaxed line-clamp-3">{room.description}</p>
+                    
+                    <div className="flex flex-wrap gap-3 mb-6">
+                        {room.amenities.map((am, i) => (
+                        <span key={i} className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-700 border border-gray-200">
+                            {getAmenityIcon(am)}
+                            {am}
+                        </span>
+                        ))}
+                    </div>
 
-                  <button 
-                    type="submit"
-                    disabled={!!availabilityError || totalPrice === 0}
-                    className={`w-full font-bold py-4 rounded-xl transition-all shadow-lg flex justify-center items-center gap-2 ${
-                        availabilityError || totalPrice === 0 
-                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-                        : 'bg-nature-800 hover:bg-nature-900 text-white hover:scale-[1.02]'
-                    }`}
-                  >
-                    {availabilityError ? 'Select Valid Dates' : 'Proceed to Pay'}
-                  </button>
-
-                  <div className="text-center text-xs text-gray-400 font-medium uppercase tracking-widest">- OR -</div>
-
-                  <a 
-                    href={getWhatsAppBookingLink()}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-3 rounded-xl transition-all shadow-sm"
-                  >
-                    <MessageCircle size={20} />
-                    Book via WhatsApp
-                  </a>
-                </form>
-              )}
+                    <div className="pt-6 border-t border-gray-100 flex justify-end">
+                        <button 
+                            onClick={() => handleSelectRoom(room.id)}
+                            className="bg-nature-800 hover:bg-nature-900 text-white px-6 py-2 rounded-lg font-medium transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                        >
+                            Book This Room <ChevronRight size={16}/>
+                        </button>
+                    </div>
+                    </div>
+                </div>
+                ))}
             </div>
-          </div>
+
+            {/* RIGHT COLUMN: BOOKING SIDEBAR */}
+            <div className="lg:col-span-1">
+                <div id="booking-sidebar" className="bg-white p-6 rounded-2xl shadow-xl sticky top-24 border-t-4 border-nature-600">
+                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                    <CalendarIcon className="text-nature-600"/> Check Availability
+                </h3>
+                
+                {bookingSuccess ? (
+                    <div className="bg-green-100 text-green-800 p-6 rounded-lg text-center animate-fade-in">
+                    <CheckCircle className="h-12 w-12 mx-auto mb-3 text-green-600" />
+                    <p className="font-bold text-lg">Booking Confirmed!</p>
+                    <button onClick={() => setBookingSuccess(false)} className="mt-4 text-sm underline hover:text-green-900">Book another</button>
+                    </div>
+                ) : (
+                    <form onSubmit={handleBookingSubmit} className="space-y-5">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Select Room</label>
+                        <select 
+                        name="roomId" 
+                        value={bookingForm.roomId} 
+                        onChange={handleInputChange}
+                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-nature-500 outline-none font-medium"
+                        >
+                        {rooms.map(r => <option key={r.id} value={r.id}>{r.name} - ₹{r.basePrice}</option>)}
+                        </select>
+                    </div>
+
+                    {/* Calendar Widget */}
+                    <div className="bg-white border border-gray-200 rounded-xl p-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <button type="button" onClick={() => changeMonth(-1)} className="p-1 hover:bg-gray-100 rounded-full"><ChevronLeft size={20}/></button>
+                            <span className="font-bold text-gray-800">{viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+                            <button type="button" onClick={() => changeMonth(1)} className="p-1 hover:bg-gray-100 rounded-full"><ChevronRight size={20}/></button>
+                        </div>
+                        <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-gray-400 mb-2">
+                            <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
+                        </div>
+                        <div className="grid grid-cols-7 gap-1">
+                            {renderCalendar()}
+                        </div>
+                        <div className="flex justify-center gap-4 mt-3 text-[10px] text-gray-500 uppercase tracking-wider">
+                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-nature-600"></span> Selected</span>
+                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-200"></span> Booked</span>
+                        </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                        <input type="text" name="guestName" value={bookingForm.guestName} onChange={handleInputChange} required placeholder="Full Name" className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-nature-500 outline-none" />
+                        <input type="tel" name="guestPhone" value={bookingForm.guestPhone} onChange={handleInputChange} required placeholder="Phone Number" className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-nature-500 outline-none" />
+                    </div>
+
+                    {/* Errors */}
+                    {availabilityError && (
+                        <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm flex gap-2 items-start">
+                            <XCircle size={16} className="mt-0.5 shrink-0" />
+                            {availabilityError}
+                        </div>
+                    )}
+
+                    {/* Price Summary */}
+                    {totalPrice > 0 && !availabilityError && pricingBreakdown && (
+                        <div className="bg-gray-50 p-4 rounded-xl space-y-3 animate-fade-in">
+                        {pricingBreakdown.discountApplied > 0 && (
+                            <div className="flex items-center gap-2 text-green-700 bg-green-100 px-3 py-2 rounded-lg text-sm font-medium">
+                                <Sparkles size={16} />
+                                <span>Long stay discount applied: -₹{pricingBreakdown.discountApplied}</span>
+                            </div>
+                        )}
+                        <div className="flex justify-between text-sm text-gray-600">
+                            <span>{pricingBreakdown.days} Nights x ₹{pricingBreakdown.avgPrice}</span>
+                            <span>₹{totalPrice}</span>
+                        </div>
+                        <div className="flex justify-between font-bold text-lg text-gray-900 border-t pt-2">
+                            <span>Total</span>
+                            <span>₹{totalPrice}</span>
+                        </div>
+                        </div>
+                    )}
+
+                    <button 
+                        type="submit"
+                        disabled={!!availabilityError || totalPrice === 0}
+                        className={`w-full font-bold py-4 rounded-xl transition-all shadow-lg flex justify-center items-center gap-2 ${
+                            availabilityError || totalPrice === 0 
+                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                            : 'bg-nature-800 hover:bg-nature-900 text-white hover:scale-[1.02]'
+                        }`}
+                    >
+                        {availabilityError ? 'Select Valid Dates' : 'Proceed to Pay'}
+                    </button>
+
+                    <div className="text-center text-xs text-gray-400 font-medium uppercase tracking-widest">- OR -</div>
+
+                    <a 
+                        href={getWhatsAppBookingLink()}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-3 rounded-xl transition-all shadow-sm"
+                    >
+                        <MessageCircle size={20} />
+                        Book via WhatsApp
+                    </a>
+                    </form>
+                )}
+                </div>
+            </div>
+            </div>
         </div>
       </div>
 
