@@ -98,8 +98,8 @@ const AdminDashboard = () => {
       const months = [];
       const today = new Date();
       
-      // Loop from -3 (3 months ago) to +2 (2 months in future)
-      for(let i = -3; i <= 2; i++) {
+      // Loop from -3 (3 months ago) to +3 (3 months in future)
+      for(let i = -3; i <= 3; i++) {
           const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
           // Format as "Jan 24" or "Dec 25"
           const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
