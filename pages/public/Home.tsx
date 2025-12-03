@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
-import { ArrowRight, Coffee, Wifi, Wind, Palmtree, Star, Play, Quote, Sun, Cloud, CloudRain, CloudFog, CloudLightning, CloudDrizzle, Snowflake, Moon, Wind as WindIcon } from 'lucide-react';
-import { Review, Room, SiteSettings, WeatherData } from '../../types';
+import { ArrowRight, Coffee, Wifi, Wind, Palmtree, Star, Play, Quote, Sun, Cloud, CloudRain, CloudFog, CloudLightning, CloudDrizzle, Snowflake, Droplets, Thermometer, Moon, Wind as WindIcon } from 'lucide-react'; // Added more icons
+import { Review, Room, SiteSettings, WeatherData } from '../../types'; // Import WeatherData from types
 
 const { Link } = ReactRouterDOM as any;
 
@@ -23,20 +23,14 @@ const Home = () => {
             api.settings.get()
         ]);
         setRooms(fetchedRooms);
-        
-        // REVIEWS LOGIC: Filter by 'Show on Home' AND Sort by Date (Newest first)
-        const homeReviews = fetchedReviews
-            .filter(r => r.showOnHome)
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-            
-        setReviews(homeReviews);
+        setReviews(fetchedReviews.filter(r => r.showOnHome));
         setSettings(fetchedSettings);
 
         // Fetch weather if API key is present
         if (fetchedSettings.weatherApiKey) {
             setWeatherLoading(true);
             try {
-                const weatherData = await api.weather.getForecast('Gokarna'); 
+                const weatherData = await api.weather.getForecast('Gokarna'); // Hardcoded location for now
                 setWeather(weatherData);
             } catch (weatherErr) {
                 console.error("Failed to fetch weather:", weatherErr);
@@ -50,7 +44,7 @@ const Home = () => {
 
       } catch (err) {
           console.error("Failed to load initial data", err);
-          setWeatherLoading(false);
+          setWeatherLoading(false); // Ensure loading state is reset even if main data fails
       }
     };
     fetchData();
@@ -68,16 +62,24 @@ const Home = () => {
   const videoEmbedUrl = getYoutubeEmbedUrl(settings.youtubeVideoUrl);
 
   const getWeatherIcon = (iconCode: string) => {
+    // Mapping OpenWeatherMap icons to Lucide icons
+    // See https://openweathermap.org/weather-conditions#Weather-condition-codes-2
     if (!iconCode) return <Sun size={24} className="text-yellow-400" />;
-    if (iconCode.startsWith('01d')) return <Sun size={24} className="text-yellow-400" />;
-    if (iconCode.startsWith('01n')) return <Moon size={24} className="text-blue-200" />;
-    if (iconCode.startsWith('02')) return <Cloud size={24} className="text-gray-300" />;
-    if (iconCode.startsWith('03') || iconCode.startsWith('04')) return <Cloud size={24} className="text-gray-500" />;
-    if (iconCode.startsWith('09') || iconCode.startsWith('10')) return <CloudRain size={24} className="text-blue-400" />;
-    if (iconCode.startsWith('11')) return <CloudLightning size={24} className="text-gray-400" />;
-    if (iconCode.startsWith('13')) return <Snowflake size={24} className="text-blue-200" />;
-    if (iconCode.startsWith('50')) return <CloudFog size={24} className="text-gray-400" />;
-    return <Sun size={24} className="text-yellow-400" />;
+    
+    if (iconCode.startsWith('01d')) return <Sun size={24} className="text-yellow-400" />; // Clear sky day
+    if (iconCode.startsWith('01n')) return <Moon size={24} className="text-blue-200" />; // Clear sky night
+    if (iconCode.startsWith('02d')) return <Cloud size={24} className="text-gray-300" />; // Few clouds day
+    if (iconCode.startsWith('02n')) return <Cloud size={24} className="text-gray-300" />; // Few clouds night
+    if (iconCode.startsWith('03')) return <Cloud size={24} className="text-gray-400" />; // Scattered clouds
+    if (iconCode.startsWith('04')) return <Cloud size={24} className="text-gray-500" />; // Broken clouds
+    if (iconCode.startsWith('09')) return <CloudRain size={24} className="text-blue-400" />; // Shower rain
+    if (iconCode.startsWith('10d')) return <CloudDrizzle size={24} className="text-blue-400" />; // Rain day
+    if (iconCode.startsWith('10n')) return <CloudDrizzle size={24} className="text-blue-400" />; // Rain night
+    if (iconCode.startsWith('11')) return <CloudLightning size={24} className="text-gray-400" />; // Thunderstorm
+    if (iconCode.startsWith('13')) return <Snowflake size={24} className="text-blue-200" />; // Snow
+    if (iconCode.startsWith('50')) return <CloudFog size={24} className="text-gray-400" />; // Mist
+
+    return <Sun size={24} className="text-yellow-400" />; // Default fallback
   }
 
   return (
@@ -128,7 +130,12 @@ const Home = () => {
                               <p className="text-xs text-nature-200 mt-1">Humidity: {weather.humidity}%, Wind: {weather.windSpeed} m/s</p>
                           </div>
                       </div>
-                  ) : null}
+                  ) : (
+                      <div className="bg-white/10 backdrop-blur-sm text-white text-sm px-6 py-4 rounded-xl flex items-center gap-4 border border-white/20 shadow-lg max-w-sm w-full">
+                          <Cloud size={24} className="text-gray-300"/>
+                          <p className="text-lg font-bold">Weather unavailable</p>
+                      </div>
+                  )}
               </div>
           )}
         </div>
@@ -190,44 +197,44 @@ const Home = () => {
       )}
 
       {/* Guest Reviews */}
-      {reviews.length > 0 && (
-          <div className="py-20 bg-earth-50">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="text-center mb-12">
-                    <h2 className="text-3xl md:text-4xl font-serif font-bold text-nature-900 mb-4">What Our Guests Say</h2>
-                    <p className="text-gray-600 text-lg">Experiences shared by those who've stayed with us.</p>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {reviews.slice(0, 3).map((review) => (
-                        <div key={review.id} className="bg-white p-8 rounded-xl shadow-md relative hover:-translate-y-1 transition-transform">
+      <div className="py-20 bg-earth-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+                <h2 className="text-3xl md:text-4xl font-serif font-bold text-nature-900 mb-4">What Our Guests Say</h2>
+                <p className="text-gray-600 text-lg">Experiences shared by those who've stayed with us.</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {reviews.length > 0 ? (
+                    reviews.slice(0, 3).map((review) => (
+                        <div key={review.id} className="bg-white p-8 rounded-xl shadow-md relative">
                             <Quote className="absolute top-6 right-6 text-nature-100 h-10 w-10 transform rotate-180" />
                             <div className="flex text-yellow-400 mb-4">
                                 {[...Array(5)].map((_, i) => (
                                     <Star key={i} size={16} fill={i < review.rating ? "currentColor" : "none"} className={i < review.rating ? "" : "text-gray-300"} />
                                 ))}
                             </div>
-                            <p className="text-gray-700 mb-6 italic leading-relaxed line-clamp-4">"{review.comment}"</p>
-                            <div className="flex items-center gap-3 mt-auto">
-                                <div className="w-10 h-10 bg-nature-100 rounded-full flex items-center justify-center font-bold text-nature-700 uppercase">
-                                    {(review.guestName || 'G').charAt(0)}
+                            <p className="text-gray-700 mb-6 italic leading-relaxed">"{review.comment}"</p>
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-nature-100 rounded-full flex items-center justify-center font-bold text-nature-700">
+                                    {(review.guestName || 'Guest').charAt(0)}
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-nature-900 text-sm">{review.guestName}</h4>
-                                    <p className="text-xs text-gray-500">{review.location || 'Happy Guest'}</p>
+                                    <p className="text-xs text-gray-500">{review.location}</p>
                                 </div>
                             </div>
                         </div>
-                    ))}
-                </div>
-                <div className="text-center mt-12">
-                    <Link to="/reviews" className="text-nature-700 font-medium hover:text-nature-900 hover:underline inline-flex items-center gap-2">
-                        Read All {reviews.length}+ Reviews <ArrowRight size={16}/>
-                    </Link>
-                </div>
+                    ))
+                ) : (
+                    <div className="col-span-3 text-center text-gray-500">No reviews to display yet.</div>
+                )}
             </div>
-          </div>
-      )}
+            <div className="text-center mt-12">
+                <Link to="/reviews" className="text-nature-700 font-medium hover:text-nature-900 hover:underline">View All Reviews →</Link>
+            </div>
+        </div>
+      </div>
 
       {/* Featured Accommodation Teaser */}
       {featuredRoom && (
