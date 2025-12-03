@@ -278,12 +278,9 @@ if (fs.existsSync(distPath)) {
     app.get('*', (req, res) => res.send('<h1>Backend Running</h1><p>Frontend not built.</p>'));
 }
 
-// CRITICAL FIX: Bind to 0.0.0.0 for Northflank
-const HOST = '0.0.0.0'; 
 
-app.listen(PORT, HOST, () => {
-    console.log(`🚀 Server is listening on ${HOST}:${PORT}`);
-});
+// Bind to 0.0.0.0 to be reachable from outside the Docker container
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT} and listening on 0.0.0.0`));
 
 
 
