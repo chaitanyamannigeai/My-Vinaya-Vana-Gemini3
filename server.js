@@ -45,11 +45,53 @@ const parseJSON = (data) => {
     return data;
 };
 
+// --- DATABASE STARTUP FIXER ---
+const fixDatabaseSchema = async () => {
+    try {
+        const connection = await pool.getConnection();
+        console.log('🔧 Running Database Startup Checks...');
+
+        // 1. SPECIFIC FIX FOR PRICING (The issue you are facing)
+        try {
+            // Attempt to force ID to string
+            await connection.query("ALTER TABLE pricing_rules MODIFY id VARCHAR(255)");
+            console.log("✅ Pricing Rules IDs converted to String");
+        } catch (e) {
+            console.log("⚠️ Could not alter Pricing table. Recreating it...");
+            try {
+                await connection.query("DROP TABLE IF EXISTS pricing_rules");
+                await connection.query(`
+                    CREATE TABLE pricing_rules (
+                        id VARCHAR(255) PRIMARY KEY,
+                        name VARCHAR(255),
+                        start_date DATE,
+                        end_date DATE,
+                        multiplier DECIMAL(3,1)
+                    )
+                `);
+                console.log("✅ Pricing Rules table recreated from scratch.");
+            } catch (createErr) {
+                console.error("❌ Failed to recreate pricing table:", createErr.message);
+            }
+        }
+
+        // 2. Ensure Reviews table is correct (Since it's working, we just double check)
+        try { await connection.query("ALTER TABLE reviews MODIFY id VARCHAR(255)"); } catch(e) {}
+        try { await connection.query("ALTER TABLE reviews ADD COLUMN show_on_home BOOLEAN DEFAULT 0"); } catch(e) {}
+
+        connection.release();
+    } catch (err) {
+        console.error("Startup DB Check Failed:", err.message);
+    }
+};
+// Run immediately on start
+fixDatabaseSchema();
+
+
 // --- AUTH ---
 app.post('/api/auth/login', async (req, res) => {
     const { password } = req.body;
     try {
-        // Simple auth check that doesn't rely on complex tables first
         const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
         let adminPassword = 'admin123';
         if (rows.length > 0) {
@@ -59,61 +101,35 @@ app.post('/api/auth/login', async (req, res) => {
         if (password === adminPassword) res.json({ success: true });
         else res.status(401).json({ error: 'Invalid password' });
     } catch (err) {
-        // If settings table missing, allow default login
         if (password === 'admin123') res.json({ success: true });
         else res.status(500).json({ error: 'Server error' });
     }
 });
 
-// --- REVIEWS (WITH SELF-HEALING) ---
+// --- REVIEWS ---
 app.get('/api/reviews', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM reviews');
         res.json(rows.map(r => ({ id: r.id, guestName: r.guest_name || 'Guest', location: r.location || '', rating: r.rating || 5, comment: r.comment || '', date: r.date, showOnHome: !!r.show_on_home })));
-    } catch(e) { 
-        // If table doesn't exist, return empty array instead of crashing
-        res.json([]); 
-    }
+    } catch(e) { res.json([]); }
 });
 
 app.post('/api/reviews', async (req, res) => {
     const { id, guestName, location, rating, comment, date, showOnHome } = req.body;
     const showOnHomeVal = showOnHome ? 1 : 0;
-
-    // The SQL to run
     const upsertQuery = `INSERT INTO reviews (id, guest_name, location, rating, comment, date, show_on_home) VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE guest_name=VALUES(guest_name), location=VALUES(location), rating=VALUES(rating), comment=VALUES(comment), date=VALUES(date), show_on_home=VALUES(show_on_home)`;
-    const params = [id, guestName, location, rating, comment, date, showOnHomeVal];
-
+    
     try {
-        // Try to save normally
-        await pool.query(upsertQuery, params);
+        await pool.query(upsertQuery, [id, guestName, location, rating, comment, date, showOnHomeVal]);
         res.json({ id, guestName, location, rating, comment, date, showOnHome: !!showOnHomeVal });
     } catch (e) {
-        console.log("⚠️ Reviews Table Error. Triggering Self-Healing...");
-        
+        // Fallback: Recreate table if it fails
         try {
-            // NUCLEAR OPTION: Recreate table with correct schema
             await pool.query(`DROP TABLE IF EXISTS reviews`);
-            await pool.query(`
-                CREATE TABLE reviews (
-                    id VARCHAR(255) PRIMARY KEY,
-                    guest_name VARCHAR(255),
-                    location VARCHAR(255),
-                    rating INT,
-                    comment TEXT,
-                    date VARCHAR(50),
-                    show_on_home BOOLEAN DEFAULT 0
-                )
-            `);
-            console.log("✅ Reviews Table Recreated.");
-            
-            // Retry Save
-            await pool.query(upsertQuery, params);
+            await pool.query(`CREATE TABLE reviews (id VARCHAR(255) PRIMARY KEY, guest_name VARCHAR(255), location VARCHAR(255), rating INT, comment TEXT, date VARCHAR(50), show_on_home BOOLEAN DEFAULT 0)`);
+            await pool.query(upsertQuery, [id, guestName, location, rating, comment, date, showOnHomeVal]);
             res.json({ id, guestName, location, rating, comment, date, showOnHome: !!showOnHomeVal, repaired: true });
-        } catch (fatalError) {
-            console.error(fatalError);
-            res.status(500).json({ error: fatalError.message });
-        }
+        } catch (fatal) { res.status(500).json({ error: fatal.message }); }
     }
 });
 
@@ -122,7 +138,7 @@ app.delete('/api/reviews/:id', async (req, res) => {
     catch(e) { res.status(500).json({error: e.message}); }
 });
 
-// --- PRICING (WITH SELF-HEALING) ---
+// --- PRICING (UPDATED WITH EXPLICIT FIX) ---
 app.get('/api/pricing', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM pricing_rules');
@@ -133,15 +149,17 @@ app.get('/api/pricing', async (req, res) => {
 app.post('/api/pricing', async (req, res) => {
     const { id, name, startDate, endDate, multiplier } = req.body;
     
+    // Explicitly cast params to ensure safety
+    const params = [String(id), String(name), startDate, endDate, parseFloat(multiplier)];
     const upsertQuery = `INSERT INTO pricing_rules (id, name, start_date, end_date, multiplier) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), start_date=VALUES(start_date), end_date=VALUES(end_date), multiplier=VALUES(multiplier)`;
-    const params = [id, name, startDate, endDate, multiplier];
 
     try {
         await pool.query(upsertQuery, params);
         res.json({ success: true });
     } catch (e) {
-        console.log("⚠️ Pricing Table Error. Triggering Self-Healing...");
+        console.log("⚠️ Pricing Save Failed. Attempting Immediate Repair...", e.message);
         try {
+            // IMMEDIATE REPAIR IF SAVE FAILS
             await pool.query(`DROP TABLE IF EXISTS pricing_rules`);
             await pool.query(`
                 CREATE TABLE pricing_rules (
@@ -152,10 +170,11 @@ app.post('/api/pricing', async (req, res) => {
                     multiplier DECIMAL(3,1)
                 )
             `);
-            console.log("✅ Pricing Table Recreated.");
+            // Retry the save
             await pool.query(upsertQuery, params);
             res.json({ success: true, repaired: true });
         } catch (fatalError) {
+            console.error("Pricing Fatal Error:", fatalError);
             res.status(500).json({error: fatalError.message});
         }
     }
@@ -166,7 +185,7 @@ app.delete('/api/pricing/:id', async (req, res) => {
     catch(e) { res.status(500).json({error: e.message}); }
 });
 
-// --- OTHER ENTITIES (Standard) ---
+// --- OTHER ENTITIES ---
 
 // ROOMS
 app.get('/api/rooms', async (req, res) => {
@@ -180,10 +199,9 @@ app.post('/api/rooms', async (req, res) => {
       const { id, name, description, capacity, basePrice } = req.body;
       const amenities = JSON.stringify(req.body.amenities || []);
       const images = JSON.stringify(req.body.images || []);
-      // Auto-fix ID type if needed
+      // Quick fix for ID type if needed
       try { await pool.query("INSERT INTO rooms (id, name, description, base_price, capacity, amenities, images) VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description), base_price=VALUES(base_price), capacity=VALUES(capacity), amenities=VALUES(amenities), images=VALUES(images)", [id, name, description, basePrice, capacity, amenities, images]); }
       catch(e) { 
-          // If room save fails, try one quick fix
           await pool.query(`ALTER TABLE rooms MODIFY id VARCHAR(255)`);
           await pool.query("INSERT INTO rooms (id, name, description, base_price, capacity, amenities, images) VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description), base_price=VALUES(base_price), capacity=VALUES(capacity), amenities=VALUES(amenities), images=VALUES(images)", [id, name, description, basePrice, capacity, amenities, images]);
       }
