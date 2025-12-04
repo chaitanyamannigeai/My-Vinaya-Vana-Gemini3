@@ -28,27 +28,37 @@ const fixDatabaseSchema = async () => {
         const connection = await pool.getConnection();
         console.log('🔧 Checking database schema...');
         
-        // 1. Fix Long Text Columns
+        // 1. FORCE IDs TO BE STRINGS (Fixes the 500 Error for Pricing/Reviews)
+        const tablesWithIds = ['rooms', 'drivers', 'cab_locations', 'gallery', 'reviews', 'pricing_rules', 'bookings'];
+        for (const table of tablesWithIds) {
+             try { await connection.query(`ALTER TABLE ${table} MODIFY id VARCHAR(255)`); } catch(e) {}
+        }
+
+        // 2. Ensure Pricing Rules Table Exists
+        try { 
+            await connection.query(`CREATE TABLE IF NOT EXISTS pricing_rules (
+                id VARCHAR(255) PRIMARY KEY, 
+                name VARCHAR(255), 
+                start_date DATE, 
+                end_date DATE, 
+                multiplier DECIMAL(3,1)
+            )`); 
+        } catch(e) {}
+
+        // 3. Ensure Reviews Table has 'show_on_home'
+        try { await connection.query("ALTER TABLE reviews ADD COLUMN show_on_home BOOLEAN DEFAULT 0"); } catch(e) {}
+        
+        // 4. Fix Long Text Columns (for images/descriptions)
         try { await connection.query("ALTER TABLE gallery MODIFY url LONGTEXT"); } catch(e) {}
         try { await connection.query("ALTER TABLE cab_locations MODIFY image_url LONGTEXT"); } catch(e) {}
         try { await connection.query("ALTER TABLE rooms MODIFY images LONGTEXT"); } catch(e) {}
         try { await connection.query("ALTER TABLE rooms MODIFY amenities LONGTEXT"); } catch(e) {}
         try { await connection.query("ALTER TABLE site_settings MODIFY value LONGTEXT"); } catch(e) {}
-        
-        // 2. Fix Reviews Table (CRITICAL FIX FOR YOUR BUG)
-        try { await connection.query("ALTER TABLE reviews MODIFY id VARCHAR(255)"); } catch(e) {}
-        try { 
-            // Attempt to add the missing column. If it exists, this might fail silently which is fine.
-            await connection.query("ALTER TABLE reviews ADD COLUMN show_on_home BOOLEAN DEFAULT 0"); 
-            console.log("✅ Added show_on_home column to reviews");
-        } catch(e) {
-            // Ignore error if column already exists
-        }
-        
+
         console.log('✅ Database schema auto-corrected.');
         connection.release();
     } catch (err) {
-        console.log('ℹ️ Schema check skipped or failed:', err.message);
+        console.log('ℹ️ Schema check skipped:', err.message);
     }
 };
 
@@ -125,7 +135,14 @@ app.post('/api/analytics/track-hit', async (req, res) => {
         const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
         let settings = rows.length > 0 ? parseJSON(rows[0].value) : {};
         settings.websiteHits = (settings.websiteHits || 0) + 1;
-        await pool.query("INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) AS new_vals ON DUPLICATE KEY UPDATE value=new_vals.value", [JSON.stringify(settings)]);
+        
+        // Universal Upsert for Settings
+        const [existing] = await pool.query("SELECT key_name FROM site_settings WHERE key_name = 'general_settings'");
+        if (existing.length > 0) {
+            await pool.query("UPDATE site_settings SET value = ? WHERE key_name = 'general_settings'", [JSON.stringify(settings)]);
+        } else {
+            await pool.query("INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?)", [JSON.stringify(settings)]);
+        }
 
         const userAgent = req.headers['user-agent'] || '';
         const isMobile = /mobile/i.test(userAgent);
@@ -176,8 +193,15 @@ app.post('/api/rooms', async (req, res) => {
       let basePrice = req.body.basePrice !== undefined ? parseFloat(req.body.basePrice) : 0;
       const amenities = JSON.stringify(req.body.amenities || []);
       const images = JSON.stringify(req.body.images || []);
-      await pool.query(`INSERT INTO rooms (id, name, description, base_price, capacity, amenities, images) VALUES (?, ?, ?, ?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE name=new_vals.name, description=new_vals.description, base_price=new_vals.base_price, capacity=new_vals.capacity, amenities=new_vals.amenities, images=new_vals.images`, 
-      [id, name, description, basePrice, capacity, amenities, images]);
+      
+      const [exists] = await pool.query("SELECT id FROM rooms WHERE id = ?", [id]);
+      if (exists.length > 0) {
+          await pool.query("UPDATE rooms SET name=?, description=?, base_price=?, capacity=?, amenities=?, images=? WHERE id=?", 
+          [name, description, basePrice, capacity, amenities, images, id]);
+      } else {
+          await pool.query("INSERT INTO rooms (id, name, description, base_price, capacity, amenities, images) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+          [id, name, description, basePrice, capacity, amenities, images]);
+      }
       res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -199,8 +223,11 @@ app.get('/api/bookings', async (req, res) => {
 app.post('/api/bookings', async (req, res) => {
   try {
       const { id, roomId, guestName, guestPhone, checkIn, checkOut, totalAmount, status } = req.body;
-      await pool.query(`INSERT INTO bookings (id, room_id, guest_name, guest_phone, check_in, check_out, total_amount, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, 
-      [id, roomId, guestName, guestPhone, checkIn, checkOut, totalAmount, status]);
+      const [exists] = await pool.query("SELECT id FROM bookings WHERE id = ?", [id]);
+      if (exists.length === 0) {
+          await pool.query(`INSERT INTO bookings (id, room_id, guest_name, guest_phone, check_in, check_out, total_amount, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, 
+          [id, roomId, guestName, guestPhone, checkIn, checkOut, totalAmount, status]);
+      }
       res.json({ success: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -220,8 +247,15 @@ app.post('/api/drivers', async (req, res) => {
     try {
         const { id, name, phone, whatsapp, isDefault, active, vehicleInfo } = req.body;
         if (isDefault) await pool.query('UPDATE drivers SET is_default = 0');
-        await pool.query(`INSERT INTO drivers (id, name, phone, whatsapp, is_default, active, vehicle_info) VALUES (?, ?, ?, ?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE name=new_vals.name, phone=new_vals.phone, whatsapp=new_vals.whatsapp, is_default=new_vals.is_default, active=new_vals.active, vehicle_info=new_vals.vehicle_info`, 
-        [id, name, phone, whatsapp, isDefault, active, vehicleInfo]);
+        
+        const [exists] = await pool.query("SELECT id FROM drivers WHERE id = ?", [id]);
+        if (exists.length > 0) {
+            await pool.query("UPDATE drivers SET name=?, phone=?, whatsapp=?, is_default=?, active=?, vehicle_info=? WHERE id=?", 
+            [name, phone, whatsapp, isDefault, active, vehicleInfo, id]);
+        } else {
+            await pool.query("INSERT INTO drivers (id, name, phone, whatsapp, is_default, active, vehicle_info) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+            [id, name, phone, whatsapp, isDefault, active, vehicleInfo]);
+        }
         res.json({ success: true });
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -242,8 +276,15 @@ app.post('/api/locations', async (req, res) => {
         let { id, name, description, imageUrl, price, driverId, active } = req.body;
         price = parseFloat(price); if (isNaN(price)) price = 0;
         driverId = (driverId === 'default' || !driverId) ? null : driverId;
-        await pool.query(`INSERT INTO cab_locations (id, name, description, image_url, price, driver_id, active) VALUES (?, ?, ?, ?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE name=new_vals.name, description=new_vals.description, image_url=new_vals.image_url, price=new_vals.price, driver_id=new_vals.driver_id, active=new_vals.active`, 
-        [id, name || 'New Location', description || '', imageUrl, price, driverId, active !== undefined ? active : true]);
+        
+        const [exists] = await pool.query("SELECT id FROM cab_locations WHERE id = ?", [id]);
+        if (exists.length > 0) {
+            await pool.query("UPDATE cab_locations SET name=?, description=?, image_url=?, price=?, driver_id=?, active=? WHERE id=?", 
+            [name || 'New Location', description || '', imageUrl, price, driverId, active !== undefined ? active : true, id]);
+        } else {
+            await pool.query("INSERT INTO cab_locations (id, name, description, image_url, price, driver_id, active) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+            [id, name || 'New Location', description || '', imageUrl, price, driverId, active !== undefined ? active : true]);
+        }
         res.json({ success: true });
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -261,7 +302,12 @@ app.get('/api/settings', async (req, res) => {
 });
 app.post('/api/settings', async (req, res) => {
     try {
-        await pool.query("INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) AS new_vals ON DUPLICATE KEY UPDATE value=new_vals.value", [JSON.stringify(req.body)]);
+        const [exists] = await pool.query("SELECT key_name FROM site_settings WHERE key_name = 'general_settings'");
+        if (exists.length > 0) {
+            await pool.query("UPDATE site_settings SET value=? WHERE key_name='general_settings'", [JSON.stringify(req.body)]);
+        } else {
+            await pool.query("INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?)", [JSON.stringify(req.body)]);
+        }
         res.json({ success: true });
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -298,8 +344,15 @@ app.get('/api/gallery', async (req, res) => {
 });
 app.post('/api/gallery', async (req, res) => {
     try {
-        await pool.query(`INSERT INTO gallery (id, url, category, caption) VALUES (?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE url=new_vals.url, category=new_vals.category, caption=new_vals.caption`, 
-        [req.body.id, req.body.url || '', req.body.category || 'General', req.body.caption || '']);
+        const { id, url, category, caption } = req.body;
+        const [exists] = await pool.query("SELECT id FROM gallery WHERE id = ?", [id]);
+        if (exists.length > 0) {
+            await pool.query("UPDATE gallery SET url=?, category=?, caption=? WHERE id=?", 
+            [url || '', category || 'General', caption || '', id]);
+        } else {
+            await pool.query("INSERT INTO gallery (id, url, category, caption) VALUES (?, ?, ?, ?)", 
+            [id, url || '', category || 'General', caption || '']);
+        }
         res.json({ success: true });
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -318,13 +371,21 @@ app.get('/api/reviews', async (req, res) => {
 app.post('/api/reviews', async (req, res) => {
     try {
         const { id, guestName, location, rating, comment, date, showOnHome } = req.body;
-        // Ensure boolean is 1 or 0 for MySQL
         const showOnHomeVal = showOnHome ? 1 : 0;
         
-        await pool.query(`INSERT INTO reviews (id, guest_name, location, rating, comment, date, show_on_home) VALUES (?, ?, ?, ?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE guest_name=new_vals.guest_name, location=new_vals.location, rating=new_vals.rating, comment=new_vals.comment, date=new_vals.date, show_on_home=new_vals.show_on_home`,
-        [id, guestName, location, rating, comment, date, showOnHomeVal]);
+        // 1. Check if ID exists
+        const [exists] = await pool.query("SELECT id FROM reviews WHERE id = ?", [id]);
         
-        // Return the object so frontend updates correctly
+        if (exists.length > 0) {
+            // 2. UPDATE if exists
+            await pool.query("UPDATE reviews SET guest_name=?, location=?, rating=?, comment=?, date=?, show_on_home=? WHERE id=?", 
+            [guestName, location, rating, comment, date, showOnHomeVal, id]);
+        } else {
+            // 3. INSERT if not exists
+            await pool.query("INSERT INTO reviews (id, guest_name, location, rating, comment, date, show_on_home) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+            [id, guestName, location, rating, comment, date, showOnHomeVal]);
+        }
+        
         res.json({ id, guestName, location, rating, comment, date, showOnHome: !!showOnHomeVal });
     } catch(e) { 
         console.error("Review Save Error:", e);
@@ -346,8 +407,18 @@ app.get('/api/pricing', async (req, res) => {
 app.post('/api/pricing', async (req, res) => {
     try {
         const { id, name, startDate, endDate, multiplier } = req.body;
-        await pool.query(`INSERT INTO pricing_rules (id, name, start_date, end_date, multiplier) VALUES (?, ?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE name=new_vals.name, start_date=new_vals.start_date, end_date=new_vals.end_date, multiplier=new_vals.multiplier`, 
-        [id, name, startDate, endDate, multiplier]);
+        
+        // 1. Ensure Table Exists (Double Safety)
+        await pool.query(`CREATE TABLE IF NOT EXISTS pricing_rules (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255), start_date DATE, end_date DATE, multiplier DECIMAL(3,1))`);
+
+        const [exists] = await pool.query("SELECT id FROM pricing_rules WHERE id = ?", [id]);
+        if (exists.length > 0) {
+            await pool.query("UPDATE pricing_rules SET name=?, start_date=?, end_date=?, multiplier=? WHERE id=?", 
+            [name, startDate, endDate, multiplier, id]);
+        } else {
+            await pool.query("INSERT INTO pricing_rules (id, name, start_date, end_date, multiplier) VALUES (?, ?, ?, ?, ?)", 
+            [id, name, startDate, endDate, multiplier]);
+        }
         res.json({ success: true });
     } catch(e) { res.status(500).json({error: e.message}); }
 });
