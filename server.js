@@ -11,7 +11,6 @@ import compression from 'compression';
 dotenv.config();
 
 const app = express();
-// CRITICAL: Use port provided by environment or 3000
 const PORT = process.env.PORT || 3000;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,6 +22,7 @@ app.use(express.json({ limit: '50mb' }));
 
 const pool = mysql.createPool(process.env.DATABASE_URL || '');
 
+// --- DB CONNECTION & SCHEMA FIX ---
 const fixDatabaseSchema = async () => {
     try {
         const connection = await pool.getConnection();
@@ -32,6 +32,9 @@ const fixDatabaseSchema = async () => {
         try { await connection.query("ALTER TABLE rooms MODIFY images LONGTEXT"); } catch(e) {}
         try { await connection.query("ALTER TABLE rooms MODIFY amenities LONGTEXT"); } catch(e) {}
         try { await connection.query("ALTER TABLE site_settings MODIFY value LONGTEXT"); } catch(e) {}
+        // Ensure reviews table handles IDs correctly (VARCHAR usually)
+        try { await connection.query("ALTER TABLE reviews MODIFY id VARCHAR(255)"); } catch(e) {}
+        
         console.log('✅ Database schema auto-corrected.');
         connection.release();
     } catch (err) {
@@ -51,12 +54,9 @@ const testDbConnection = async () => {
 };
 testDbConnection();
 
-// --- NEW ANALYTICS SETUP --- made by CM
-// --- NEW ANALYTICS SETUP ---
-// 1. Create/Update the "Diary" to store visit dates AND Device Type
+// --- ANALYTICS TABLE SETUP ---
 const createVisitTable = async () => {
     try {
-        // Create table if missing
         await pool.query(`
             CREATE TABLE IF NOT EXISTS visit_logs (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -65,64 +65,10 @@ const createVisitTable = async () => {
                 device_type VARCHAR(20) DEFAULT 'Desktop'
             )
         `);
-        // Upgrade existing table if it lacks the 'device_type' column (For your existing data)
-        try {
-            await pool.query("ALTER TABLE visit_logs ADD COLUMN device_type VARCHAR(20) DEFAULT 'Desktop'");
-        } catch(e) { 
-            // Ignore error if column already exists
-        }
-        console.log("✅ Analytics table ready with Device Tracking");
+        try { await pool.query("ALTER TABLE visit_logs ADD COLUMN device_type VARCHAR(20) DEFAULT 'Desktop'"); } catch(e) {}
     } catch (e) { console.log("Analytics table error:", e.message); }
 };
 createVisitTable();
-
-// 2. Endpoint: Get Monthly Traffic
-app.get('/api/analytics/traffic', async (req, res) => {
-    try {
-        const [rows] = await pool.query(`
-            SELECT DATE_FORMAT(visit_date, '%b %y') as month, COUNT(*) as count 
-            FROM visit_logs 
-            WHERE visit_date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
-            GROUP BY DATE_FORMAT(visit_date, '%Y-%m'), month
-            ORDER BY DATE_FORMAT(visit_date, '%Y-%m') ASC
-        `);
-        res.json(rows);
-    } catch (e) { res.status(500).json({ error: 'Failed to fetch traffic' }); }
-});
-
-// 3. NEW Endpoint: Get Device Breakdown (Mobile vs Desktop)
-app.get('/api/analytics/devices', async (req, res) => {
-    try {
-        const [rows] = await pool.query(`
-            SELECT device_type, COUNT(*) as count 
-            FROM visit_logs 
-            GROUP BY device_type
-        `);
-        res.json(rows);
-    } catch (e) { res.status(500).json({ error: 'Failed to fetch device stats' }); }
-});
-createVisitTable();
-
-// 2. New Endpoint: Read the "Diary" to get monthly stats
-app.get('/api/analytics/traffic', async (req, res) => {
-    try {
-        // Get traffic for the last 6 months grouped by Month
-        const [rows] = await pool.query(`
-            SELECT 
-                DATE_FORMAT(visit_date, '%b %y') as month, 
-                COUNT(*) as count 
-            FROM visit_logs 
-            WHERE visit_date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
-            GROUP BY DATE_FORMAT(visit_date, '%Y-%m'), month
-            ORDER BY DATE_FORMAT(visit_date, '%Y-%m') ASC
-        `);
-        res.json(rows);
-    } catch (e) {
-        console.error(e);
-        res.status(500).json({ error: 'Failed to fetch traffic stats' });
-    }
-});
-
 
 app.get('/api/health', async (req, res) => {
     try {
@@ -146,6 +92,7 @@ const parseJSON = (data) => {
     return data;
 };
 
+// --- AUTH ---
 app.post('/api/auth/login', async (req, res) => {
     const { password } = req.body;
     try {
@@ -162,21 +109,18 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-//Update the "Track Hit" Endpoint. The other part of logic is Create the Table & Add Analytics Endpoint File by CM
+// --- ANALYTICS ENDPOINTS ---
 app.post('/api/analytics/track-hit', async (req, res) => {
     try {
-        // 1. Update the Total Counter
         const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
         let settings = rows.length > 0 ? parseJSON(rows[0].value) : {};
         settings.websiteHits = (settings.websiteHits || 0) + 1;
         await pool.query("INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) AS new_vals ON DUPLICATE KEY UPDATE value=new_vals.value", [JSON.stringify(settings)]);
 
-        // 2. NEW: Detect Device Type (Mobile or Desktop)
         const userAgent = req.headers['user-agent'] || '';
         const isMobile = /mobile/i.test(userAgent);
         const deviceType = isMobile ? 'Mobile' : 'Desktop';
 
-        // 3. Write into the Diary
         await pool.query('INSERT INTO visit_logs (ip_address, device_type) VALUES (?, ?)', 
             [req.ip || '0.0.0.0', deviceType]);
 
@@ -184,7 +128,27 @@ app.post('/api/analytics/track-hit', async (req, res) => {
     } catch (err) { res.json({ success: false }); }
 });
 
-// --- API ENDPOINTS ---
+app.get('/api/analytics/traffic', async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT DATE_FORMAT(visit_date, '%b %y') as month, COUNT(*) as count 
+            FROM visit_logs 
+            WHERE visit_date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+            GROUP BY DATE_FORMAT(visit_date, '%Y-%m'), month
+            ORDER BY DATE_FORMAT(visit_date, '%Y-%m') ASC
+        `);
+        res.json(rows);
+    } catch (e) { res.status(500).json({ error: 'Failed to fetch traffic' }); }
+});
+
+app.get('/api/analytics/devices', async (req, res) => {
+    try {
+        const [rows] = await pool.query(`SELECT device_type, COUNT(*) as count FROM visit_logs GROUP BY device_type`);
+        res.json(rows);
+    } catch (e) { res.status(500).json({ error: 'Failed to fetch device stats' }); }
+});
+
+// --- ROOMS ---
 app.get('/api/rooms', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM rooms');
@@ -197,84 +161,102 @@ app.get('/api/rooms', async (req, res) => {
 });
 
 app.post('/api/rooms', async (req, res) => {
-  const { id, name, description, capacity } = req.body;
-  let basePrice = req.body.basePrice !== undefined && !isNaN(parseFloat(req.body.basePrice)) ? parseFloat(req.body.basePrice) : 0;
-  const amenities = JSON.stringify(req.body.amenities || []);
-  const images = JSON.stringify(req.body.images || []);
   try {
-    await pool.query(`INSERT INTO rooms (id, name, description, base_price, capacity, amenities, images) VALUES (?, ?, ?, ?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE name=new_vals.name, description=new_vals.description, base_price=new_vals.base_price, capacity=new_vals.capacity, amenities=new_vals.amenities, images=new_vals.images`, 
-    [id, name, description, basePrice, capacity, amenities, images]);
-    res.json({ success: true });
+      const { id, name, description, capacity } = req.body;
+      let basePrice = req.body.basePrice !== undefined ? parseFloat(req.body.basePrice) : 0;
+      const amenities = JSON.stringify(req.body.amenities || []);
+      const images = JSON.stringify(req.body.images || []);
+      await pool.query(`INSERT INTO rooms (id, name, description, base_price, capacity, amenities, images) VALUES (?, ?, ?, ?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE name=new_vals.name, description=new_vals.description, base_price=new_vals.base_price, capacity=new_vals.capacity, amenities=new_vals.amenities, images=new_vals.images`, 
+      [id, name, description, basePrice, capacity, amenities, images]);
+      res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 app.delete('/api/rooms/:id', async (req, res) => {
-    await pool.query('DELETE FROM rooms WHERE id = ?', [req.params.id]);
-    res.json({ success: true });
+    try { await pool.query('DELETE FROM rooms WHERE id = ?', [req.params.id]); res.json({ success: true }); } 
+    catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// --- BOOKINGS ---
 app.get('/api/bookings', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM bookings ORDER BY created_at DESC');
-    const bookings = rows.map(b => ({
+    res.json(rows.map(b => ({
         id: b.id, roomId: b.room_id, guestName: b.guest_name, guestPhone: b.guest_phone,
         checkIn: b.check_in, checkOut: b.check_out, totalAmount: b.total_amount, status: b.status, createdAt: b.created_at
-    }));
-    res.json(bookings);
+    })));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 app.post('/api/bookings', async (req, res) => {
-  const { id, roomId, guestName, guestPhone, checkIn, checkOut, totalAmount, status } = req.body;
-  await pool.query(`INSERT INTO bookings (id, room_id, guest_name, guest_phone, check_in, check_out, total_amount, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, 
-  [id, roomId, guestName, guestPhone, checkIn, checkOut, totalAmount, status]);
-  res.json({ success: true });
+  try {
+      const { id, roomId, guestName, guestPhone, checkIn, checkOut, totalAmount, status } = req.body;
+      await pool.query(`INSERT INTO bookings (id, room_id, guest_name, guest_phone, check_in, check_out, total_amount, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, 
+      [id, roomId, guestName, guestPhone, checkIn, checkOut, totalAmount, status]);
+      res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 app.put('/api/bookings/:id', async (req, res) => {
-    await pool.query('UPDATE bookings SET status = ? WHERE id = ?', [req.body.status, req.params.id]);
-    res.json({ success: true });
+    try { await pool.query('UPDATE bookings SET status = ? WHERE id = ?', [req.body.status, req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// --- DRIVERS ---
 app.get('/api/drivers', async (req, res) => {
-    const [rows] = await pool.query('SELECT * FROM drivers');
-    res.json(rows.map(d => ({ id: d.id, name: d.name, phone: d.phone, whatsapp: d.whatsapp, isDefault: !!d.is_default, active: !!d.active, vehicleInfo: d.vehicle_info })));
+    try {
+        const [rows] = await pool.query('SELECT * FROM drivers');
+        res.json(rows.map(d => ({ id: d.id, name: d.name, phone: d.phone, whatsapp: d.whatsapp, isDefault: !!d.is_default, active: !!d.active, vehicleInfo: d.vehicle_info })));
+    } catch(e) { res.status(500).json({error: e.message}); }
 });
 app.post('/api/drivers', async (req, res) => {
-    const { id, name, phone, whatsapp, isDefault, active, vehicleInfo } = req.body;
-    if (isDefault) await pool.query('UPDATE drivers SET is_default = 0');
-    await pool.query(`INSERT INTO drivers (id, name, phone, whatsapp, is_default, active, vehicle_info) VALUES (?, ?, ?, ?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE name=new_vals.name, phone=new_vals.phone, whatsapp=new_vals.whatsapp, is_default=new_vals.is_default, active=new_vals.active, vehicle_info=new_vals.vehicle_info`, 
-    [id, name, phone, whatsapp, isDefault, active, vehicleInfo]);
-    res.json({ success: true });
+    try {
+        const { id, name, phone, whatsapp, isDefault, active, vehicleInfo } = req.body;
+        if (isDefault) await pool.query('UPDATE drivers SET is_default = 0');
+        await pool.query(`INSERT INTO drivers (id, name, phone, whatsapp, is_default, active, vehicle_info) VALUES (?, ?, ?, ?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE name=new_vals.name, phone=new_vals.phone, whatsapp=new_vals.whatsapp, is_default=new_vals.is_default, active=new_vals.active, vehicle_info=new_vals.vehicle_info`, 
+        [id, name, phone, whatsapp, isDefault, active, vehicleInfo]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
 });
 app.delete('/api/drivers/:id', async (req, res) => {
-    await pool.query('DELETE FROM drivers WHERE id = ?', [req.params.id]);
-    res.json({ success: true });
+    try { await pool.query('DELETE FROM drivers WHERE id = ?', [req.params.id]); res.json({ success: true }); } 
+    catch(e) { res.status(500).json({error: e.message}); }
 });
 
+// --- LOCATIONS ---
 app.get('/api/locations', async (req, res) => {
-    const [rows] = await pool.query('SELECT * FROM cab_locations');
-    res.json(rows.map(l => ({ id: l.id, name: l.name, description: l.description, imageUrl: l.image_url, price: l.price, driverId: l.driver_id, active: !!l.active })));
+    try {
+        const [rows] = await pool.query('SELECT * FROM cab_locations');
+        res.json(rows.map(l => ({ id: l.id, name: l.name, description: l.description, imageUrl: l.image_url, price: l.price, driverId: l.driver_id, active: !!l.active })));
+    } catch(e) { res.status(500).json({error: e.message}); }
 });
 app.post('/api/locations', async (req, res) => {
-    let { id, name, description, imageUrl, price, driverId, active } = req.body;
-    price = parseFloat(price); if (isNaN(price)) price = 0;
-    driverId = (driverId === 'default' || !driverId) ? null : driverId;
-    await pool.query(`INSERT INTO cab_locations (id, name, description, image_url, price, driver_id, active) VALUES (?, ?, ?, ?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE name=new_vals.name, description=new_vals.description, image_url=new_vals.image_url, price=new_vals.price, driver_id=new_vals.driver_id, active=new_vals.active`, 
-    [id, name || 'New Location', description || '', imageUrl, price, driverId, active !== undefined ? active : true]);
-    res.json({ success: true });
+    try {
+        let { id, name, description, imageUrl, price, driverId, active } = req.body;
+        price = parseFloat(price); if (isNaN(price)) price = 0;
+        driverId = (driverId === 'default' || !driverId) ? null : driverId;
+        await pool.query(`INSERT INTO cab_locations (id, name, description, image_url, price, driver_id, active) VALUES (?, ?, ?, ?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE name=new_vals.name, description=new_vals.description, image_url=new_vals.image_url, price=new_vals.price, driver_id=new_vals.driver_id, active=new_vals.active`, 
+        [id, name || 'New Location', description || '', imageUrl, price, driverId, active !== undefined ? active : true]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
 });
 app.delete('/api/locations/:id', async (req, res) => {
-    await pool.query('DELETE FROM cab_locations WHERE id = ?', [req.params.id]);
-    res.json({ success: true });
+    try { await pool.query('DELETE FROM cab_locations WHERE id = ?', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({error: e.message}); }
 });
 
+// --- SETTINGS ---
 app.get('/api/settings', async (req, res) => {
-    const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
-    res.json(rows.length > 0 ? parseJSON(rows[0].value) : {});
+    try {
+        const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
+        res.json(rows.length > 0 ? parseJSON(rows[0].value) : {});
+    } catch(e) { res.status(500).json({error: e.message}); }
 });
 app.post('/api/settings', async (req, res) => {
-    await pool.query("INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) AS new_vals ON DUPLICATE KEY UPDATE value=new_vals.value", [JSON.stringify(req.body)]);
-    res.json({ success: true });
+    try {
+        await pool.query("INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) AS new_vals ON DUPLICATE KEY UPDATE value=new_vals.value", [JSON.stringify(req.body)]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
 });
 
+// --- WEATHER ---
 app.get('/api/weather', async (req, res) => {
     try {
         const [settingsRows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
@@ -294,64 +276,77 @@ app.get('/api/weather', async (req, res) => {
             icon: weatherResponse.data.weather[0].icon,
         });
     } catch (err) { 
-        // FIXED: Removed ': any' to fix Node.js crash
         console.error("Weather error:", err.message);
         res.status(500).json({ error: "Weather fetch failed" });
     }
 });
 
+// --- GALLERY ---
 app.get('/api/gallery', async (req, res) => {
-    const [rows] = await pool.query('SELECT * FROM gallery');
-    res.json(rows);
+    try { const [rows] = await pool.query('SELECT * FROM gallery'); res.json(rows); } 
+    catch(e) { res.status(500).json({error: e.message}); }
 });
 app.post('/api/gallery', async (req, res) => {
-    await pool.query(`INSERT INTO gallery (id, url, category, caption) VALUES (?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE url=new_vals.url, category=new_vals.category, caption=new_vals.caption`, 
-    [req.body.id, req.body.url || '', req.body.category || 'General', req.body.caption || '']);
-    res.json({ success: true });
+    try {
+        await pool.query(`INSERT INTO gallery (id, url, category, caption) VALUES (?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE url=new_vals.url, category=new_vals.category, caption=new_vals.caption`, 
+        [req.body.id, req.body.url || '', req.body.category || 'General', req.body.caption || '']);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
 });
 app.delete('/api/gallery/:id', async (req, res) => {
-    await pool.query('DELETE FROM gallery WHERE id = ?', [req.params.id]);
-    res.json({ success: true });
+    try { await pool.query('DELETE FROM gallery WHERE id = ?', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({error: e.message}); }
 });
 
+// --- REVIEWS (CRASH FIX APPLIED HERE) ---
 app.get('/api/reviews', async (req, res) => {
-    const [rows] = await pool.query('SELECT * FROM reviews');
-    res.json(rows.map(r => ({ id: r.id, guestName: r.guest_name || 'Guest', location: r.location || '', rating: r.rating || 5, comment: r.comment || '', date: r.date, showOnHome: !!r.show_on_home })));
+    try {
+        const [rows] = await pool.query('SELECT * FROM reviews');
+        res.json(rows.map(r => ({ id: r.id, guestName: r.guest_name || 'Guest', location: r.location || '', rating: r.rating || 5, comment: r.comment || '', date: r.date, showOnHome: !!r.show_on_home })));
+    } catch(e) { res.status(500).json({error: e.message}); }
 });
 app.post('/api/reviews', async (req, res) => {
-    const { id, guestName, location, rating, comment, date, showOnHome } = req.body;
-    await pool.query(`INSERT INTO reviews (id, guest_name, location, rating, comment, date, show_on_home) VALUES (?, ?, ?, ?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE guest_name=new_vals.guest_name, location=new_vals.location, rating=new_vals.rating, comment=new_vals.comment, date=new_vals.date, show_on_home=new_vals.show_on_home`,
-    [id, guestName, location, rating, comment, date, showOnHome]);
-    res.json({ success: true });
+    try {
+        const { id, guestName, location, rating, comment, date, showOnHome } = req.body;
+        // Fix: Ensure proper boolean/int conversion for MySQL
+        const showOnHomeVal = showOnHome ? 1 : 0;
+        
+        await pool.query(`INSERT INTO reviews (id, guest_name, location, rating, comment, date, show_on_home) VALUES (?, ?, ?, ?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE guest_name=new_vals.guest_name, location=new_vals.location, rating=new_vals.rating, comment=new_vals.comment, date=new_vals.date, show_on_home=new_vals.show_on_home`,
+        [id, guestName, location, rating, comment, date, showOnHomeVal]);
+        
+        // Return the saved object so frontend can update its ID reference
+        res.json({ id, guestName, location, rating, comment, date, showOnHome: !!showOnHomeVal });
+    } catch(e) { 
+        console.error("Review Save Error:", e);
+        res.status(500).json({error: e.message}); 
+    }
 });
 app.delete('/api/reviews/:id', async (req, res) => {
-    await pool.query('DELETE FROM reviews WHERE id = ?', [req.params.id]);
-    res.json({ success: true });
+    try { await pool.query('DELETE FROM reviews WHERE id = ?', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({error: e.message}); }
 });
 
+// --- PRICING ---
 app.get('/api/pricing', async (req, res) => {
-    const [rows] = await pool.query('SELECT * FROM pricing_rules');
-    res.json(rows.map(r => ({ id: r.id, name: r.name, startDate: r.start_date, endDate: r.end_date, multiplier: r.multiplier })));
+    try {
+        const [rows] = await pool.query('SELECT * FROM pricing_rules');
+        res.json(rows.map(r => ({ id: r.id, name: r.name, startDate: r.start_date, endDate: r.end_date, multiplier: r.multiplier })));
+    } catch(e) { res.status(500).json({error: e.message}); }
 });
 app.post('/api/pricing', async (req, res) => {
-    const { id, name, startDate, endDate, multiplier } = req.body;
-    await pool.query(`INSERT INTO pricing_rules (id, name, start_date, end_date, multiplier) VALUES (?, ?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE name=new_vals.name, start_date=new_vals.start_date, end_date=new_vals.end_date, multiplier=new_vals.multiplier`, 
-    [id, name, startDate, endDate, multiplier]);
-    res.json({ success: true });
+    try {
+        const { id, name, startDate, endDate, multiplier } = req.body;
+        await pool.query(`INSERT INTO pricing_rules (id, name, start_date, end_date, multiplier) VALUES (?, ?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE name=new_vals.name, start_date=new_vals.start_date, end_date=new_vals.end_date, multiplier=new_vals.multiplier`, 
+        [id, name, startDate, endDate, multiplier]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
 });
 app.delete('/api/pricing/:id', async (req, res) => {
-    await pool.query('DELETE FROM pricing_rules WHERE id = ?', [req.params.id]);
-    res.json({ success: true });
+    try { await pool.query('DELETE FROM pricing_rules WHERE id = ?', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({error: e.message}); }
 });
 
-app.get('/api/docs/sql-script', (req, res) => {
-    fs.readFile(path.join(__dirname, 'database.sql'), 'utf8', (err, data) => {
-        if (err) return res.status(500).json({ error: 'Failed to read SQL script' });
-        res.setHeader('Content-Type', 'text/plain');
-        res.send(data);
-    });
-});
-
+// --- FALLBACKS ---
 app.use('/api/*', (req, res) => res.status(404).json({ error: `API endpoint not found` }));
 
 const distPath = path.join(__dirname, 'dist');
@@ -359,14 +354,7 @@ if (fs.existsSync(distPath)) {
     app.use(express.static(distPath));
     app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
 } else {
-    console.warn('WARNING: "dist" not found.');
     app.get('*', (req, res) => res.send('<h1>Backend Running</h1><p>Frontend not built.</p>'));
 }
 
-
-// Bind to 0.0.0.0 to be reachable from outside the Docker container
-app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT} and listening on 0.0.0.0`));
-
-
-
-
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
