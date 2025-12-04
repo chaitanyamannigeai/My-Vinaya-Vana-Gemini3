@@ -27,18 +27,28 @@ const fixDatabaseSchema = async () => {
     try {
         const connection = await pool.getConnection();
         console.log('🔧 Checking database schema...');
+        
+        // 1. Fix Long Text Columns
         try { await connection.query("ALTER TABLE gallery MODIFY url LONGTEXT"); } catch(e) {}
         try { await connection.query("ALTER TABLE cab_locations MODIFY image_url LONGTEXT"); } catch(e) {}
         try { await connection.query("ALTER TABLE rooms MODIFY images LONGTEXT"); } catch(e) {}
         try { await connection.query("ALTER TABLE rooms MODIFY amenities LONGTEXT"); } catch(e) {}
         try { await connection.query("ALTER TABLE site_settings MODIFY value LONGTEXT"); } catch(e) {}
-        // Ensure reviews table handles IDs correctly (VARCHAR usually)
+        
+        // 2. Fix Reviews Table (CRITICAL FIX FOR YOUR BUG)
         try { await connection.query("ALTER TABLE reviews MODIFY id VARCHAR(255)"); } catch(e) {}
+        try { 
+            // Attempt to add the missing column. If it exists, this might fail silently which is fine.
+            await connection.query("ALTER TABLE reviews ADD COLUMN show_on_home BOOLEAN DEFAULT 0"); 
+            console.log("✅ Added show_on_home column to reviews");
+        } catch(e) {
+            // Ignore error if column already exists
+        }
         
         console.log('✅ Database schema auto-corrected.');
         connection.release();
     } catch (err) {
-        console.log('ℹ️ Schema check skipped.');
+        console.log('ℹ️ Schema check skipped or failed:', err.message);
     }
 };
 
@@ -298,7 +308,7 @@ app.delete('/api/gallery/:id', async (req, res) => {
     catch(e) { res.status(500).json({error: e.message}); }
 });
 
-// --- REVIEWS (CRASH FIX APPLIED HERE) ---
+// --- REVIEWS ---
 app.get('/api/reviews', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM reviews');
@@ -308,13 +318,13 @@ app.get('/api/reviews', async (req, res) => {
 app.post('/api/reviews', async (req, res) => {
     try {
         const { id, guestName, location, rating, comment, date, showOnHome } = req.body;
-        // Fix: Ensure proper boolean/int conversion for MySQL
+        // Ensure boolean is 1 or 0 for MySQL
         const showOnHomeVal = showOnHome ? 1 : 0;
         
         await pool.query(`INSERT INTO reviews (id, guest_name, location, rating, comment, date, show_on_home) VALUES (?, ?, ?, ?, ?, ?, ?) AS new_vals ON DUPLICATE KEY UPDATE guest_name=new_vals.guest_name, location=new_vals.location, rating=new_vals.rating, comment=new_vals.comment, date=new_vals.date, show_on_home=new_vals.show_on_home`,
         [id, guestName, location, rating, comment, date, showOnHomeVal]);
         
-        // Return the saved object so frontend can update its ID reference
+        // Return the object so frontend updates correctly
         res.json({ id, guestName, location, rating, comment, date, showOnHome: !!showOnHomeVal });
     } catch(e) { 
         console.error("Review Save Error:", e);
