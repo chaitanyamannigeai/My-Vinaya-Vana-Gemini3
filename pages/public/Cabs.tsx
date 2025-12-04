@@ -1,224 +1,173 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
-import { CabLocation, Driver } from '../../types';
-import { MapPin, Phone, MessageCircle, User, Car, Compass, ArrowRight, X, Search } from 'lucide-react';
+import { CabLocation, Driver, SiteSettings } from '../../types';
+import { MapPin, Phone, MessageCircle, Navigation, Car, ShieldCheck, Music, Wind, Briefcase } from 'lucide-react';
 
 const Cabs = () => {
   const [locations, setLocations] = useState<CabLocation[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-  const [selectedLocation, setSelectedLocation] = useState<CabLocation | null>(null);
-  const [assignedDriver, setAssignedDriver] = useState<Driver | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const [fetchedLocs, fetchedDrivers, fetchedSettings] = await Promise.all([
-            api.locations.getAll(),
-            api.drivers.getAll(),
-            api.settings.get()
-        ]);
-        setLocations(fetchedLocs.filter(l => l.active));
-        setDrivers(fetchedDrivers);
-        setSettings(fetchedSettings);
-      } catch (err) {
-          console.error(err);
-      }
+        try {
+            const [fetchedLocs, fetchedDrivers, fetchedSettings] = await Promise.all([
+                api.locations.getAll(),
+                api.drivers.getAll(),
+                api.settings.get()
+            ]);
+            setLocations(fetchedLocs.filter(l => l.active));
+            setDrivers(fetchedDrivers.filter(d => d.active));
+            setSettings(fetchedSettings);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
     };
     fetchData();
   }, []);
 
-  const handleLocationClick = (loc: CabLocation) => {
-    setSelectedLocation(loc);
-    
-    // Determine driver: Specific > Default
-    let driver: Driver | undefined;
-    if (loc.driverId) {
-      driver = drivers.find(d => d.id === loc.driverId);
-    } 
-    
-    if (!driver) {
-      driver = drivers.find(d => d.isDefault);
-    }
-    // Fallback to first active driver if no default
-    if (!driver) {
-      driver = drivers.find(d => d.active);
-    }
-
-    setAssignedDriver(driver || null);
-    setIsModalOpen(true);
+  const getDriverForLocation = (loc: CabLocation) => {
+      if (loc.driverId) return drivers.find(d => d.id === loc.driverId);
+      return drivers.find(d => d.isDefault) || drivers[0];
   };
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedLocation(null);
-    setAssignedDriver(null);
+  const handleBookRide = (loc: CabLocation) => {
+      const driver = getDriverForLocation(loc);
+      if (!driver) return;
+      
+      const text = `Hi, I am interested in booking a cab for: *${loc.name}* (Price: ₹${loc.price}). Is it available?`;
+      const url = `https://wa.me/${driver.whatsapp || driver.phone}?text=${encodeURIComponent(text)}`;
+      window.open(url, '_blank');
   };
 
-  const getWhatsAppLink = (driver: Driver, loc: CabLocation) => {
-    const message = `Hi, I am interested in booking a cab to ${loc.name} from Vinaya Vana.`;
-    return `https://wa.me/${driver.whatsapp}?text=${encodeURIComponent(message)}`;
+  const handleGeneralInquiry = () => {
+      const defaultDriver = drivers.find(d => d.isDefault) || drivers[0];
+      const phone = defaultDriver ? (defaultDriver.whatsapp || defaultDriver.phone) : settings.whatsappNumber;
+      const url = `https://wa.me/${phone}?text=${encodeURIComponent("Hi, I need a cab service in Gokarna.")}`;
+      window.open(url, '_blank');
   };
-
-  const getCustomPackageLink = () => {
-      const message = "Hi, I am interested in a custom multi-destination tour package from Vinaya Vana.";
-      return `https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent(message)}`;
-  }
-
-  // Filter locations based on search
-  const filteredLocations = locations.filter(loc => 
-    loc.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
-    <div className="min-h-screen bg-nature-50 py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-serif font-bold text-nature-900 mb-4">Cab Services</h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Explore Gokarna and nearby attractions comfortably. Select a destination to contact our drivers directly.
-          </p>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      
+      {/* 1. COMPACT HERO SECTION */}
+      <div 
+        className="relative h-[35vh] bg-cover bg-center flex items-center justify-center"
+        style={{ 
+            backgroundImage: `url("${settings.heroImageUrl}")`,
+            backgroundColor: '#1a2e1a'
+        }}
+      >
+        <div className="absolute inset-0 bg-black bg-opacity-70 backdrop-blur-[2px]"></div>
+        <div className="relative z-10 text-center px-4 animate-fade-in-up">
+            <h1 className="text-3xl md:text-5xl font-serif font-bold text-white mb-2 shadow-sm">
+                Travel Desk
+            </h1>
+            <p className="text-gray-300 font-light max-w-xl mx-auto">
+               Premium transfers and sightseeing packages for a seamless journey.
+            </p>
         </div>
+      </div>
 
-        {/* Search Bar */}
-        <div className="max-w-md mx-auto mb-12 relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-                type="text"
-                className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-full leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-nature-500 focus:border-nature-500 sm:text-sm shadow-sm"
-                placeholder="Search destinations (e.g. Om Beach)..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-            />
-        </div>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 -mt-10 relative z-20">
+         
+         {/* 2. FLEET HIGHLIGHTS (Static Trust Signals) */}
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
+                 <div className="bg-nature-50 p-2 rounded-lg text-nature-700"><ShieldCheck size={20}/></div>
+                 <div className="text-sm">
+                     <p className="font-bold text-gray-900">Verified Drivers</p>
+                     <p className="text-gray-500 text-xs">Local experts, safe driving.</p>
+                 </div>
+             </div>
+             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
+                 <div className="bg-nature-50 p-2 rounded-lg text-nature-700"><Car size={20}/></div>
+                 <div className="text-sm">
+                     <p className="font-bold text-gray-900">Premium Fleet</p>
+                     <p className="text-gray-500 text-xs">Sedans, SUVs & Travellers.</p>
+                 </div>
+             </div>
+             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
+                 <div className="bg-nature-50 p-2 rounded-lg text-nature-700"><Briefcase size={20}/></div>
+                 <div className="text-sm">
+                     <p className="font-bold text-gray-900">Fixed Pricing</p>
+                     <p className="text-gray-500 text-xs">No hidden charges.</p>
+                 </div>
+             </div>
+         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-          {filteredLocations.length > 0 ? (
-            filteredLocations.map((loc) => (
-                <div 
-                key={loc.id} 
-                className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer group"
-                onClick={() => handleLocationClick(loc)}
+         {/* 3. HORIZONTAL ROUTE LIST (The "Rate Card" Look) */}
+         <div className="space-y-6">
+             <div className="flex justify-between items-end px-2">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <MapPin className="text-nature-600" size={20}/> Popular Routes
+                </h2>
+                <button 
+                    onClick={handleGeneralInquiry}
+                    className="text-nature-700 text-sm font-bold hover:underline flex items-center gap-1"
                 >
-                <div className="h-48 overflow-hidden relative">
-                    <img 
-                    src={loc.imageUrl} 
-                    alt={loc.name} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-black bg-opacity-20 group-hover:bg-opacity-10 transition-all"></div>
-                </div>
-                <div className="p-6">
-                    <h3 className="text-xl font-bold text-nature-800 mb-2">{loc.name}</h3>
-                    <p className="text-gray-600 text-sm line-clamp-2 mb-4">{loc.description}</p>
-                    <div className="flex items-center justify-between mt-4">
-                    <span className="text-nature-600 font-medium text-sm bg-nature-50 px-3 py-1 rounded-full border border-nature-100">
-                        {loc.price ? `₹${loc.price} approx` : 'Ask for Price'}
-                    </span>
-                    <span className="text-nature-500 flex items-center gap-1 text-sm">
-                        Book Now <ArrowRight size={16} />
-                    </span>
-                    </div>
-                </div>
-                </div>
-            ))
-          ) : (
-              <div className="col-span-full text-center py-12 text-gray-500">
-                  <p>No locations found matching "{searchTerm}"</p>
-              </div>
-          )}
-        </div>
-        
-        {/* Custom Package Section */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12 flex flex-col md:flex-row items-center gap-8 border-l-8 border-nature-500">
-            <div className="md:w-2/3">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="bg-nature-100 p-3 rounded-full text-nature-600">
-                        <Compass size={32} />
-                    </div>
-                    <h2 className="text-2xl font-serif font-bold text-nature-900">Want to visit multiple places?</h2>
-                </div>
-                <p className="text-gray-600 text-lg leading-relaxed">
-                    Create your own custom tour! Whether it's hopping between OM Beach and Kudle Beach, or a day trip covering Yana Caves and Murudeshwar, our drivers offer special package rates for multi-destination trips.
-                </p>
-            </div>
-            <div className="md:w-1/3 w-full">
-                <a 
-                    href={getCustomPackageLink()}
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="block w-full text-center bg-nature-700 hover:bg-nature-800 text-white font-bold py-4 rounded-xl shadow-lg transition-transform hover:-translate-y-1"
-                >
-                    Request Custom Package
-                </a>
-                <p className="text-xs text-center mt-3 text-gray-400">Opens WhatsApp with our travel desk</p>
-            </div>
-        </div>
-
-        {/* Driver Detail Modal */}
-        {isModalOpen && selectedLocation && assignedDriver && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in">
-              <div className="bg-nature-800 p-6 text-white relative">
-                <button onClick={closeModal} className="absolute top-4 right-4 text-nature-200 hover:text-white">
-                  <X size={24} />
+                    Custom Request <Navigation size={14}/>
                 </button>
-                <h2 className="text-2xl font-serif font-bold">{selectedLocation.name}</h2>
-                <p className="text-nature-200 text-sm mt-1">Travel Partner Details</p>
-              </div>
-              
-              <div className="p-6">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-16 h-16 bg-nature-100 rounded-full flex items-center justify-center text-nature-600">
-                    <User size={32} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-800">{assignedDriver.name}</h3>
-                    {assignedDriver.vehicleInfo && (
-                      <p className="text-sm text-gray-500 flex items-center gap-1">
-                        <Car size={14} /> {assignedDriver.vehicleInfo}
-                      </p>
-                    )}
-                    <p className="text-xs text-nature-600 bg-nature-50 inline-block px-2 py-0.5 rounded mt-1">
-                      Trusted Driver
-                    </p>
-                  </div>
-                </div>
+             </div>
 
-                <div className="space-y-3">
-                  <a 
-                    href={getWhatsAppLink(assignedDriver, selectedLocation)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg transition-colors"
-                  >
-                    <MessageCircle size={20} />
-                    Chat on WhatsApp
-                  </a>
-                  
-                  <a 
-                    href={`tel:${assignedDriver.phone}`}
-                    className="flex items-center justify-center gap-2 w-full border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-3 rounded-lg transition-colors"
-                  >
-                    <Phone size={20} />
-                    Call Driver
-                  </a>
-                </div>
+             {loading ? (
+                 <div className="text-center py-12 text-gray-400">Loading routes...</div>
+             ) : (
+                 <div className="space-y-4">
+                     {locations.map(loc => (
+                         <div key={loc.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col md:flex-row group hover:shadow-md transition-all duration-300">
+                             
+                             {/* Image Section */}
+                             <div className="md:w-48 h-48 md:h-auto relative shrink-0 overflow-hidden">
+                                 <img 
+                                    src={loc.imageUrl} 
+                                    alt={loc.name} 
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                 />
+                             </div>
+                             
+                             {/* Content Section */}
+                             <div className="p-6 flex-grow flex flex-col justify-center">
+                                 <h3 className="font-serif font-bold text-xl text-nature-900 mb-2">{loc.name}</h3>
+                                 <p className="text-gray-600 text-sm mb-4 leading-relaxed">
+                                    {loc.description || "Comfortable AC ride with professional driver. Includes fuel and toll charges."}
+                                 </p>
+                                 
+                                 {/* Amenities Icons (Visual Fluff) */}
+                                 <div className="flex gap-4 text-xs text-gray-400 mb-4">
+                                     <span className="flex items-center gap-1"><Wind size={14}/> AC</span>
+                                     <span className="flex items-center gap-1"><Music size={14}/> Music</span>
+                                     <span className="flex items-center gap-1"><ShieldCheck size={14}/> Sanitized</span>
+                                 </div>
+                             </div>
 
-                <div className="mt-6 pt-4 border-t border-gray-100 text-center">
-                  <p className="text-xs text-gray-400">
-                    Pricing may vary based on season and demand. Discuss directly with the driver.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+                             {/* Price & Action Section */}
+                             <div className="bg-gray-50 p-6 md:w-48 flex flex-col justify-center items-center border-l border-gray-100 shrink-0">
+                                 <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Total Fare</p>
+                                 <p className="text-2xl font-bold text-nature-700 mb-4">₹{loc.price.toLocaleString()}</p>
+                                 
+                                 <button 
+                                    onClick={() => handleBookRide(loc)}
+                                    className="w-full bg-nature-800 hover:bg-nature-900 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm"
+                                 >
+                                     <MessageCircle size={16} /> Book Now
+                                 </button>
+                             </div>
+                         </div>
+                     ))}
+                     
+                     {locations.length === 0 && (
+                         <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
+                             <p className="text-gray-500">No specific routes listed.</p>
+                         </div>
+                     )}
+                 </div>
+             )}
+         </div>
+
       </div>
     </div>
   );
