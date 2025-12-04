@@ -12,6 +12,7 @@ const Availability = () => {
   // Date Selection State
   const [selectedStart, setSelectedStart] = useState<Date | null>(null);
   const [selectedEnd, setSelectedEnd] = useState<Date | null>(null);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null); // New: Track which room is active
 
   useEffect(() => {
     const fetchData = async () => {
@@ -45,12 +46,10 @@ const Availability = () => {
       if (b.roomId !== roomId) return false;
       const start = new Date(b.checkIn).getTime();
       const end = new Date(b.checkOut).getTime();
-      // Check if target is within booking range [start, end)
       return target >= start && target < end;
     });
   };
 
-  // Helper to format dates safely without timezone shifts
   const formatDateLocal = (date: Date) => {
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -58,35 +57,40 @@ const Availability = () => {
       return `${year}-${month}-${day}`;
   };
 
-  const handleDateClick = (dateStr: string) => {
+  const handleDateClick = (dateStr: string, roomId: string) => {
       const clickedDate = new Date(dateStr);
-      
-      // Prevent selecting past dates
       const today = new Date();
       today.setHours(0,0,0,0);
       if (clickedDate < today) return;
 
-      // Logic for range selection
+      // If clicking a different room, reset previous selection and start fresh
+      if (selectedRoomId !== roomId) {
+          setSelectedRoomId(roomId);
+          setSelectedStart(clickedDate);
+          setSelectedEnd(null);
+          return;
+      }
+
+      // Standard logic for same room
       if (!selectedStart || (selectedStart && selectedEnd)) {
-          // Start new selection
           setSelectedStart(clickedDate);
           setSelectedEnd(null);
       } else {
-          // Complete selection
           if (clickedDate > selectedStart) {
               setSelectedEnd(clickedDate);
           } else {
-              // If clicked before start, reset start
               setSelectedStart(clickedDate);
               setSelectedEnd(null);
           }
       }
   };
 
-  const getDateStatus = (dateStr: string) => {
+  const getDateStatus = (dateStr: string, roomId: string) => {
+      // Only highlight if this row matches the selected room
+      if (selectedRoomId !== roomId) return 'none';
+
       const target = new Date(dateStr).getTime();
       
-      // Check Selection
       if (selectedStart) {
           const start = selectedStart.getTime();
           if (selectedEnd) {
@@ -100,12 +104,15 @@ const Availability = () => {
   };
 
   const handleBookNow = () => {
-      if (!selectedStart) return;
+      if (!selectedStart || !selectedRoomId) return;
       
       const startStr = formatDateLocal(selectedStart);
       const endStr = selectedEnd ? formatDateLocal(selectedEnd) : startStr;
       
-      const text = `Hi, I checked the calendar and would like to book a stay from ${startStr} to ${endStr}. Is it confirmed?`;
+      // Find room name for the message
+      const roomName = rooms.find(r => r.id === selectedRoomId)?.name || "a room";
+      
+      const text = `Hi, I checked the calendar for *${roomName}* and would like to book from ${startStr} to ${endStr}. Is it confirmed?`;
       const url = `https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent(text)}`;
       window.open(url, '_blank');
   };
@@ -198,7 +205,7 @@ const Availability = () => {
                     const today = new Date();
                     today.setHours(0,0,0,0);
                     const isPast = dateObj < today;
-                    const selectionStatus = getDateStatus(dateStr);
+                    const selectionStatus = getDateStatus(dateStr, room.id); // PASS ROOM ID HERE
 
                     return (
                       <div key={day} className="border-r border-gray-100 relative h-14">
@@ -216,7 +223,7 @@ const Availability = () => {
                                     : 'bg-white hover:bg-green-100'
                                 }`} 
                             title="Available - Click to Select"
-                            onClick={() => handleDateClick(dateStr)}
+                            onClick={() => handleDateClick(dateStr, room.id)} // PASS ROOM ID HERE
                           >
                             {selectionStatus === 'selected' ? (
                                 <CheckCircle size={16} className="text-white" />
