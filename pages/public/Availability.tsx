@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { Room, Booking, PaymentStatus, SiteSettings, PricingRule } from '../../types';
-import { ChevronLeft, ChevronRight, CheckCircle, XCircle, Calendar, MessageCircle, Info, X, User, Phone as PhoneIcon, CreditCard, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, XCircle, Calendar, MessageCircle, Info, X, User, Phone as PhoneIcon, CreditCard, ShieldCheck, Sparkles } from 'lucide-react';
 
 // Declare Razorpay for TypeScript
 declare global {
@@ -25,6 +25,10 @@ const Availability = () => {
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Pricing State
+  const [calculatedPrice, setCalculatedPrice] = useState(0);
+  const [discountAmount, setDiscountAmount] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -46,43 +50,61 @@ const Availability = () => {
     fetchData();
   }, []);
 
-  // --- 1. PRICING ENGINE (The Brain) ---
-  const getPriceMultiplier = (date: Date) => {
-      const dateStr = date.toISOString().split('T')[0];
+  // --- 1. ADVANCED PRICING ENGINE (Ported from Accommodation.tsx) ---
+  const getMultiplierForDate = (dateStr: string): number => {
+      const d = new Date(dateStr).getTime();
+      let maxMultiplier = 1;
       
-      // Check against Admin Panel Pricing Rules
-      const activeRule = pricingRules.find(r => 
-          dateStr >= r.startDate && dateStr <= r.endDate
-      );
-      
-      if (activeRule) return activeRule.multiplier;
-      
-      // Optional: Add hardcoded weekend logic here if needed (e.g. Fri/Sat = 1.2x)
-      return 1.0; 
+      // Check Admin Rules (Seasons, Holidays)
+      pricingRules.forEach(rule => {
+          const start = new Date(rule.startDate).getTime();
+          const end = new Date(rule.endDate).getTime();
+          if (d >= start && d <= end) {
+              if (rule.multiplier > maxMultiplier) maxMultiplier = rule.multiplier;
+          }
+      });
+      return maxMultiplier;
   };
 
-  const calculateTotal = () => {
-      if (!selectedRoomId || !selectedStart || !selectedEnd) return 0;
+  const calculateTotalDetails = () => {
+      if (!selectedRoomId || !selectedStart || !selectedEnd) return { total: 0, discount: 0 };
       const room = rooms.find(r => r.id === selectedRoomId);
-      if (!room) return 0;
+      if (!room) return { total: 0, discount: 0 };
 
-      let total = 0;
-      // Clone date to iterate without modifying state
+      let rawTotal = 0;
       let current = new Date(selectedStart);
+      let days = 0;
       
-      // Loop through every night of the stay
+      // 1. Loop through nights for accurate seasonal pricing
       while (current < selectedEnd) {
-          const multiplier = getPriceMultiplier(current);
-          total += (room.basePrice * multiplier);
+          const dateStr = formatDateLocal(current);
+          const multiplier = getMultiplierForDate(dateStr);
+          rawTotal += (room.basePrice * multiplier);
           
-          // Move to next day
+          days++;
           current.setDate(current.getDate() + 1);
       }
       
-      return Math.round(total);
+      // 2. Apply Long Stay Discount (if configured)
+      let discount = 0;
+      const discountSettings = settings.longStayDiscount;
+      if (discountSettings && discountSettings.enabled && days >= discountSettings.minDays) {
+          discount = Math.round(rawTotal * (discountSettings.percentage / 100));
+          rawTotal -= discount;
+      }
+
+      return { total: Math.round(rawTotal), discount: discount };
   };
 
-  // --- 2. PAYMENT INTEGRATION (Razorpay/GPay) ---
+  // Update price whenever selection changes
+  useEffect(() => {
+      const { total, discount } = calculateTotalDetails();
+      setCalculatedPrice(total);
+      setDiscountAmount(discount);
+  }, [selectedStart, selectedEnd, selectedRoomId]);
+
+
+  // --- 2. PAYMENT INTEGRATION (Razorpay = GPay/UPI) ---
   const loadRazorpay = () => {
       return new Promise((resolve) => {
           const script = document.createElement('script');
@@ -102,23 +124,22 @@ const Availability = () => {
       }
 
       if (!settings.razorpayKey || settings.razorpayKey === 'rzp_test_123456789') {
-          alert("Payment gateway not configured by admin yet. Please use WhatsApp.");
-          return;
+          alert("Payment gateway is in Test Mode (or not configured). Proceeding...");
       }
 
       const options = {
           key: settings.razorpayKey, 
-          amount: amount * 100, // Razorpay takes amount in paise
+          amount: amount * 100, // Amount in paise
           currency: "INR",
           name: "Vinaya Vana",
           description: `Stay in ${roomName}`,
-          image: "https://vinayavana.com/logo.png", // Your logo
+          image: "https://vinayavana.com/logo.png", // Replace with your actual logo URL
           
           handler: async function (response: any) {
               // On Success: Update DB to PAID
               try {
                   await api.bookings.updateStatus(bookingId, 'PAID' as PaymentStatus);
-                  alert(`Booking Confirmed! Payment ID: ${response.razorpay_payment_id}`);
+                  alert(`Payment Successful! Booking ID: ${response.razorpay_payment_id}`);
                   window.location.reload();
               } catch (e) {
                   alert("Payment successful but database update failed. Please contact support.");
@@ -133,7 +154,7 @@ const Availability = () => {
               booking_id: bookingId,
           },
           theme: {
-              color: "#1a2e1a" // Matches your green theme
+              color: "#1a2e1a" 
           }
       };
 
@@ -152,7 +173,9 @@ const Availability = () => {
       const room = rooms.find(r => r.id === selectedRoomId);
       const startStr = formatDateLocal(selectedStart);
       const endStr = selectedEnd ? formatDateLocal(selectedEnd) : startStr;
-      const totalAmount = calculateTotal();
+      
+      // Use the calculated price (with discounts)
+      const totalAmount = calculatedPrice; 
       const bookingId = `BK-${Date.now()}`;
 
       // Create Object
@@ -173,12 +196,12 @@ const Availability = () => {
           await api.bookings.add(newBooking);
 
           if (payOnline) {
-              // B1. Open Payment Gateway
+              // B1. Open Payment Gateway (Supports GPay automatically)
               setShowModal(false);
               handleOnlinePayment(bookingId, totalAmount, room?.name || 'Room');
           } else {
               // B2. Open WhatsApp
-              const text = `*New Booking Request*\nRef: ${bookingId}\nName: ${guestName}\nRoom: ${room?.name}\nDates: ${startStr} to ${endStr}\nTotal: ₹${totalAmount}\n\nI would like to confirm this booking using GPay/Cash.`;
+              const text = `*New Booking Request*\nRef: ${bookingId}\nName: ${guestName}\nRoom: ${room?.name}\nDates: ${startStr} to ${endStr}\nTotal Due: ₹${totalAmount}\n\nI would like to confirm this booking using GPay/Cash.`;
               const waUrl = `https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent(text)}`;
               
               window.open(waUrl, '_blank');
@@ -379,9 +402,18 @@ const Availability = () => {
                               {selectedStart?.getDate()}/{selectedStart?.getMonth()!+1} - {selectedEnd?.getDate()}/{selectedEnd?.getMonth()!+1}
                           </span>
                       </div>
+                      
+                      {/* Discount Display */}
+                      {discountAmount > 0 && (
+                          <div className="flex items-center justify-between text-sm text-green-700 bg-green-50 px-2 py-1 rounded">
+                              <span className="flex items-center gap-1"><Sparkles size={14}/> Long Stay Discount</span>
+                              <span>-₹{discountAmount.toLocaleString()}</span>
+                          </div>
+                      )}
+
                       <div className="pt-3 border-t border-gray-200 flex justify-between items-center">
                           <span className="font-bold text-gray-700">Total Due</span>
-                          <span className="font-bold text-2xl text-nature-700">₹{calculateTotal().toLocaleString()}</span>
+                          <span className="font-bold text-2xl text-nature-700">₹{calculatedPrice.toLocaleString()}</span>
                       </div>
                   </div>
 
@@ -414,7 +446,7 @@ const Availability = () => {
                       </div>
 
                       <div className="grid grid-cols-2 gap-3 pt-2">
-                          {/* OPTION 1: INSTANT PAY */}
+                          {/* OPTION 1: INSTANT PAY (This enables GPay) */}
                           <button 
                             onClick={() => handleCreateBooking(true)}
                             disabled={!guestName || !guestPhone || isSubmitting}
@@ -436,7 +468,7 @@ const Availability = () => {
                       </div>
                       
                       <p className="text-center text-[10px] text-gray-400 mt-2">
-                          Payments are secured by Razorpay. 
+                          Secured by Razorpay. 
                       </p>
                   </div>
               </div>
