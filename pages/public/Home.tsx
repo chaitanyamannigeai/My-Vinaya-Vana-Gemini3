@@ -92,7 +92,8 @@ const Home = () => {
     return <Sun size={24} className="text-yellow-400" />; 
   }
 
-  const whatsappLink = `https://wa.me/${settings.contactPhone || '919999999999'}?text=Hi, I am interested in booking a stay at Vinaya Vana.`;
+  // ✅ FIXED: Changed 'contactPhone' to 'whatsappNumber' to match Admin settings
+  const whatsappLink = `https://wa.me/${settings.whatsappNumber || '919999999999'}?text=Hi, I am interested in booking a stay at Vinaya Vana.`;
 
   return (
     // ⚠️ CRITICAL CHANGE: Removed 'h-screen' and 'overflow-y-auto'.
