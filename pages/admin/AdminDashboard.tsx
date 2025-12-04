@@ -416,9 +416,25 @@ const AdminDashboard = () => {
   const updateReviewLocal = (id: string, field: keyof Review, value: any) => {
       setReviews(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
   };
+// FIXED: Updates the local state with the server's response to ensure IDs match
   const saveReview = async (id: string) => {
       const review = reviews.find(r => r.id === id);
-      if (review) { try { await api.reviews.save(review); alert("Review Saved!"); } catch (e) { alert("Error saving review"); } }
+      if (review) { 
+        try { 
+            // 1. Send to server
+            const savedData = await api.reviews.save(review); 
+            
+            // 2. If server returns the saved object (with real ID), update local state
+            if (savedData && savedData.id) {
+                setReviews(prev => prev.map(r => r.id === id ? savedData : r));
+            }
+            
+            alert("Review Saved!"); 
+        } catch (e) { 
+            console.error(e);
+            alert("Error saving review. Please try refreshing the page."); 
+        } 
+      }
   };
   const deleteReview = async (id: string) => {
       if (!window.confirm("Delete review?")) return;
