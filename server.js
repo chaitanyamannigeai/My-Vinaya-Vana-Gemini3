@@ -22,19 +22,61 @@ app.use(express.json({ limit: '50mb' }));
 
 const pool = mysql.createPool(process.env.DATABASE_URL || '');
 
-// --- DB CONNECTION & SCHEMA FIX ---
+// --- DEEP ID REPAIR FUNCTION ---
 const fixDatabaseSchema = async () => {
     try {
         const connection = await pool.getConnection();
-        console.log('🔧 Checking database schema...');
+        console.log('🔧 Starting Deep Database Repair...');
         
-        // 1. FORCE IDs TO BE STRINGS (Fixes the 500 Error for Pricing/Reviews)
-        const tablesWithIds = ['rooms', 'drivers', 'cab_locations', 'gallery', 'reviews', 'pricing_rules', 'bookings'];
-        for (const table of tablesWithIds) {
-             try { await connection.query(`ALTER TABLE ${table} MODIFY id VARCHAR(255)`); } catch(e) {}
+        // List of tables that need String IDs
+        const tablesToFix = ['reviews', 'pricing_rules', 'gallery', 'cab_locations', 'drivers', 'rooms', 'bookings'];
+
+        for (const table of tablesToFix) {
+            try {
+                // 1. Check if table exists
+                const [check] = await connection.query(`SHOW TABLES LIKE '${table}'`);
+                if (check.length === 0) {
+                    console.log(`Table ${table} does not exist. creating in next steps...`);
+                    continue; 
+                }
+
+                // 2. NUCLEAR FIX: Remove Auto-Increment and Constraints to allow Type Change
+                // This sequence handles the strict MySQL rules preventing simple ALTERs
+                try {
+                    // Step A: Remove Auto_Increment property (Make it just a normal INT)
+                    await connection.query(`ALTER TABLE ${table} MODIFY id INT NOT NULL`);
+                    
+                    // Step B: Drop Primary Key (Required to change type in some strict SQL modes)
+                    await connection.query(`ALTER TABLE ${table} DROP PRIMARY KEY`);
+                } catch (e) {
+                    // Ignore errors here (e.g., if it wasn't auto-increment or didn't have PK)
+                }
+
+                // Step C: FORCE convert to VARCHAR (Text)
+                await connection.query(`ALTER TABLE ${table} MODIFY id VARCHAR(255) NOT NULL`);
+
+                // Step D: Re-add Primary Key
+                try {
+                    await connection.query(`ALTER TABLE ${table} ADD PRIMARY KEY (id)`);
+                } catch (e) {
+                    // Ignore if PK already exists
+                }
+
+                console.log(`✅ ${table}: ID repaired to VARCHAR.`);
+            } catch (tableErr) {
+                console.log(`⚠️ Could not auto-fix ${table} (might already be fixed):`, tableErr.message);
+            }
         }
 
-        // 2. Ensure Pricing Rules Table Exists
+        // 3. Ensure Missing Columns Exist
+        try { await connection.query("ALTER TABLE reviews ADD COLUMN show_on_home BOOLEAN DEFAULT 0"); } catch(e) {}
+        try { await connection.query("ALTER TABLE gallery MODIFY url LONGTEXT"); } catch(e) {}
+        try { await connection.query("ALTER TABLE cab_locations MODIFY image_url LONGTEXT"); } catch(e) {}
+        try { await connection.query("ALTER TABLE rooms MODIFY images LONGTEXT"); } catch(e) {}
+        try { await connection.query("ALTER TABLE rooms MODIFY amenities LONGTEXT"); } catch(e) {}
+        try { await connection.query("ALTER TABLE site_settings MODIFY value LONGTEXT"); } catch(e) {}
+
+        // 4. Ensure Pricing Rules Table Exists (If it was missing)
         try { 
             await connection.query(`CREATE TABLE IF NOT EXISTS pricing_rules (
                 id VARCHAR(255) PRIMARY KEY, 
@@ -45,20 +87,10 @@ const fixDatabaseSchema = async () => {
             )`); 
         } catch(e) {}
 
-        // 3. Ensure Reviews Table has 'show_on_home'
-        try { await connection.query("ALTER TABLE reviews ADD COLUMN show_on_home BOOLEAN DEFAULT 0"); } catch(e) {}
-        
-        // 4. Fix Long Text Columns (for images/descriptions)
-        try { await connection.query("ALTER TABLE gallery MODIFY url LONGTEXT"); } catch(e) {}
-        try { await connection.query("ALTER TABLE cab_locations MODIFY image_url LONGTEXT"); } catch(e) {}
-        try { await connection.query("ALTER TABLE rooms MODIFY images LONGTEXT"); } catch(e) {}
-        try { await connection.query("ALTER TABLE rooms MODIFY amenities LONGTEXT"); } catch(e) {}
-        try { await connection.query("ALTER TABLE site_settings MODIFY value LONGTEXT"); } catch(e) {}
-
-        console.log('✅ Database schema auto-corrected.');
+        console.log('✅ Database repair complete.');
         connection.release();
     } catch (err) {
-        console.log('ℹ️ Schema check skipped:', err.message);
+        console.log('ℹ️ Main Schema Check Error:', err.message);
     }
 };
 
@@ -67,6 +99,7 @@ const testDbConnection = async () => {
         const connection = await pool.getConnection();
         console.log('✅ DATABASE CONNECTED SUCCESSFULLY');
         connection.release();
+        // Run the fix immediately on startup
         await fixDatabaseSchema();
     } catch (err) {
         console.error('❌ DATABASE CONNECTION FAILED', err.message);
@@ -408,9 +441,6 @@ app.post('/api/pricing', async (req, res) => {
     try {
         const { id, name, startDate, endDate, multiplier } = req.body;
         
-        // 1. Ensure Table Exists (Double Safety)
-        await pool.query(`CREATE TABLE IF NOT EXISTS pricing_rules (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255), start_date DATE, end_date DATE, multiplier DECIMAL(3,1))`);
-
         const [exists] = await pool.query("SELECT id FROM pricing_rules WHERE id = ?", [id]);
         if (exists.length > 0) {
             await pool.query("UPDATE pricing_rules SET name=?, start_date=?, end_date=?, multiplier=? WHERE id=?", 
