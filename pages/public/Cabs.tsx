@@ -29,24 +29,29 @@ const Cabs = () => {
     fetchData();
   }, []);
 
+  // Find the designated "Travel Desk" driver
+  const defaultDriver = drivers.find(d => d.isDefault) || drivers[0];
+
   const getDriverForLocation = (loc: CabLocation) => {
       if (loc.driverId) return drivers.find(d => d.id === loc.driverId);
-      return drivers.find(d => d.isDefault) || drivers[0];
+      return defaultDriver;
   };
 
   const handleBookRide = (loc: CabLocation) => {
       const driver = getDriverForLocation(loc);
       if (!driver) return;
       
-      const text = `Hi, I am interested in booking a cab for: *${loc.name}* (Price: ₹${loc.price}). Is it available?`;
+      const text = `Hi ${driver.name}, I am interested in booking a cab for: *${loc.name}* (Price: ₹${loc.price}). Is it available?`;
       const url = `https://wa.me/${driver.whatsapp || driver.phone}?text=${encodeURIComponent(text)}`;
       window.open(url, '_blank');
   };
 
   const handleGeneralInquiry = () => {
-      const defaultDriver = drivers.find(d => d.isDefault) || drivers[0];
-      const phone = defaultDriver ? (defaultDriver.whatsapp || defaultDriver.phone) : settings.whatsappNumber;
-      const url = `https://wa.me/${phone}?text=${encodeURIComponent("Hi, I need a cab service in Gokarna.")}`;
+      const driver = defaultDriver;
+      const phone = driver ? (driver.whatsapp || driver.phone) : settings.whatsappNumber;
+      
+      const text = `Hi ${driver ? driver.name : ''}, I need a cab service in Gokarna. Can you help with a custom itinerary?`;
+      const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
       window.open(url, '_blank');
   };
 
@@ -74,7 +79,7 @@ const Cabs = () => {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 -mt-10 relative z-20">
          
-         {/* 2. FLEET HIGHLIGHTS (Static Trust Signals) */}
+         {/* 2. FLEET HIGHLIGHTS */}
          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
                  <div className="bg-nature-50 p-2 rounded-lg text-nature-700"><ShieldCheck size={20}/></div>
@@ -99,18 +104,38 @@ const Cabs = () => {
              </div>
          </div>
 
-         {/* 3. HORIZONTAL ROUTE LIST (The "Rate Card" Look) */}
+         {/* 3. HORIZONTAL ROUTE LIST */}
          <div className="space-y-6">
-             <div className="flex justify-between items-end px-2">
+             <div className="flex flex-col md:flex-row justify-between items-end md:items-center px-2 mb-2 gap-4">
                 <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                     <MapPin className="text-nature-600" size={20}/> Popular Routes
                 </h2>
-                <button 
-                    onClick={handleGeneralInquiry}
-                    className="text-nature-700 text-sm font-bold hover:underline flex items-center gap-1"
-                >
-                    Custom Request <Navigation size={14}/>
-                </button>
+                
+                {/* Custom Request Section with Default Driver Number */}
+                <div className="flex flex-col items-end">
+                    {defaultDriver && (
+                        <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1 mr-1">
+                            Travel Manager: {defaultDriver.name}
+                        </p>
+                    )}
+                    <div className="flex gap-2">
+                        {defaultDriver && (
+                            <a 
+                                href={`tel:${defaultDriver.phone}`} 
+                                className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-sm transition-colors text-sm"
+                                title={`Call ${defaultDriver.phone}`}
+                            >
+                                <Phone size={16}/> Call
+                            </a>
+                        )}
+                        <button 
+                            onClick={handleGeneralInquiry}
+                            className="bg-nature-700 hover:bg-nature-800 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-md transition-colors text-sm"
+                        >
+                            <MessageCircle size={16} /> Custom Request
+                        </button>
+                    </div>
+                </div>
              </div>
 
              {loading ? (
@@ -136,7 +161,7 @@ const Cabs = () => {
                                     {loc.description || "Comfortable AC ride with professional driver. Includes fuel and toll charges."}
                                  </p>
                                  
-                                 {/* Amenities Icons (Visual Fluff) */}
+                                 {/* Amenities Icons */}
                                  <div className="flex gap-4 text-xs text-gray-400 mb-4">
                                      <span className="flex items-center gap-1"><Wind size={14}/> AC</span>
                                      <span className="flex items-center gap-1"><Music size={14}/> Music</span>
