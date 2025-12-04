@@ -22,61 +22,43 @@ app.use(express.json({ limit: '50mb' }));
 
 const pool = mysql.createPool(process.env.DATABASE_URL || '');
 
-// --- DEEP ID REPAIR FUNCTION ---
+// --- AGGRESSIVE DB REPAIR ---
 const fixDatabaseSchema = async () => {
+    let connection;
     try {
-        const connection = await pool.getConnection();
-        console.log('🔧 Starting Deep Database Repair...');
+        connection = await pool.getConnection();
+        console.log('🔧 Starting Aggressive Database Repair...');
         
-        // List of tables that need String IDs
+        // 1. DISABLE FOREIGN KEY CHECKS (Critical for ID conversion)
+        await connection.query('SET FOREIGN_KEY_CHECKS=0');
+
+        // List of tables to force ID to VARCHAR
         const tablesToFix = ['reviews', 'pricing_rules', 'gallery', 'cab_locations', 'drivers', 'rooms', 'bookings'];
 
         for (const table of tablesToFix) {
             try {
-                // 1. Check if table exists
+                // Check if table exists
                 const [check] = await connection.query(`SHOW TABLES LIKE '${table}'`);
-                if (check.length === 0) {
-                    console.log(`Table ${table} does not exist. creating in next steps...`);
-                    continue; 
-                }
+                if (check.length === 0) continue;
 
-                // 2. NUCLEAR FIX: Remove Auto-Increment and Constraints to allow Type Change
-                // This sequence handles the strict MySQL rules preventing simple ALTERs
-                try {
-                    // Step A: Remove Auto_Increment property (Make it just a normal INT)
-                    await connection.query(`ALTER TABLE ${table} MODIFY id INT NOT NULL`);
-                    
-                    // Step B: Drop Primary Key (Required to change type in some strict SQL modes)
-                    await connection.query(`ALTER TABLE ${table} DROP PRIMARY KEY`);
-                } catch (e) {
-                    // Ignore errors here (e.g., if it wasn't auto-increment or didn't have PK)
-                }
-
-                // Step C: FORCE convert to VARCHAR (Text)
-                await connection.query(`ALTER TABLE ${table} MODIFY id VARCHAR(255) NOT NULL`);
-
-                // Step D: Re-add Primary Key
-                try {
-                    await connection.query(`ALTER TABLE ${table} ADD PRIMARY KEY (id)`);
-                } catch (e) {
-                    // Ignore if PK already exists
-                }
-
-                console.log(`✅ ${table}: ID repaired to VARCHAR.`);
-            } catch (tableErr) {
-                console.log(`⚠️ Could not auto-fix ${table} (might already be fixed):`, tableErr.message);
+                // FORCE ID TO VARCHAR(255)
+                // We use MODIFY which keeps the data but changes the type
+                await connection.query(`ALTER TABLE ${table} MODIFY id VARCHAR(255)`);
+                console.log(`✅ ${table}: ID converted to VARCHAR.`);
+            } catch (e) {
+                // If ID doesn't exist or other error, ignore
             }
         }
 
-        // 3. Ensure Missing Columns Exist
-        try { await connection.query("ALTER TABLE reviews ADD COLUMN show_on_home BOOLEAN DEFAULT 0"); } catch(e) {}
+        // 2. Add Missing Columns
+        try { await connection.query("ALTER TABLE reviews ADD COLUMN show_on_home BOOLEAN DEFAULT 0"); console.log("✅ Added show_on_home to reviews"); } catch(e) {}
         try { await connection.query("ALTER TABLE gallery MODIFY url LONGTEXT"); } catch(e) {}
         try { await connection.query("ALTER TABLE cab_locations MODIFY image_url LONGTEXT"); } catch(e) {}
         try { await connection.query("ALTER TABLE rooms MODIFY images LONGTEXT"); } catch(e) {}
         try { await connection.query("ALTER TABLE rooms MODIFY amenities LONGTEXT"); } catch(e) {}
         try { await connection.query("ALTER TABLE site_settings MODIFY value LONGTEXT"); } catch(e) {}
 
-        // 4. Ensure Pricing Rules Table Exists (If it was missing)
+        // 3. Ensure Pricing Table Exists
         try { 
             await connection.query(`CREATE TABLE IF NOT EXISTS pricing_rules (
                 id VARCHAR(255) PRIMARY KEY, 
@@ -87,10 +69,14 @@ const fixDatabaseSchema = async () => {
             )`); 
         } catch(e) {}
 
+        // 4. RE-ENABLE FOREIGN KEY CHECKS
+        await connection.query('SET FOREIGN_KEY_CHECKS=1');
+        
         console.log('✅ Database repair complete.');
-        connection.release();
     } catch (err) {
-        console.log('ℹ️ Main Schema Check Error:', err.message);
+        console.log('ℹ️ Schema repair error:', err.message);
+    } finally {
+        if (connection) connection.release();
     }
 };
 
@@ -99,7 +85,6 @@ const testDbConnection = async () => {
         const connection = await pool.getConnection();
         console.log('✅ DATABASE CONNECTED SUCCESSFULLY');
         connection.release();
-        // Run the fix immediately on startup
         await fixDatabaseSchema();
     } catch (err) {
         console.error('❌ DATABASE CONNECTION FAILED', err.message);
@@ -169,7 +154,6 @@ app.post('/api/analytics/track-hit', async (req, res) => {
         let settings = rows.length > 0 ? parseJSON(rows[0].value) : {};
         settings.websiteHits = (settings.websiteHits || 0) + 1;
         
-        // Universal Upsert for Settings
         const [existing] = await pool.query("SELECT key_name FROM site_settings WHERE key_name = 'general_settings'");
         if (existing.length > 0) {
             await pool.query("UPDATE site_settings SET value = ? WHERE key_name = 'general_settings'", [JSON.stringify(settings)]);
