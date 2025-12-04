@@ -45,7 +45,6 @@ const runDatabaseRepair = async () => {
                 if (check.length === 0) continue;
 
                 // A. Strip Auto-Increment (Critical Step)
-                // We redefine the ID column as a plain INT first to remove the "Auto_Increment" flag
                 try { await connection.query(`ALTER TABLE ${table} MODIFY id INT NOT NULL`); } catch(e) {}
 
                 // B. Drop Primary Key (Needed to change type)
@@ -59,11 +58,11 @@ const runDatabaseRepair = async () => {
 
                 log(`✅ ${table}: Converted to String IDs.`);
             } catch (err) {
-                log(`ℹ️ ${table} skipped/error: ${err.message}`);
+                log(`ℹ️ ${table} repair skipped/error: ${err.message}`);
             }
         }
 
-        // 3. Add Missing Columns (The Review Checkbox Fix)
+        // 3. Add Missing Columns
         try { 
             await connection.query("ALTER TABLE reviews ADD COLUMN show_on_home BOOLEAN DEFAULT 0"); 
             log("✅ Added 'show_on_home' to reviews.");
@@ -109,7 +108,7 @@ app.get('/api/debug/fix-db', async (req, res) => {
     res.json(result);
 });
 
-// ... [Keep Standard Middleware] ...
+// ... [API ROUTES START HERE] ...
 app.get('/api/health', async (req, res) => {
     try {
         const connection = await pool.getConnection();
@@ -156,7 +155,6 @@ app.post('/api/analytics/track-hit', async (req, res) => {
         let settings = rows.length > 0 ? parseJSON(rows[0].value) : {};
         settings.websiteHits = (settings.websiteHits || 0) + 1;
         
-        // Universal Upsert
         const [existing] = await pool.query("SELECT key_name FROM site_settings WHERE key_name = 'general_settings'");
         if (existing.length > 0) {
             await pool.query("UPDATE site_settings SET value = ? WHERE key_name = 'general_settings'", [JSON.stringify(settings)]);
@@ -246,19 +244,6 @@ app.delete('/api/pricing/:id', async (req, res) => {
     catch(e) { res.status(500).json({error: e.message}); }
 });
 
-// GENERIC HANDLERS (Rooms, Drivers, Locations, Gallery) - Simplified for brevity but essential
-const createHandlers = (table, fields) => {
-    app.get(`/api/${table}`, async (req, res) => {
-        try { const [rows] = await pool.query(`SELECT * FROM ${table === 'locations' ? 'cab_locations' : table}`); res.json(rows); } catch(e){res.status(500).json({error:e.message})}
-    });
-    app.delete(`/api/${table}/:id`, async (req, res) => {
-        try { await pool.query(`DELETE FROM ${table === 'locations' ? 'cab_locations' : table} WHERE id = ?`, [req.params.id]); res.json({success:true}); } catch(e){res.status(500).json({error:e.message})}
-    });
-};
-// Note: We keep the specific POST handlers for Rooms/Drivers etc in your original file logic if needed, 
-// but for now, the critical fix is the Reviews/Pricing.
-// I will include the specific handlers below to ensure the file is complete.
-
 // ROOMS
 app.get('/api/rooms', async (req, res) => {
   try {
@@ -281,7 +266,32 @@ app.delete('/api/rooms/:id', async (req, res) => {
     try { await pool.query('DELETE FROM rooms WHERE id = ?', [req.params.id]); res.json({success:true}); } catch(e){res.status(500).json({error:e.message})}
 });
 
-// DRIVERS & LOCATIONS & GALLERY & BOOKINGS (Standard handlers)
+// DRIVERS & LOCATIONS & GALLERY & BOOKINGS (Full handlers to ensure no cutoff)
 app.get('/api/drivers', async(req,res)=>{ try{const[r]=await pool.query('SELECT * FROM drivers'); res.json(r.map(d=>({id:d.id, name:d.name, phone:d.phone, whatsapp:d.whatsapp, isDefault:!!d.is_default, active:!!d.active, vehicleInfo:d.vehicle_info})));}catch(e){res.status(500).json({error:e.message})} });
 app.post('/api/drivers', async(req,res)=>{ try{ const {id,name,phone,whatsapp,isDefault,active,vehicleInfo}=req.body; if(isDefault) await pool.query('UPDATE drivers SET is_default=0'); const[ex]=await pool.query("SELECT id FROM drivers WHERE id=?",[id]); if(ex.length>0) await pool.query("UPDATE drivers SET name=?, phone=?, whatsapp=?, is_default=?, active=?, vehicle_info=? WHERE id=?",[name,phone,whatsapp,isDefault,active,vehicleInfo,id]); else await pool.query("INSERT INTO drivers (id,name,phone,whatsapp,is_default,active,vehicle_info) VALUES (?,?,?,?,?,?,?)",[id,name,phone,whatsapp,isDefault,active,vehicleInfo]); res.json({success:true}); }catch(e){res.status(500).json({error:e.message})} });
-app.delete('/api/drivers/:id', async (req, res) => { try { await pool.query('DELETE FROM drivers WHERE id = ?', [req.params.id]); res.json({
+app.delete('/api/drivers/:id', async (req, res) => { try { await pool.query('DELETE FROM drivers WHERE id = ?', [req.params.id]); res.json({success:true}); } catch(e){res.status(500).json({error:e.message})} });
+
+app.get('/api/locations', async(req,res)=>{ try{const[r]=await pool.query('SELECT * FROM cab_locations'); res.json(r.map(l=>({id:l.id, name:l.name, description:l.description, imageUrl:l.image_url, price:l.price, driverId:l.driver_id, active:!!l.active})));}catch(e){res.status(500).json({error:e.message})} });
+app.post('/api/locations', async(req,res)=>{ try{ const {id,name,description,imageUrl,price,driverId,active}=req.body; const[ex]=await pool.query("SELECT id FROM cab_locations WHERE id=?",[id]); if(ex.length>0) await pool.query("UPDATE cab_locations SET name=?, description=?, image_url=?, price=?, driver_id=?, active=? WHERE id=?",[name,description,imageUrl,price,driverId,active,id]); else await pool.query("INSERT INTO cab_locations (id,name,description,image_url,price,driver_id,active) VALUES (?,?,?,?,?,?,?)",[id,name,description,imageUrl,price,driverId,active]); res.json({success:true}); }catch(e){res.status(500).json({error:e.message})} });
+app.delete('/api/locations/:id', async (req, res) => { try { await pool.query('DELETE FROM cab_locations WHERE id = ?', [req.params.id]); res.json({success:true}); } catch(e){res.status(500).json({error:e.message})} });
+
+app.get('/api/gallery', async(req,res)=>{ try{const[r]=await pool.query('SELECT * FROM gallery'); res.json(r);}catch(e){res.status(500).json({error:e.message})} });
+app.post('/api/gallery', async(req,res)=>{ try{ const {id,url,category,caption}=req.body; const[ex]=await pool.query("SELECT id FROM gallery WHERE id=?",[id]); if(ex.length>0) await pool.query("UPDATE gallery SET url=?, category=?, caption=? WHERE id=?",[url,category,caption,id]); else await pool.query("INSERT INTO gallery (id,url,category,caption) VALUES (?,?,?,?)",[id,url,category,caption]); res.json({success:true}); }catch(e){res.status(500).json({error:e.message})} });
+app.delete('/api/gallery/:id', async (req, res) => { try { await pool.query('DELETE FROM gallery WHERE id = ?', [req.params.id]); res.json({success:true}); } catch(e){res.status(500).json({error:e.message})} });
+
+app.get('/api/bookings', async (req, res) => { try{ const [rows] = await pool.query('SELECT * FROM bookings ORDER BY created_at DESC'); res.json(rows.map(b => ({ id: b.id, roomId: b.room_id, guestName: b.guest_name, guestPhone: b.guest_phone, checkIn: b.check_in, checkOut: b.check_out, totalAmount: b.total_amount, status: b.status, createdAt: b.created_at }))); } catch (err) { res.status(500).json({ error: err.message }); } });
+app.post('/api/bookings', async (req, res) => { try { const { id, roomId, guestName, guestPhone, checkIn, checkOut, totalAmount, status } = req.body; const [exists] = await pool.query("SELECT id FROM bookings WHERE id = ?", [id]); if (exists.length === 0) { await pool.query(`INSERT INTO bookings (id, room_id, guest_name, guest_phone, check_in, check_out, total_amount, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [id, roomId, guestName, guestPhone, checkIn, checkOut, totalAmount, status]); } res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); } });
+app.put('/api/bookings/:id', async (req, res) => { try { await pool.query('UPDATE bookings SET status = ? WHERE id = ?', [req.body.status, req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); } });
+
+// --- SETTINGS & WEATHER ---
+app.get('/api/settings', async (req, res) => { try { const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'"); res.json(rows.length > 0 ? parseJSON(rows[0].value) : {}); } catch(e) { res.status(500).json({error: e.message}); } });
+app.post('/api/settings', async (req, res) => { try { const [exists] = await pool.query("SELECT key_name FROM site_settings WHERE key_name = 'general_settings'"); if (exists.length > 0) { await pool.query("UPDATE site_settings SET value=? WHERE key_name='general_settings'", [JSON.stringify(req.body)]); } else { await pool.query("INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?)", [JSON.stringify(req.body)]); } res.json({ success: true }); } catch(e) { res.status(500).json({error: e.message}); } });
+app.get('/api/weather', async (req, res) => { try { const [settingsRows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'"); if (settingsRows.length === 0) return res.status(400).json({ error: "Weather API Key not configured." }); const settings = parseJSON(settingsRows[0].value); const apiKey = settings.weatherApiKey; if (!apiKey) return res.status(400).json({ error: "OpenWeatherMap API Key is missing." }); const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${req.query.location || 'Gokarna'}&appid=${apiKey}&units=metric`; const weatherResponse = await axios.get(weatherUrl); res.json({ temp: weatherResponse.data.main.temp, feelsLike: weatherResponse.data.main.feels_like, humidity: weatherResponse.data.main.humidity, windSpeed: weatherResponse.data.wind.speed, description: weatherResponse.data.weather[0].description, icon: weatherResponse.data.weather[0].icon, }); } catch (err) { console.error("Weather error:", err.message); res.status(500).json({ error: "Weather fetch failed" }); } });
+
+// --- FALLBACKS ---
+app.use('/api/*', (req, res) => res.status(404).json({ error: `API endpoint not found` }));
+const distPath = path.join(__dirname, 'dist');
+if (fs.existsSync(distPath)) { app.use(express.static(distPath)); app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html'))); } 
+else { app.get('*', (req, res) => res.send('<h1>Backend Running</h1><p>Frontend not built.</p>')); }
+
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
