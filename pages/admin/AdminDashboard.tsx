@@ -35,8 +35,10 @@ const [manualBooking, setManualBooking] = useState({
   guestName: '',
   guestPhone: '',
   checkIn: '',
-  checkOut: ''
+  checkOut: '',
+  amount: ''   // 👈 NEW
 });
+
 
 
   // --- STRICT AUTH CHECK ---
@@ -178,6 +180,11 @@ const [manualBooking, setManualBooking] = useState({
   };
 
 const createManualBooking = async () => {
+    if (!manualBooking.amount) {
+  alert("Please enter amount");
+  return;
+}
+
   if (
     !manualBooking.roomId ||
     !manualBooking.guestName ||
@@ -201,7 +208,7 @@ const createManualBooking = async () => {
     guestPhone: manualBooking.guestPhone,
     checkIn: manualBooking.checkIn,
     checkOut: manualBooking.checkOut,
-    totalAmount: preview.amount,   // ⭐ THIS WAS THE MISSING PIECE
+   totalAmount: Number(manualBooking.amount || 0),   // ⭐ THIS WAS THE MISSING PIECE
     status: 'PENDING',
     createdAt: new Date().toISOString()
   };
@@ -210,13 +217,14 @@ const createManualBooking = async () => {
   setBookings(await api.bookings.getAll());
 
   setShowManualBooking(false);
-  setManualBooking({
-    roomId: '',
-    guestName: '',
-    guestPhone: '',
-    checkIn: '',
-    checkOut: ''
-  });
+setManualBooking({
+  roomId: '',
+  guestName: '',
+  guestPhone: '',
+  checkIn: '',
+  checkOut: '',
+  amount: ''
+});
 };
 
   const downloadBookingsCSV = () => {
@@ -1120,13 +1128,16 @@ const renderHomePageContent = () => (
           className="w-full border p-2 rounded"
         />
 
-        <input
-          type="text"
-          placeholder="Phone (optional)"
-          value={manualBooking.guestPhone}
-          onChange={(e) => setManualBooking({ ...manualBooking, guestPhone: e.target.value })}
-          className="w-full border p-2 rounded"
-        />
+    <input
+  type="number"
+  placeholder="Amount (₹)"
+  value={manualBooking.amount}
+  onChange={(e) =>
+    setManualBooking({ ...manualBooking, amount: e.target.value })
+  }
+  className="w-full border p-2 rounded"
+/>
+
 
         <div className="grid grid-cols-2 gap-2">
           <input
@@ -1142,6 +1153,17 @@ const renderHomePageContent = () => (
             className="border p-2 rounded"
           />
         </div>
+
+        <input
+  type="number"
+  placeholder="Enter Amount (₹)"
+  value={manualBooking.amount}
+  onChange={(e) =>
+    setManualBooking({ ...manualBooking, amount: e.target.value })
+  }
+  className="w-full border p-2 rounded"
+/>
+
 
 {/* Amount Preview */}
 {(() => {
