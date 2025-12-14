@@ -1152,25 +1152,6 @@ const renderHomePageContent = () => (
 
 
 
-{/* Amount Preview */}
-{(() => {
-  const preview = getManualBookingAmount();
-  if (!preview) return null;
-
-  return (
-    <div className="mt-3 p-3 bg-gray-50 border rounded text-sm">
-      <div className="flex justify-between text-gray-700">
-        <span>{preview.nights} night(s)</span>
-        <span>₹{preview.pricePerNight} / night</span>
-      </div>
-      <div className="flex justify-between font-bold text-gray-900 mt-1">
-        <span>Total Amount</span>
-        <span>₹{preview.amount}</span>
-      </div>
-    </div>
-  );
-})()}
-
 
 
 
