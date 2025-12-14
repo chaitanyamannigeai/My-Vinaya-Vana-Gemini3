@@ -256,6 +256,38 @@ const booking: Booking = {
     link.click();
     document.body.removeChild(link);
   };
+
+
+
+  // ===== Amount Preview Helper (UI ONLY) =====
+const getManualBookingAmount = () => {
+  if (
+    !manualBooking.roomId ||
+    !manualBooking.checkIn ||
+    !manualBooking.checkOut
+  ) {
+    return null;
+  }
+
+  const room = rooms.find(r => r.id === manualBooking.roomId);
+  if (!room) return null;
+
+  const checkIn = new Date(manualBooking.checkIn);
+  const checkOut = new Date(manualBooking.checkOut);
+
+  const nights = Math.ceil(
+    (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (nights <= 0) return null;
+
+  return {
+    nights,
+    amount: nights * room.basePrice,
+    pricePerNight: room.basePrice
+  };
+};
+
   
   const renderBookings = () => (
     <div className="space-y-8">
@@ -1127,6 +1159,29 @@ const renderHomePageContent = () => (
             className="border p-2 rounded"
           />
         </div>
+
+{/* Amount Preview */}
+{(() => {
+  const preview = getManualBookingAmount();
+  if (!preview) return null;
+
+  return (
+    <div className="mt-3 p-3 bg-gray-50 border rounded text-sm">
+      <div className="flex justify-between text-gray-700">
+        <span>{preview.nights} night(s)</span>
+        <span>₹{preview.pricePerNight} / night</span>
+      </div>
+      <div className="flex justify-between font-bold text-gray-900 mt-1">
+        <span>Total Amount</span>
+        <span>₹{preview.amount}</span>
+      </div>
+    </div>
+  );
+})()}
+
+
+
+
       </div>
 
       <div className="flex justify-end gap-3 mt-6">
