@@ -193,17 +193,35 @@ const createManualBooking = async () => {
     return;
   }
 
-  const booking: Booking = {
-    id: `manual-${Date.now()}`,
-    roomId: manualBooking.roomId,
-    guestName: manualBooking.guestName,
-    guestPhone: manualBooking.guestPhone,
-    checkIn: manualBooking.checkIn,
-    checkOut: manualBooking.checkOut,
-    totalAmount: 0,
-    status: 'PENDING',
-    createdAt: new Date().toISOString()
-  };
+const room = rooms.find(r => r.id === manualBooking.roomId);
+if (!room) {
+  alert("Room not found. Please refresh.");
+  return;
+}
+
+const nights = Math.max(
+  1,
+  Math.ceil(
+    (new Date(manualBooking.checkOut).getTime() -
+      new Date(manualBooking.checkIn).getTime()) /
+      (1000 * 60 * 60 * 24)
+  )
+);
+
+const amount = room.basePrice * nights;
+
+const booking: Booking = {
+  id: `manual-${Date.now()}`,
+  roomId: manualBooking.roomId,
+  guestName: manualBooking.guestName,
+  guestPhone: manualBooking.guestPhone,
+  checkIn: manualBooking.checkIn,
+  checkOut: manualBooking.checkOut,
+  totalAmount: amount,
+  status: 'PENDING',
+  createdAt: new Date().toISOString()
+};
+
 
   await api.bookings.add(booking);
   setBookings(await api.bookings.getAll());
@@ -306,10 +324,13 @@ const createManualBooking = async () => {
     <div className="flex items-center gap-3">
         {/* NEW: Manual Booking Button (UI ONLY) */}
         <button
-            onClick={() => setShowManualBooking(true)}
-            className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700 shadow-sm"
-        >
-            <Plus size={16} /> Add Manual Booking
+            onClick={async () => {
+  if (rooms.length === 0) {
+    setRooms(await api.rooms.getAll());
+  }
+  setShowManualBooking(true);
+        }}
+
         </button>
 
         {/* EXISTING BUTTON – UNCHANGED */}
