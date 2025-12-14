@@ -195,11 +195,7 @@ const createManualBooking = async () => {
     return;
   }
 
-  const preview = getManualBookingAmount();
-  if (!preview) {
-    alert("Invalid dates or room");
-    return;
-  }
+
 
   const booking: Booking = {
     id: `manual-${Date.now()}`,
@@ -1154,15 +1150,6 @@ const renderHomePageContent = () => (
           />
         </div>
 
-        <input
-  type="number"
-  placeholder="Enter Amount (₹)"
-  value={manualBooking.amount}
-  onChange={(e) =>
-    setManualBooking({ ...manualBooking, amount: e.target.value })
-  }
-  className="w-full border p-2 rounded"
-/>
 
 
 {/* Amount Preview */}
