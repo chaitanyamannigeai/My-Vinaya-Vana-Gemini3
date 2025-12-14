@@ -188,40 +188,23 @@ const createManualBooking = async () => {
     return;
   }
 
-  if (new Date(manualBooking.checkIn) >= new Date(manualBooking.checkOut)) {
-    alert("Check-out must be after check-in");
+  const preview = getManualBookingAmount();
+  if (!preview) {
+    alert("Invalid dates or room");
     return;
   }
 
-const room = rooms.find(r => r.id === manualBooking.roomId);
-if (!room) {
-  alert("Room not found. Please refresh.");
-  return;
-}
-
-const nights = Math.max(
-  1,
-  Math.ceil(
-    (new Date(manualBooking.checkOut).getTime() -
-      new Date(manualBooking.checkIn).getTime()) /
-      (1000 * 60 * 60 * 24)
-  )
-);
-
-const amount = room.basePrice * nights;
-
-const booking: Booking = {
-  id: `manual-${Date.now()}`,
-  roomId: manualBooking.roomId,
-  guestName: manualBooking.guestName,
-  guestPhone: manualBooking.guestPhone,
-  checkIn: manualBooking.checkIn,
-  checkOut: manualBooking.checkOut,
-  totalAmount: amount,
-  status: 'PENDING',
-  createdAt: new Date().toISOString()
-};
-
+  const booking: Booking = {
+    id: `manual-${Date.now()}`,
+    roomId: manualBooking.roomId,
+    guestName: manualBooking.guestName,
+    guestPhone: manualBooking.guestPhone,
+    checkIn: manualBooking.checkIn,
+    checkOut: manualBooking.checkOut,
+    totalAmount: preview.amount,   // ⭐ THIS WAS THE MISSING PIECE
+    status: 'PENDING',
+    createdAt: new Date().toISOString()
+  };
 
   await api.bookings.add(booking);
   setBookings(await api.bookings.getAll());
