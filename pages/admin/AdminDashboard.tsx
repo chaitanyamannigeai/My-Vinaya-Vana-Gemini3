@@ -1099,81 +1099,74 @@ const renderHomePageContent = () => (
         )}
       </div>
 
-      {showManualBooking && (
+{showManualBooking && (
   <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
     <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-      <h3 className="text-lg font-bold mb-4">Manual / WhatsApp Booking</h3>
 
-      <div className="space-y-3">
-        <select
-          value={manualBooking.roomId}
-          onChange={(e) => setManualBooking({ ...manualBooking, roomId: e.target.value })}
-          className="w-full border p-2 rounded"
-        >
-          <option value="">Select Room</option>
-          {rooms.map(r => (
-            <option key={r.id} value={r.id}>{r.name}</option>
-          ))}
-        </select>
+      <h3 className="text-lg font-bold mb-4">
+        Manual / WhatsApp Booking
+      </h3>
 
+      <select
+        value={manualBooking.roomId}
+        onChange={(e) =>
+          setManualBooking({ ...manualBooking, roomId: e.target.value })
+        }
+        className="w-full border p-2 rounded"
+      >
+        <option value="">Select Room</option>
+        {rooms.map(r => (
+          <option key={r.id} value={r.id}>{r.name}</option>
+        ))}
+      </select>
+
+      <input
+        type="text"
+        placeholder="Guest Name"
+        value={manualBooking.guestName}
+        onChange={(e) =>
+          setManualBooking({ ...manualBooking, guestName: e.target.value })
+        }
+        className="w-full border p-2 rounded"
+      />
+
+      ✅ <input
+        type="number"
+        placeholder="Amount (₹)"
+        value={manualBooking.amount}
+        onChange={(e) =>
+          setManualBooking({ ...manualBooking, amount: e.target.value })
+        }
+        className="w-full border p-2 rounded"
+      />
+
+      <div className="grid grid-cols-2 gap-2">
         <input
-          type="text"
-          placeholder="Guest Name"
-          value={manualBooking.guestName}
-          onChange={(e) => setManualBooking({ ...manualBooking, guestName: e.target.value })}
-          className="w-full border p-2 rounded"
+          type="date"
+          value={manualBooking.checkIn}
+          onChange={(e) =>
+            setManualBooking({ ...manualBooking, checkIn: e.target.value })
+          }
+          className="border p-2 rounded"
         />
-
-    <input
-  type="number"
-  placeholder="Amount (₹)"
-  value={manualBooking.amount}
-  onChange={(e) =>
-    setManualBooking({ ...manualBooking, amount: e.target.value })
-  }
-  className="w-full border p-2 rounded"
-/>
-
-
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            type="date"
-            value={manualBooking.checkIn}
-            onChange={(e) => setManualBooking({ ...manualBooking, checkIn: e.target.value })}
-            className="border p-2 rounded"
-          />
-          <input
-            type="date"
-            value={manualBooking.checkOut}
-            onChange={(e) => setManualBooking({ ...manualBooking, checkOut: e.target.value })}
-            className="border p-2 rounded"
-          />
-        </div>
-
-
-
-
-
-
+        <input
+          type="date"
+          value={manualBooking.checkOut}
+          onChange={(e) =>
+            setManualBooking({ ...manualBooking, checkOut: e.target.value })
+          }
+          className="border p-2 rounded"
+        />
       </div>
 
       <div className="flex justify-end gap-3 mt-6">
-        <button
-          onClick={() => setShowManualBooking(false)}
-          className="px-4 py-2 rounded border"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={createManualBooking}
-          className="px-4 py-2 bg-nature-600 text-white rounded hover:bg-nature-700"
-        >
-          Reserve
-        </button>
+        <button onClick={() => setShowManualBooking(false)}>Cancel</button>
+        <button onClick={createManualBooking}>Reserve</button>
       </div>
     </div>
   </div>
 )}
+}
     </div>
   );
 };
