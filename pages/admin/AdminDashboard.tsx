@@ -31,12 +31,14 @@ const AdminDashboard = () => {
   // ===== Manual / WhatsApp Booking (NEW – SAFE) =====
 const [showManualBooking, setShowManualBooking] = useState(false);
 const [manualBooking, setManualBooking] = useState({
-  roomId: '',
-  guestName: '',
-  guestPhone: '',
-  checkIn: '',
-  checkOut: ''
+  roomId: "",
+  guestName: "",
+  phone: "",
+  checkIn: "",
+  checkOut: "",
+  amount: ""   // 👈 NEW
 });
+
 
 
   // --- STRICT AUTH CHECK ---
@@ -183,15 +185,26 @@ const createManualBooking = async () => {
     !manualBooking.guestName ||
     !manualBooking.checkIn ||
     !manualBooking.checkOut
-  ) {
+  ) 
+  {
     alert("Please fill all required fields");
     return;
   }
 
-  if (new Date(manualBooking.checkIn) >= new Date(manualBooking.checkOut)) {
+  if (new Date(manualBooking.checkIn) >= new Date(manualBooking.checkOut)) 
+  {
     alert("Check-out must be after check-in");
     return;
   }
+
+    if (!manualBooking.amount)
+     {
+  alert("Please enter amount");
+  return;
+    }
+
+
+
 
   const booking: Booking = {
     id: `manual-${Date.now()}`,
@@ -200,7 +213,7 @@ const createManualBooking = async () => {
     guestPhone: manualBooking.guestPhone,
     checkIn: manualBooking.checkIn,
     checkOut: manualBooking.checkOut,
-    totalAmount: 0,
+    totalAmount: Number(manualBooking.amount),
     status: 'PENDING',
     createdAt: new Date().toISOString()
   };
@@ -1082,6 +1095,15 @@ const renderHomePageContent = () => (
           value={manualBooking.guestName}
           onChange={(e) => setManualBooking({ ...manualBooking, guestName: e.target.value })}
           className="w-full border p-2 rounded"
+        />
+        <input
+        type="number"
+        placeholder="Amount (₹)"
+        value={manualBooking.amount}
+        onChange={(e) =>
+            setManualBooking({ ...manualBooking, amount: e.target.value })
+        }
+        className="input"
         />
 
         <input
