@@ -1103,9 +1103,10 @@ const renderHomePageContent = () => (
   onChange={(e) =>
     setManualBooking({
       ...manualBooking,
-      amount: Number(e.target.value),
+      amount: e.target.value,
     })
   }
+   className="w-full border p-2 rounded"
 />
 
 
