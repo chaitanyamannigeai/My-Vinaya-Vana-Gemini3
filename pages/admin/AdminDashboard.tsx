@@ -197,11 +197,11 @@ const createManualBooking = async () => {
     return;
   }
 
-    if (!manualBooking.amount)
-     {
+if (!manualBooking.amount || manualBooking.amount <= 0) {
   alert("Please enter amount");
   return;
-    }
+}
+
 
 
 
@@ -1097,14 +1097,17 @@ const renderHomePageContent = () => (
           className="w-full border p-2 rounded"
         />
         <input
-        type="number"
-        placeholder="Amount (₹)"
-        value={manualBooking.amount}
-        onChange={(e) =>
-            setManualBooking({ ...manualBooking, amount: e.target.value })
-        }
-        className="input"
-        />
+  type="number"
+  placeholder="Amount (₹)"
+  value={manualBooking.amount || ""}
+  onChange={(e) =>
+    setManualBooking({
+      ...manualBooking,
+      amount: Number(e.target.value),
+    })
+  }
+/>
+
 
         <input
           type="text"
