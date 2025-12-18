@@ -9,7 +9,7 @@ import Gallery from './pages/public/Gallery';
 import Contact from './pages/public/Contact';
 import Cabs from './pages/public/Cabs';
 import Tariff from './pages/public/Tariff';
-import PayBalance from './pages/public/PayBalance';
+import PayBalance from './pages/admin/PayBalance';
 import Docs from './pages/public/Docs';
 import Reviews from './pages/public/Reviews';
 import AdminDashboard from './pages/admin/AdminDashboard';
