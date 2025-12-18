@@ -9,11 +9,14 @@ import Gallery from './pages/public/Gallery';
 import Contact from './pages/public/Contact';
 import Cabs from './pages/public/Cabs';
 import Tariff from './pages/public/Tariff';
+import PayBalance from "./pages/public/PayBalance";
 import Docs from './pages/public/Docs';
 import Reviews from './pages/public/Reviews';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import Login from './pages/admin/Login';
 import { api } from './services/api';
+
+
 
 const { HashRouter: Router, Routes, Route, useLocation } = ReactRouterDOM as any;
 
@@ -56,6 +59,8 @@ function App() {
             <Route path="/tariff" element={<Tariff />} />
             <Route path="/docs" element={<Docs />} />
             <Route path="/reviews" element={<Reviews />} />
+            <Route path="/pay-balance/:bookingId" element={<PayBalance />} />
+
             
             {/* Admin Routes */}
             <Route path="/admin/login" element={<Login />} />
