@@ -1,6 +1,9 @@
+// types.ts
+
 export enum PaymentStatus {
   PENDING = 'PENDING',
-  PAID = 'PAID',
+  PAID = 'PAID', // Fully paid
+  PARTIAL = 'PARTIAL', // Partially paid
   FAILED = 'FAILED'
 }
 
@@ -21,7 +24,9 @@ export interface Booking {
   guestPhone: string;
   checkIn: string;
   checkOut: string;
-  totalAmount: number;
+  totalAmount: number;    // Grand total cost
+  amountPaid: number;     // How much paid so far
+  balanceAmount: number;  // Remaining due
   status: PaymentStatus;
   createdAt: string;
 }
@@ -42,7 +47,7 @@ export interface CabLocation {
   description: string;
   imageUrl: string;
   price?: number;
-  driverId?: string | null; // If null, use default driver
+  driverId?: string | null;
   active: boolean;
 }
 
@@ -65,9 +70,10 @@ export interface SiteSettings {
     minDays: number;
     percentage: number;
   };
+  advancePaymentPercentage: number; // New Setting (Default 20)
   houseRules: string;
-  weatherApiKey?: string; // Added for OpenWeatherMap
-  websiteHits?: number; // Added for basic analytics
+  weatherApiKey?: string;
+  websiteHits?: number;
 }
 
 export interface GalleryItem {
@@ -82,14 +88,14 @@ export interface PricingRule {
   name: string;
   startDate: string;
   endDate: string;
-  multiplier: number; // e.g., 1.5 for 50% increase
+  multiplier: number;
 }
 
 export interface Review {
   id: string;
   guestName: string;
   location: string;
-  rating: number; // 1-5
+  rating: number;
   comment: string;
   date: string;
   showOnHome: boolean;
@@ -97,9 +103,9 @@ export interface Review {
 
 export interface WeatherData {
   temp: number;
-  feelsLike: number; // Added
-  humidity: number;  // Added
-  windSpeed: number; // Added
+  feelsLike: number;
+  humidity: number;
+  windSpeed: number;
   description: string;
   icon: string;
 }

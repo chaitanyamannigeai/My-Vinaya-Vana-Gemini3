@@ -1,8 +1,9 @@
+// pages/public/Accommodation.tsx
 import React, { useState, useEffect } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { Room, Booking, PaymentStatus, PricingRule } from '../../types';
-import { CheckCircle, Users, Home, Utensils, Monitor, Droplet, Calendar as CalendarIcon, XCircle, MessageCircle, ChevronLeft, ChevronRight, Sparkles, Wifi, Wind, Car, Coffee, Tv, Sun } from 'lucide-react';
+import { CheckCircle, Users, Home, Utensils, Monitor, Droplet, Calendar as CalendarIcon, XCircle, MessageCircle, ChevronLeft, ChevronRight, Sparkles, Wifi, Wind, Car, Coffee, Tv, Sun, CreditCard, Banknote } from 'lucide-react';
 
 const { useLocation } = ReactRouterDOM as any;
 
@@ -86,7 +87,11 @@ const Accommodation = () => {
   });
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [totalPrice, setTotalPrice] = useState(0);
+  const [advanceAmount, setAdvanceAmount] = useState(0);
+  
   const [showSimulatedPayment, setShowSimulatedPayment] = useState(false);
+  const [simulatedPaymentType, setSimulatedPaymentType] = useState<'FULL' | 'ADVANCE'>('FULL');
+  
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [pricingBreakdown, setPricingBreakdown] = useState<{avgPrice: number, days: number, discountApplied: number} | null>(null);
@@ -142,6 +147,7 @@ const Accommodation = () => {
   const checkAvailability = (roomId: string, checkIn: string, checkOut: string): boolean => {
       const start = new Date(checkIn).getTime();
       const end = new Date(checkOut).getTime();
+      // Filter out bookings that are FAILED
       const roomBookings = bookings.filter(b => b.roomId === roomId && b.status !== PaymentStatus.FAILED);
 
       for (const b of roomBookings) {
@@ -165,11 +171,12 @@ const Accommodation = () => {
         return maxMultiplier;
   };
 
-  // --- CORE: Price Calculation ---
+  // --- CORE: Price Calculation (Includes Advance) ---
   useEffect(() => {
     setAvailabilityError(null);
     setPricingBreakdown(null);
     setTotalPrice(0);
+    setAdvanceAmount(0);
 
     if (selectedRoom && bookingForm.checkIn && bookingForm.checkOut) {
       const d1 = new Date(bookingForm.checkIn);
@@ -206,7 +213,14 @@ const Accommodation = () => {
             discountAmount = Math.round(calculatedTotal * (discountSettings.percentage / 100));
             calculatedTotal -= discountAmount;
         }
-        setTotalPrice(Math.round(calculatedTotal));
+        
+        const total = Math.round(calculatedTotal);
+        setTotalPrice(total);
+        
+        // Calculate Advance
+        const percent = settings.advancePaymentPercentage || 20;
+        setAdvanceAmount(Math.round(total * (percent / 100)));
+
         setPricingBreakdown({
             avgPrice: Math.round((calculatedTotal + discountAmount) / days),
             days: days,
@@ -231,13 +245,18 @@ const Accommodation = () => {
     });
   };
 
-  const handleBookingSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const initiatePayment = async (type: 'FULL' | 'ADVANCE') => {
     if (!selectedRoom || totalPrice <= 0 || availabilityError) return;
+    if (!bookingForm.guestName || !bookingForm.guestPhone) {
+        alert("Please enter guest name and phone number");
+        return;
+    }
 
+    const payAmount = type === 'FULL' ? totalPrice : advanceAmount;
     const isDummyKey = !settings.razorpayKey || settings.razorpayKey === 'rzp_test_123456789' || settings.razorpayKey.includes('test_dummy');
 
     if (isDummyKey) {
+        setSimulatedPaymentType(type);
         setShowSimulatedPayment(true);
     } else {
         const res = await loadRazorpayScript();
@@ -245,21 +264,21 @@ const Accommodation = () => {
 
         const options = {
             key: settings.razorpayKey,
-            amount: totalPrice * 100,
+            amount: payAmount * 100,
             currency: 'INR',
             name: 'Vinaya Vana Farmhouse',
-            description: `Stay at ${selectedRoom.name} (${bookingForm.checkIn} to ${bookingForm.checkOut})`,
+            description: `${type === 'ADVANCE' ? 'Advance' : 'Full'} Payment for ${selectedRoom.name}`,
             image: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&q=80&w=200',
             prefill: { name: bookingForm.guestName, contact: bookingForm.guestPhone },
             theme: { color: '#3ba573' },
-            handler: function (response: any) { finalizeBooking(response.razorpay_payment_id); },
+            handler: function (response: any) { finalizeBooking(payAmount, response.razorpay_payment_id); },
         };
         const paymentObject = new window.Razorpay(options);
         paymentObject.open();
     }
   };
 
-  const finalizeBooking = async (paymentId?: string) => {
+  const finalizeBooking = async (amountPaid: number, paymentId?: string) => {
     const isAvailable = checkAvailability(bookingForm.roomId, bookingForm.checkIn, bookingForm.checkOut);
     if (!isAvailable) {
         setShowSimulatedPayment(false);
@@ -275,7 +294,9 @@ const Accommodation = () => {
       checkIn: bookingForm.checkIn,
       checkOut: bookingForm.checkOut,
       totalAmount: totalPrice,
-      status: PaymentStatus.PAID,
+      amountPaid: amountPaid,
+      balanceAmount: totalPrice - amountPaid,
+      status: (totalPrice - amountPaid) <= 1 ? PaymentStatus.PAID : PaymentStatus.PARTIAL,
       createdAt: new Date().toISOString()
     };
 
@@ -287,8 +308,12 @@ const Accommodation = () => {
         setBookingSuccess(true);
         setBookingForm(prev => ({ ...prev, guestName: '', guestPhone: '', checkIn: '', checkOut: '' }));
         setTotalPrice(0);
+        setAdvanceAmount(0);
     } catch (err) { alert("Booking failed to save."); }
   };
+
+  // Prevent form submission on enter, handled by buttons
+  const handleFormSubmit = (e: React.FormEvent) => { e.preventDefault(); }
 
   const getWhatsAppBookingLink = () => {
       if (!selectedRoom) return '#';
@@ -376,29 +401,22 @@ const Accommodation = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* 1. NEW VISUAL HEADER (Matches Home Page) */}
+      {/* Hero */}
       <div 
         className="relative h-[40vh] bg-cover bg-center flex items-center justify-center"
-        style={{ 
-            backgroundImage: `url("${settings.heroImageUrl}")`,
-            backgroundColor: '#1a2e1a' // Fallback color
-        }}
+        style={{ backgroundImage: `url("${settings.heroImageUrl}")`, backgroundColor: '#1a2e1a' }}
       >
         <div className="absolute inset-0 bg-black bg-opacity-50"></div>
         <div className="relative z-10 text-center px-4 animate-fade-in-up">
-            <h1 className="text-4xl md:text-5xl font-serif font-bold text-white mb-4 shadow-sm">
-                Our Accommodation
-            </h1>
-            <p className="text-lg text-nature-100 font-light max-w-2xl mx-auto">
-                Choose the perfect sanctuary for your stay.
-            </p>
+            <h1 className="text-4xl md:text-5xl font-serif font-bold text-white mb-4 shadow-sm">Our Accommodation</h1>
+            <p className="text-lg text-nature-100 font-light max-w-2xl mx-auto">Choose the perfect sanctuary for your stay.</p>
         </div>
       </div>
 
       <div className="bg-nature-50 flex-grow py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-            {/* LEFT COLUMN: ROOM LIST */}
+            {/* Rooms List */}
             <div className="lg:col-span-2 space-y-10">
                 {rooms.map((room) => (
                 <div 
@@ -406,7 +424,6 @@ const Accommodation = () => {
                     className={`bg-white rounded-2xl overflow-hidden shadow-md border-2 transition-all ${selectedRoom?.id === room.id ? 'border-nature-500 ring-4 ring-nature-100' : 'border-transparent hover:border-nature-200'}`}
                 >
                     <RoomCarousel images={room.images} name={room.name} />
-
                     <div className="p-6 md:p-8">
                     <div className="flex justify-between items-start mb-4">
                         <div>
@@ -421,23 +438,16 @@ const Accommodation = () => {
                         <span className="text-gray-500 text-xs block font-medium uppercase tracking-wider">Per Night</span>
                         </div>
                     </div>
-                    
                     <p className="text-gray-600 mb-6 leading-relaxed line-clamp-3">{room.description}</p>
-                    
                     <div className="flex flex-wrap gap-3 mb-6">
                         {room.amenities.map((am, i) => (
                         <span key={i} className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-700 border border-gray-200">
-                            {getAmenityIcon(am)}
-                            {am}
+                            {getAmenityIcon(am)} {am}
                         </span>
                         ))}
                     </div>
-
                     <div className="pt-6 border-t border-gray-100 flex justify-end">
-                        <button 
-                            onClick={() => handleSelectRoom(room.id)}
-                            className="bg-nature-800 hover:bg-nature-900 text-white px-6 py-2 rounded-lg font-medium transition-all shadow-md hover:shadow-lg flex items-center gap-2"
-                        >
+                        <button onClick={() => handleSelectRoom(room.id)} className="bg-nature-800 hover:bg-nature-900 text-white px-6 py-2 rounded-lg font-medium transition-all shadow-md hover:shadow-lg flex items-center gap-2">
                             Book This Room <ChevronRight size={16}/>
                         </button>
                     </div>
@@ -446,34 +456,27 @@ const Accommodation = () => {
                 ))}
             </div>
 
-            {/* RIGHT COLUMN: BOOKING SIDEBAR */}
+            {/* Booking Sidebar */}
             <div className="lg:col-span-1">
                 <div id="booking-sidebar" className="bg-white p-6 rounded-2xl shadow-xl sticky top-24 border-t-4 border-nature-600">
-                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                    <CalendarIcon className="text-nature-600"/> Check Availability
-                </h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2"><CalendarIcon className="text-nature-600"/> Check Availability</h3>
                 
                 {bookingSuccess ? (
                     <div className="bg-green-100 text-green-800 p-6 rounded-lg text-center animate-fade-in">
                     <CheckCircle className="h-12 w-12 mx-auto mb-3 text-green-600" />
                     <p className="font-bold text-lg">Booking Confirmed!</p>
+                    <p className="text-sm mt-2">We have received your payment.</p>
                     <button onClick={() => setBookingSuccess(false)} className="mt-4 text-sm underline hover:text-green-900">Book another</button>
                     </div>
                 ) : (
-                    <form onSubmit={handleBookingSubmit} className="space-y-5">
+                    <form onSubmit={handleFormSubmit} className="space-y-5">
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Select Room</label>
-                        <select 
-                        name="roomId" 
-                        value={bookingForm.roomId} 
-                        onChange={handleInputChange}
-                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-nature-500 outline-none font-medium"
-                        >
+                        <select name="roomId" value={bookingForm.roomId} onChange={handleInputChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-nature-500 outline-none font-medium">
                         {rooms.map(r => <option key={r.id} value={r.id}>{r.name} - ₹{r.basePrice}</option>)}
                         </select>
                     </div>
 
-                    {/* Calendar Widget */}
                     <div className="bg-white border border-gray-200 rounded-xl p-4">
                         <div className="flex items-center justify-between mb-4">
                             <button type="button" onClick={() => changeMonth(-1)} className="p-1 hover:bg-gray-100 rounded-full"><ChevronLeft size={20}/></button>
@@ -486,10 +489,6 @@ const Accommodation = () => {
                         <div className="grid grid-cols-7 gap-1">
                             {renderCalendar()}
                         </div>
-                        <div className="flex justify-center gap-4 mt-3 text-[10px] text-gray-500 uppercase tracking-wider">
-                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-nature-600"></span> Selected</span>
-                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-200"></span> Booked</span>
-                        </div>
                     </div>
                     
                     <div className="space-y-3">
@@ -497,7 +496,6 @@ const Accommodation = () => {
                         <input type="tel" name="guestPhone" value={bookingForm.guestPhone} onChange={handleInputChange} required placeholder="Phone Number" className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-nature-500 outline-none" />
                     </div>
 
-                    {/* Errors */}
                     {availabilityError && (
                         <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm flex gap-2 items-start">
                             <XCircle size={16} className="mt-0.5 shrink-0" />
@@ -505,13 +503,12 @@ const Accommodation = () => {
                         </div>
                     )}
 
-                    {/* Price Summary */}
                     {totalPrice > 0 && !availabilityError && pricingBreakdown && (
                         <div className="bg-gray-50 p-4 rounded-xl space-y-3 animate-fade-in">
                         {pricingBreakdown.discountApplied > 0 && (
                             <div className="flex items-center gap-2 text-green-700 bg-green-100 px-3 py-2 rounded-lg text-sm font-medium">
                                 <Sparkles size={16} />
-                                <span>Long stay discount applied: -₹{pricingBreakdown.discountApplied}</span>
+                                <span>Long stay discount: -₹{pricingBreakdown.discountApplied}</span>
                             </div>
                         )}
                         <div className="flex justify-between text-sm text-gray-600">
@@ -522,31 +519,39 @@ const Accommodation = () => {
                             <span>Total</span>
                             <span>₹{totalPrice}</span>
                         </div>
+                        
+                        {/* PAYMENT BUTTONS */}
+                        <div className="grid grid-cols-2 gap-3 mt-4">
+                            <button 
+                                type="button"
+                                onClick={() => initiatePayment('ADVANCE')}
+                                disabled={!!availabilityError || totalPrice === 0}
+                                className="flex flex-col items-center justify-center p-3 bg-white border-2 border-nature-600 text-nature-700 rounded-xl hover:bg-nature-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <span className="text-xs font-bold uppercase">Pay Advance ({settings.advancePaymentPercentage || 20}%)</span>
+                                <span className="text-lg font-bold">₹{advanceAmount}</span>
+                            </button>
+                            
+                            <button 
+                                type="button"
+                                onClick={() => initiatePayment('FULL')}
+                                disabled={!!availabilityError || totalPrice === 0}
+                                className="flex flex-col items-center justify-center p-3 bg-nature-800 text-white rounded-xl hover:bg-nature-900 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <span className="text-xs font-bold uppercase">Pay Full</span>
+                                <span className="text-lg font-bold">₹{totalPrice}</span>
+                            </button>
+                        </div>
                         </div>
                     )}
 
-                    <button 
-                        type="submit"
-                        disabled={!!availabilityError || totalPrice === 0}
-                        className={`w-full font-bold py-4 rounded-xl transition-all shadow-lg flex justify-center items-center gap-2 ${
-                            availabilityError || totalPrice === 0 
-                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-                            : 'bg-nature-800 hover:bg-nature-900 text-white hover:scale-[1.02]'
-                        }`}
-                    >
-                        {availabilityError ? 'Select Valid Dates' : 'Proceed to Pay'}
-                    </button>
+                    {!totalPrice && (
+                        <div className="text-center p-4 text-gray-400 text-sm">Select check-in and check-out dates to see prices.</div>
+                    )}
 
-                    <div className="text-center text-xs text-gray-400 font-medium uppercase tracking-widest">- OR -</div>
-
-                    <a 
-                        href={getWhatsAppBookingLink()}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-3 rounded-xl transition-all shadow-sm"
-                    >
-                        <MessageCircle size={20} />
-                        Book via WhatsApp
+                    <div className="text-center text-xs text-gray-400 font-medium uppercase tracking-widest mt-4">- OR -</div>
+                    <a href={getWhatsAppBookingLink()} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-3 rounded-xl transition-all shadow-sm">
+                        <MessageCircle size={20} /> Book via WhatsApp
                     </a>
                     </form>
                 )}
@@ -564,17 +569,15 @@ const Accommodation = () => {
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle size={32} className="text-blue-600" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Confirm Booking</h3>
-            <p className="text-gray-500 text-sm mb-6">You are in Test Mode. No actual payment will be charged.</p>
-            
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Confirm {simulatedPaymentType === 'ADVANCE' ? 'Advance' : 'Full'} Payment</h3>
+            <p className="text-gray-500 text-sm mb-6">Test Mode. No actual charge.</p>
             <div className="bg-gray-50 p-4 rounded-xl mb-6">
                 <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-500">Amount</span>
-                    <span className="font-bold">₹{totalPrice}</span>
+                    <span className="text-gray-500">Amount to Pay</span>
+                    <span className="font-bold">₹{simulatedPaymentType === 'ADVANCE' ? advanceAmount : totalPrice}</span>
                 </div>
             </div>
-            
-            <button onClick={() => finalizeBooking()} className="w-full py-3 bg-nature-600 hover:bg-nature-700 text-white font-bold rounded-xl shadow-lg">
+            <button onClick={() => finalizeBooking(simulatedPaymentType === 'ADVANCE' ? advanceAmount : totalPrice)} className="w-full py-3 bg-nature-600 hover:bg-nature-700 text-white font-bold rounded-xl shadow-lg">
                 Simulate Success
             </button>
           </div>
