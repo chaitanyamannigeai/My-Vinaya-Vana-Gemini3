@@ -1,13 +1,6 @@
-// PayBalance.tsx — Customer-facing balance payment page
-// ------------------------------------------------------
-// This page allows a guest to pay their remaining balance.
-// It is linked from admin via: /pay-balance/:bookingId
-// ------------------------------------------------------
-
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../../services/api";
-import { loadRazorpayScript } from "../../services/razorpay";
 
 const PayBalance = () => {
   const { bookingId } = useParams();
@@ -19,57 +12,76 @@ const PayBalance = () => {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const [b, s] = await Promise.all([
-        api.bookings.getById(bookingId),
-        api.settings.get(),
-      ]);
-      setBooking(b);
-      setSettings(s || {});
+
+      try {
+        const [b, s] = await Promise.all([
+          api.bookings.getById(bookingId),
+          api.settings.get(),
+        ]);
+
+        setBooking(b);
+        setSettings(s || {});
+      } catch (e) {
+        console.error(e);
+      }
+
       setLoading(false);
-    };    
+    };
+
     load();
   }, [bookingId]);
 
-  const handlePay = async () => {
+  const handlePayment = async () => {
     if (!booking) return;
 
-    const amt = Number(booking.balanceAmount || 0);
-    if (amt <= 0) return alert("No balance remaining");
+    const balance = Number(booking.balance_amount || 0);
+    if (balance <= 0) return alert("No balance remaining.");
 
-    const isDummy = !settings.razorpayKey || settings.razorpayKey.includes("test");
-    if (isDummy) return finalizePayment();
+    const isTestKey =
+      !settings.razorpayKey ||
+      settings.razorpayKey.toLowerCase().includes("test");
 
-    const ok = await loadRazorpayScript();
-    if (!ok) return alert("Payment SDK load error");
+    if (isTestKey) {
+      return finalizePayment();
+    }
 
-    const rzp = new window.Razorpay({
-      key: settings.razorpayKey,
-      amount: amt * 100,
-      currency: "INR",
-      name: "Vinaya Vana Farmhouse",
-      description: "Balance Payment",
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
 
-      prefill: {
-        name: booking.guestName,
-        contact: booking.guestPhone,
-      },
+    script.onload = () => {
+      const rzp = new window.Razorpay({
+        key: settings.razorpayKey,
+        amount: balance * 100,
+        currency: "INR",
+        name: "Vinaya Vana",
+        description: "Balance Payment",
 
-      handler: () => finalizePayment(),
-    });
+        handler: function () {
+          finalizePayment();
+        },
+      });
 
-    rzp.open();
+      rzp.open();
+    };
+
+    document.body.appendChild(script);
   };
 
   const finalizePayment = async () => {
-    const updated = {
-      ...booking,
-      amountPaid: Number(booking.amountPaid) + Number(booking.balanceAmount),
-      balanceAmount: 0,
-      status: "PAID",
-    };
+    try {
+      await api.bookings.save({
+        ...booking,
+        amount_paid:
+          Number(booking.amount_paid || 0) +
+          Number(booking.balance_amount || 0),
+        balance_amount: 0,
+        status: "PAID",
+      });
 
-    await api.bookings.add(updated);
-    setSuccess(true);
+      setSuccess(true);
+    } catch (e) {
+      alert("Error updating booking");
+    }
   };
 
   if (loading) return <div className="p-10 text-center">Loading...</div>;
@@ -77,26 +89,28 @@ const PayBalance = () => {
 
   return (
     <div className="max-w-xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4 text-center">Balance Payment</h1>
+      <h1 className="text-2xl font-bold mb-4 text-center">Pay Balance</h1>
 
       <div className="bg-white shadow rounded p-6 space-y-3">
-        <p><strong>Guest:</strong> {booking.guestName}</p>
-        <p><strong>Phone:</strong> {booking.guestPhone}</p>
-        <p><strong>Total Amount:</strong> ₹{booking.totalAmount}</p>
-        <p><strong>Paid:</strong> ₹{booking.amountPaid}</p>
-        <p className="text-red-600 font-bold"><strong>Balance Due:</strong> ₹{booking.balanceAmount}</p>
+        <p><strong>Name:</strong> {booking.guest_name}</p>
+        <p><strong>Phone:</strong> {booking.guest_phone}</p>
+        <p><strong>Total:</strong> ₹{booking.total_amount}</p>
+        <p><strong>Paid:</strong> ₹{booking.amount_paid}</p>
+        <p className="text-red-600 font-bold">
+          <strong>Balance Due:</strong> ₹{booking.balance_amount}
+        </p>
       </div>
 
       {success ? (
-        <div className="mt-6 bg-green-100 text-green-800 p-4 rounded text-center">
-          Payment successful! Thank you.
+        <div className="mt-6 bg-green-100 text-green-700 p-4 text-center rounded">
+          Payment Successful!
         </div>
       ) : (
         <button
-          onClick={handlePay}
-          className="mt-6 w-full bg-green-700 hover:bg-green-800 text-white py-3 rounded-lg"
+          onClick={handlePayment}
+          className="mt-6 w-full bg-green-700 hover:bg-green-800 text-white py-3 rounded"
         >
-          Pay Balance (₹{booking.balanceAmount})
+          Pay ₹{booking.balance_amount}
         </button>
       )}
     </div>
