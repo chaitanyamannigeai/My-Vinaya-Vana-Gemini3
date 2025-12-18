@@ -12,14 +12,10 @@ import Tariff from './pages/public/Tariff';
 import Docs from './pages/public/Docs';
 import Reviews from './pages/public/Reviews';
 import AdminDashboard from './pages/admin/AdminDashboard';
-import PayBalance from './pages/public/PayBalance';
 import Login from './pages/admin/Login';
-import api from './services/api';
+import { api } from './services/api';
 
-
-
-const { HashRouter, Routes, Route, useLocation } = ReactRouterDOM as any;
-
+const { HashRouter: Router, Routes, Route, useLocation } = ReactRouterDOM as any;
 
 // Component to handle hit tracking
 const HitTracker = () => {
@@ -60,8 +56,6 @@ function App() {
             <Route path="/tariff" element={<Tariff />} />
             <Route path="/docs" element={<Docs />} />
             <Route path="/reviews" element={<Reviews />} />
-            <Route path="/pay-balance/:bookingId" element={<PayBalance />} />
-
             
             {/* Admin Routes */}
             <Route path="/admin/login" element={<Login />} />
