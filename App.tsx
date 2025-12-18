@@ -12,13 +12,14 @@ import Tariff from './pages/public/Tariff';
 import Docs from './pages/public/Docs';
 import Reviews from './pages/public/Reviews';
 import AdminDashboard from './pages/admin/AdminDashboard';
-import PayBalance from './pages/admin/PayBalance';
+import PayBalance from './pages/public/PayBalance';
 import Login from './pages/admin/Login';
 import api from './services/api';
 
 
 
-const { HashRouter: Router, Routes, Route, useLocation } = ReactRouterDOM as any;
+const { HashRouter, Routes, Route, useLocation } = ReactRouterDOM as any;
+
 
 // Component to handle hit tracking
 const HitTracker = () => {
