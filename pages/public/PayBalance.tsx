@@ -68,7 +68,7 @@ const PayBalance = () => {
       status: "PAID",
     };
 
-    await api.bookings.save(updated);
+    await api.bookings.add(updated);
     setSuccess(true);
   };
 
