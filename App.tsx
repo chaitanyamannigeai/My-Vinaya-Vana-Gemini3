@@ -60,7 +60,7 @@ function App() {
             <Route path="/tariff" element={<Tariff />} />
             <Route path="/docs" element={<Docs />} />
             <Route path="/reviews" element={<Reviews />} />
-            <Route path="/pay-balance/:bookingId" element={<PayBalance />} />
+            <Route path="/paybalance/:bookingId" element={<PayBalance />} />
 
             
             {/* Admin Routes */}
