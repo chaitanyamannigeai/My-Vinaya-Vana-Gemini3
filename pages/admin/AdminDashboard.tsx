@@ -13,6 +13,7 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('bookings');
   const [loading, setLoading] = useState(false);
   
+  // Data States
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -24,9 +25,11 @@ const AdminDashboard = () => {
   const [trafficStats, setTrafficStats] = useState<{month: string, count: number}[]>([]);
   const [deviceStats, setDeviceStats] = useState<{device_type: string, count: number}[]>([]);
   
+  // Manual Booking State
   const [showManualBooking, setShowManualBooking] = useState(false);
   const [manualBooking, setManualBooking] = useState({ roomId: "", guestName: "", phone: "", checkIn: "", checkOut: "", amount: "", paid: "" });
 
+  // Auth Check
   useEffect(() => {
     const checkAuth = () => {
         const isAuth = sessionStorage.getItem('vv_admin_auth');
@@ -36,14 +39,18 @@ const AdminDashboard = () => {
     checkAuth();
   }, [navigate]);
 
+  // Data Loading - FIXED: Always refreshes data to prevent duplicates
   const loadTab = async (tab: string) => {
       setLoading(true);
       try {
           if (tab === 'bookings') setBookings(await api.bookings.getAll());
           else if (tab === 'rooms') setRooms(await api.rooms.getAll());
-          else if (tab === 'locations') { setLocations(await api.locations.getAll()); setDrivers(await api.drivers.getAll()); }
+          else if (tab === 'locations') { 
+              setLocations(await api.locations.getAll()); 
+              setDrivers(await api.drivers.getAll()); // Drivers needed for dropdown
+          }
           else if (tab === 'drivers') setDrivers(await api.drivers.getAll());
-          else if (tab === 'pricing') setPricingRules(await api.pricing.getAll()); // Always refresh to sync IDs
+          else if (tab === 'pricing') setPricingRules(await api.pricing.getAll());
           else if (tab === 'gallery') setGallery(await api.gallery.getAll());
           else if (tab === 'reviews') setReviews(await api.reviews.getAll());
           else if ((tab === 'settings' || tab === 'home-content')) {
@@ -65,6 +72,7 @@ const AdminDashboard = () => {
   useEffect(() => { if (!authLoading) loadTab(activeTab); }, [activeTab, authLoading]);
   const handleLogout = () => { sessionStorage.removeItem('vv_admin_auth'); navigate('/'); };
 
+  // Analytics
   const calculateAnalytics = () => {
       const totalRevenue = bookings.reduce((sum, b) => sum + (parseFloat(b.amountPaid as any) || 0), 0);
       const totalBookings = bookings.length;
@@ -91,6 +99,7 @@ const AdminDashboard = () => {
   };
   const analytics = calculateAnalytics();
 
+  // Booking Actions
   const updateBookingStatus = async (id: string, status: PaymentStatus) => {
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
     try { await api.bookings.updateStatus(id, status); loadTab('bookings'); } catch (e) { alert("Failed"); }
@@ -161,7 +170,7 @@ const AdminDashboard = () => {
   const deleteLocation = async (id: string) => { if (window.confirm("Delete?")) try { await api.locations.delete(id); setLocations(prev => prev.filter(l => l.id !== id)); } catch(e) {} };
 
   const addPricingRuleLocal = () => { 
-      // Ensure we use a unique temporary ID. Date.now() is usually sufficient.
+      // Ensure unique ID to prevent React duplicate key errors
       const newRule: PricingRule = { id: `pr${Date.now()}`, name: 'New Season', startDate: new Date().toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0], multiplier: 1.2 };
       setPricingRules(prev => [newRule, ...prev]); 
   };
@@ -286,7 +295,7 @@ const AdminDashboard = () => {
                       <div className="absolute top-2 right-2 flex gap-2"><button onClick={() => savePricingRule(rule.id)} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Save size={18}/></button><button onClick={() => deletePricingRule(rule.id)} className="text-gray-400 hover:text-red-500 p-1 rounded"><X size={18}/></button></div>
                     <div className="flex-grow grid grid-cols-1 md:grid-cols-4 gap-4 w-full mt-2 md:mt-0">
                         <div><label className="text-xs text-gray-500">Season Name</label><input type="text" value={rule.name} onChange={(e) => updatePricingRuleLocal(rule.id, 'name', e.target.value)} className="border w-full p-2 rounded"/></div>
-                        {/* BUG FIX: Added || '' to prevent uncontrolled input warning and resetting */}
+                        {/* BUG FIX 3: Added || '' to prevent reset issues */}
                         <div><label className="text-xs text-gray-500">Start Date</label><input type="date" value={rule.startDate || ''} onChange={(e) => updatePricingRuleLocal(rule.id, 'startDate', e.target.value)} className="border w-full p-2 rounded"/></div>
                         <div><label className="text-xs text-gray-500">End Date</label><input type="date" value={rule.endDate || ''} onChange={(e) => updatePricingRuleLocal(rule.id, 'endDate', e.target.value)} className="border w-full p-2 rounded"/></div>
                         <div><label className="text-xs text-gray-500">Multiplier</label><input type="number" step="0.1" value={rule.multiplier} onChange={(e) => updatePricingRuleLocal(rule.id, 'multiplier', parseFloat(e.target.value))} className="border w-full p-2 rounded font-bold text-nature-700"/></div>
@@ -366,7 +375,7 @@ const AdminDashboard = () => {
                     </div>
                 </div>
 
-                {/* BUG FIX: Added Missing Long Stay Discount Section */}
+                {/* BUG FIX 4: Added Missing Long Stay Discount Section */}
                 <div className="bg-white p-4 rounded border border-gray-200 space-y-4">
                     <div className="flex items-center gap-2">
                         <input 
