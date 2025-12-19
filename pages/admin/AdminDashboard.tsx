@@ -122,7 +122,7 @@ const AdminDashboard = () => {
         checkIn: manualBooking.checkIn,
         checkOut: manualBooking.checkOut,
         totalAmount: total,
-        amountPaid: paid, // Will be handled by backend schema if mapped
+        amountPaid: paid,
         balanceAmount: total - paid,
         status: (total - paid) <= 1 ? PaymentStatus.PAID : (paid > 0 ? PaymentStatus.PARTIAL : PaymentStatus.PENDING),
         createdAt: new Date().toISOString()
@@ -139,15 +139,13 @@ const AdminDashboard = () => {
       if (!amount || amount <= 0) { alert("Please enter a valid amount"); return; }
       
       try {
-          // Call the new API function
           await api.bookings.payBalance(paymentData.bookingId, amount);
           alert("Payment Recorded Successfully!");
           setShowPaymentModal(false);
           setPaymentData({ bookingId: '', currentBalance: 0, amountToCollect: '' });
-          // Refresh data to show new balance
           loadTab('bookings'); 
-      } catch (e) {
-          alert("Failed to update payment. Please try again.");
+      } catch (e: any) {
+          alert("Failed to update payment.");
       }
   };
 
@@ -309,7 +307,7 @@ const AdminDashboard = () => {
                                 <button onClick={() => copyPaymentLink(b.id)} title="Copy Balance Payment Link" className="text-blue-600 hover:text-blue-800"><LinkIcon size={18} /></button>
                             )}
                             
-                            {/* ✅ NEW: COLLECT PAYMENT BUTTON */}
+                            {/* ✅ COLLECT PAYMENT BUTTON */}
                             {(b.balanceAmount ?? 0) > 1 && (
                                 <button 
                                     onClick={() => openPaymentModal(b)} 

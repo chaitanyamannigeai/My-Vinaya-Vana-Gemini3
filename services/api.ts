@@ -1,4 +1,4 @@
-import { Room, Booking, Driver, CabLocation, SiteSettings, GalleryItem, PricingRule, Review, PaymentStatus, WeatherData } from '../types'; // Import WeatherData
+import { Room, Booking, Driver, CabLocation, SiteSettings, GalleryItem, PricingRule, Review, PaymentStatus, WeatherData } from '../types';
 
 const API_URL = '/api';
 
@@ -10,7 +10,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   razorpayKey: 'rzp_test_123456789',
   enableOnlinePayments: true,
   adminPasswordHash: 'admin123',
-  heroImageUrl: 'https://images.unsplash.com/photo-1579546059633-82084666f7f6?auto=format&fit=crop&q=80&w=1920&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', // Updated to coconut palm
+  heroImageUrl: 'https://images.unsplash.com/photo-1579546059633-82084666f7f6?auto=format&fit=crop&q=80&w=1920&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
   youtubeVideoUrl: 'https://www.youtube.com/watch?v=LXb3EKWsInQ',
   facebookUrl: 'https://www.facebook.com/',
   instagramUrl: 'https://www.instagram.com/',
@@ -21,12 +21,10 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     percentage: 20
   },
   houseRules: "Check-in time: 12:00 PM | Check-out time: 11:00 AM.\nGovt ID proof is mandatory for all guests.\nQuiet hours start from 10:00 PM.\nSmoking is not allowed inside the rooms.\nPets are not allowed.\nCancellation: 50% refund if cancelled 7 days prior.",
-  weatherApiKey: '', // Placeholder for OpenWeatherMap API key
-  websiteHits: 0, // Initialize website hits
+  weatherApiKey: '',
+  websiteHits: 0,
 };
 
-// --- IN-MEMORY CACHE ---
-// Stores API responses to make navigation instant
 const cache: Record<string, any> = {};
 
 const clearCache = (specificKey?: string) => {
@@ -45,7 +43,6 @@ const handleResponse = async (response: Response) => {
     return response.json();
 };
 
-// Deep merge utility for settings
 const deepMerge = (target: any, source: any) => {
     for (const key in source) {
         if (source.hasOwnProperty(key)) {
@@ -59,23 +56,15 @@ const deepMerge = (target: any, source: any) => {
     return target;
 };
 
-// Optimized fetcher: Checks cache first for GET requests
 const fetchWithCache = async (endpoint: string) => {
-    if (cache[endpoint]) {
-        return cache[endpoint];
-    }
+    if (cache[endpoint]) return cache[endpoint];
     const data = await handleResponse(await fetch(`${API_URL}${endpoint}`));
     cache[endpoint] = data;
     return data;
 };
 
-// Mutator: Sends data and clears relevant cache to ensure freshness on next fetch
 const mutate = async (endpoint: string, method: 'POST' | 'PUT' | 'DELETE', body?: any, invalidateKey?: string) => {
-    if (invalidateKey !== 'NONE') {
-        // If an explicit invalidateKey is provided (e.g. '/bookings'), clear that.
-        // If not, clear the specific endpoint being hit (default behavior).
-        clearCache(invalidateKey || endpoint); 
-    }
+    if (invalidateKey !== 'NONE') clearCache(invalidateKey || endpoint); 
     const options: RequestInit = {
         method,
         headers: body ? { 'Content-Type': 'application/json' } : undefined,
@@ -91,14 +80,16 @@ export const api = {
     rooms: {
         getAll: async (): Promise<Room[]> => fetchWithCache('/rooms'),
         save: async (room: Room) => mutate('/rooms', 'POST', room),
-        // When deleting, we must invalidate the list '/rooms', not just '/rooms/123'
         delete: async (id: string) => mutate(`/rooms/${id}`, 'DELETE', undefined, '/rooms')
     },
     bookings: {
         getAll: async (): Promise<Booking[]> => fetchWithCache('/bookings'),
         add: async (booking: Booking) => mutate('/bookings', 'POST', booking),
         // IMPORTANT: When updating status, invalidate the main '/bookings' list cache
-        updateStatus: async (id: string, status: PaymentStatus) => mutate(`/bookings/${id}`, 'PUT', { status }, '/bookings')
+        updateStatus: async (id: string, status: PaymentStatus) => mutate(`/bookings/${id}`, 'PUT', { status }, '/bookings'),
+        
+        // ✅ NEW: Added the manual payment function here
+        payBalance: async (id: string, amount: number) => mutate(`/bookings/${id}/pay-balance`, 'POST', { amount }, '/bookings')
     },
     drivers: {
         getAll: async (): Promise<Driver[]> => fetchWithCache('/drivers'),
@@ -114,7 +105,6 @@ export const api = {
         get: async (): Promise<SiteSettings> => {
              try {
                 const settings = await fetchWithCache('/settings');
-                // Use deepMerge for robustness
                 return deepMerge({ ...DEFAULT_SETTINGS }, settings);
              } catch (e) {
                  console.warn("Failed to fetch settings, using defaults", e);
@@ -142,7 +132,6 @@ export const api = {
         getForecast: async (location: string): Promise<WeatherData> => fetchWithCache(`/weather?location=${location}`)
     },
     analytics: {
-        // Important: Pass 'NONE' to prevent clearing settings cache on every hit
         trackHit: async () => mutate('/analytics/track-hit', 'POST', {}, 'NONE') 
     },
     docs: {

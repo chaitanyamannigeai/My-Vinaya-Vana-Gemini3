@@ -2,8 +2,8 @@
 
 export enum PaymentStatus {
   PENDING = 'PENDING',
-  PAID = 'PAID', // Fully paid
-  PARTIAL = 'PARTIAL', // Partially paid
+  PAID = 'PAID',
+  PARTIAL = 'PARTIAL', // Added PARTIAL
   FAILED = 'FAILED'
 }
 
@@ -24,9 +24,12 @@ export interface Booking {
   guestPhone: string;
   checkIn: string;
   checkOut: string;
-  totalAmount: number;    // Grand total cost
-  amountPaid: number;     // How much paid so far
-  balanceAmount: number;  // Remaining due
+  totalAmount: number;
+  
+  // ✅ NEW FIELDS ADDED HERE
+  amountPaid?: number;
+  balanceAmount?: number;
+  
   status: PaymentStatus;
   createdAt: string;
 }
@@ -64,13 +67,12 @@ export interface SiteSettings {
   instagramUrl: string;
   googleMapUrl: string;
   
-  // New features
   longStayDiscount: {
     enabled: boolean;
     minDays: number;
     percentage: number;
   };
-  advancePaymentPercentage: number; // New Setting (Default 20)
+  advancePaymentPercentage?: number; // ✅ Added
   houseRules: string;
   weatherApiKey?: string;
   websiteHits?: number;
