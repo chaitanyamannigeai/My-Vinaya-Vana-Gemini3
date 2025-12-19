@@ -39,7 +39,7 @@ const AdminDashboard = () => {
     checkAuth();
   }, [navigate]);
 
-  // Data Loading - FIXED: Removes checks like "if length === 0" to ensure fresh data and prevent duplicates
+  // Data Loading
   const loadTab = async (tab: string) => {
       setLoading(true);
       try {
@@ -50,7 +50,7 @@ const AdminDashboard = () => {
               setDrivers(await api.drivers.getAll()); 
           }
           else if (tab === 'drivers') setDrivers(await api.drivers.getAll());
-          else if (tab === 'pricing') setPricingRules(await api.pricing.getAll()); // Always fetch fresh to fix duplicate/reset bugs
+          else if (tab === 'pricing') setPricingRules(await api.pricing.getAll());
           else if (tab === 'gallery') setGallery(await api.gallery.getAll());
           else if (tab === 'reviews') setReviews(await api.reviews.getAll());
           else if ((tab === 'settings' || tab === 'home-content')) {
@@ -99,7 +99,7 @@ const AdminDashboard = () => {
   };
   const analytics = calculateAnalytics();
 
-  // Booking Actions
+  // Actions
   const updateBookingStatus = async (id: string, status: PaymentStatus) => {
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
     try { await api.bookings.updateStatus(id, status); loadTab('bookings'); } catch (e) { alert("Failed"); }
@@ -188,7 +188,7 @@ const AdminDashboard = () => {
   const saveReview = async (id: string) => { try { await api.reviews.save(reviews.find(r => r.id === id)!); alert("Review Saved!"); } catch (e) { alert("Error"); } };
   const deleteReview = async (id: string) => { if (window.confirm("Delete?")) try { await api.reviews.delete(id); setReviews(prev => prev.filter(r => r.id !== id)); } catch(e) {} };
 
-  // --- RENDER FUNCTIONS (These were missing before!) ---
+  // --- RENDER FUNCTIONS (ALL ARE HERE NOW!) ---
   const renderBookings = () => (
     <div className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -369,9 +369,27 @@ const AdminDashboard = () => {
                       <div className="absolute top-2 right-2 flex gap-2"><button onClick={() => savePricingRule(rule.id)} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Save size={18}/></button><button onClick={() => deletePricingRule(rule.id)} className="text-gray-400 hover:text-red-500 p-1 rounded"><X size={18}/></button></div>
                     <div className="flex-grow grid grid-cols-1 md:grid-cols-4 gap-4 w-full mt-2 md:mt-0">
                         <div><label className="text-xs text-gray-500">Season Name</label><input type="text" value={rule.name} onChange={(e) => updatePricingRuleLocal(rule.id, 'name', e.target.value)} className="border w-full p-2 rounded"/></div>
-                        {/* BUG FIX 3: Added || '' to prevent reset issues */}
-                        <div><label className="text-xs text-gray-500">Start Date</label><input type="date" value={rule.startDate || ''} onChange={(e) => updatePricingRuleLocal(rule.id, 'startDate', e.target.value)} className="border w-full p-2 rounded"/></div>
-                        <div><label className="text-xs text-gray-500">End Date</label><input type="date" value={rule.endDate || ''} onChange={(e) => updatePricingRuleLocal(rule.id, 'endDate', e.target.value)} className="border w-full p-2 rounded"/></div>
+                        
+                        {/* FIX: Handle Date Format Mismatch (ISO vs YYYY-MM-DD) */}
+                        <div>
+                            <label className="text-xs text-gray-500">Start Date</label>
+                            <input 
+                                type="date" 
+                                value={rule.startDate ? String(rule.startDate).split('T')[0] : ''} 
+                                onChange={(e) => updatePricingRuleLocal(rule.id, 'startDate', e.target.value)} 
+                                className="border w-full p-2 rounded"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-500">End Date</label>
+                            <input 
+                                type="date" 
+                                value={rule.endDate ? String(rule.endDate).split('T')[0] : ''} 
+                                onChange={(e) => updatePricingRuleLocal(rule.id, 'endDate', e.target.value)} 
+                                className="border w-full p-2 rounded"
+                            />
+                        </div>
+                        
                         <div><label className="text-xs text-gray-500">Multiplier</label><input type="number" step="0.1" value={rule.multiplier} onChange={(e) => updatePricingRuleLocal(rule.id, 'multiplier', parseFloat(e.target.value))} className="border w-full p-2 rounded font-bold text-nature-700"/></div>
                     </div>
                 </div>
