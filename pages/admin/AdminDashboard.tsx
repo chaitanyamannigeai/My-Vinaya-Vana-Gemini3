@@ -29,6 +29,10 @@ const AdminDashboard = () => {
   const [showManualBooking, setShowManualBooking] = useState(false);
   const [manualBooking, setManualBooking] = useState({ roomId: "", guestName: "", phone: "", checkIn: "", checkOut: "", amount: "", paid: "" });
 
+  // Payment Modal State
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentData, setPaymentData] = useState({ bookingId: '', currentBalance: 0, amountToCollect: '' });
+
   // Auth Check
   useEffect(() => {
     const checkAuth = () => {
@@ -74,7 +78,7 @@ const AdminDashboard = () => {
 
   // Analytics
   const calculateAnalytics = () => {
-      const totalRevenue = bookings.reduce((sum, b) => sum + (parseFloat(b.amountPaid as any) || 0), 0);
+      const totalRevenue = bookings.reduce((sum, b) => sum + (parseFloat((b.amountPaid || 0) as any)), 0);
       const totalBookings = bookings.length;
       const pendingBookings = bookings.filter(b => b.status === 'PENDING').length;
       const monthlyRevenue: Record<string, number> = {};
@@ -87,7 +91,7 @@ const AdminDashboard = () => {
           months.push(key);
       }
       bookings.forEach(b => {
-        if (b.amountPaid > 0) {
+        if (b.amountPaid && b.amountPaid > 0) {
             const bookingDate = new Date(b.checkIn);
             if (!isNaN(bookingDate.getTime())) {
                 const key = bookingDate.toLocaleString('default', { month: 'short', year: '2-digit' });
@@ -99,7 +103,7 @@ const AdminDashboard = () => {
   };
   const analytics = calculateAnalytics();
 
-  // Actions
+  // Booking Actions
   const updateBookingStatus = async (id: string, status: PaymentStatus) => {
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
     try { await api.bookings.updateStatus(id, status); loadTab('bookings'); } catch (e) { alert("Failed"); }
@@ -127,6 +131,36 @@ const AdminDashboard = () => {
       setBookings(await api.bookings.getAll());
       setShowManualBooking(false);
       setManualBooking({ roomId: '', guestName: '', phone: '', checkIn: '', checkOut: '', amount: '', paid: '' });
+  };
+
+  const handleCollectPayment = async () => {
+      const amount = parseFloat(paymentData.amountToCollect);
+      if (!amount || amount <= 0) { alert("Please enter a valid amount"); return; }
+      
+      try {
+          // This calls the API. If 404 error here -> Backend Server Restart Required.
+          await api.bookings.payBalance(paymentData.bookingId, amount);
+          alert("Payment Recorded Successfully!");
+          setShowPaymentModal(false);
+          setPaymentData({ bookingId: '', currentBalance: 0, amountToCollect: '' });
+          loadTab('bookings'); // Refresh to show new balance
+      } catch (e: any) {
+          console.error(e);
+          if (e.message && e.message.includes('404')) {
+              alert("Error: Server not ready. Please RESTART the backend.");
+          } else {
+              alert("Failed to update payment.");
+          }
+      }
+  };
+
+  const openPaymentModal = (booking: Booking) => {
+      setPaymentData({
+          bookingId: booking.id,
+          currentBalance: booking.balanceAmount || 0,
+          amountToCollect: ''
+      });
+      setShowPaymentModal(true);
   };
 
   const copyPaymentLink = (id: string) => {
@@ -188,7 +222,7 @@ const AdminDashboard = () => {
   const saveReview = async (id: string) => { try { await api.reviews.save(reviews.find(r => r.id === id)!); alert("Review Saved!"); } catch (e) { alert("Error"); } };
   const deleteReview = async (id: string) => { if (window.confirm("Delete?")) try { await api.reviews.delete(id); setReviews(prev => prev.filter(r => r.id !== id)); } catch(e) {} };
 
-  // --- RENDER FUNCTIONS (ALL ARE HERE NOW!) ---
+  // --- RENDER FUNCTIONS ---
   const renderBookings = () => (
     <div className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -257,7 +291,8 @@ const AdminDashboard = () => {
                         <td className="px-6 py-4 text-sm">
                             <div className="font-bold">Total: ₹{b.totalAmount}</div>
                             <div className="text-green-600 text-xs">Paid: ₹{b.amountPaid || 0}</div>
-                            {b.balanceAmount > 1 && <div className="text-red-500 text-xs font-bold">Due: ₹{b.balanceAmount}</div>}
+                            {/* Display Balance Amount explicitly */}
+                            {(b.balanceAmount ?? 0) > 1 && <div className="text-red-500 text-xs font-bold">Due: ₹{b.balanceAmount}</div>}
                         </td>
                         <td className="px-6 py-4">
                             <select 
@@ -273,8 +308,19 @@ const AdminDashboard = () => {
                         </td>
                         <td className="px-6 py-4 flex gap-3">
                             <a href={`https://wa.me/${b.guestPhone?.replace(/[^0-9]/g, '')}`} target="_blank" className="text-green-600 hover:text-green-800"><MessageCircle size={18} /></a>
-                            {b.balanceAmount > 1 && (
+                            {(b.balanceAmount ?? 0) > 1 && (
                                 <button onClick={() => copyPaymentLink(b.id)} title="Copy Balance Payment Link" className="text-blue-600 hover:text-blue-800"><LinkIcon size={18} /></button>
+                            )}
+                            
+                            {/* ✅ COLLECT PAYMENT BUTTON */}
+                            {(b.balanceAmount ?? 0) > 1 && (
+                                <button 
+                                    onClick={() => openPaymentModal(b)} 
+                                    className="text-nature-700 hover:text-nature-900 bg-nature-100 p-1 rounded" 
+                                    title="Record Extra Payment"
+                                >
+                                    <Banknote size={18} />
+                                </button>
                             )}
                         </td>
                         </tr>
@@ -487,68 +533,7 @@ const AdminDashboard = () => {
             </div>
         </div>
 
-        <button onClick={async () => { await api.settings.save(settings); alert("Content Saved!"); }} className="flex items-center gap-2 bg-nature-600 text-white px-6 py-2 rounded-md hover:bg-nature-700 w-full justify-center"><Save size={18} /> Save Content</button>
-    </div>
-  );
-
-  const renderSettings = () => (
-    <div className="bg-white p-8 rounded-lg shadow max-w-2xl space-y-8">
-        <div className="border border-nature-200 rounded-lg p-6 bg-nature-50">
-            <h3 className="text-lg font-bold mb-4 border-b border-nature-200 pb-2 flex items-center gap-2 text-nature-900"><Banknote size={20} /> Payment Configuration</h3>
-            <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                         <label className="block text-sm font-medium text-gray-700 mb-1">Advance Payment (%)</label>
-                         <input type="number" min="1" max="100" value={settings.advancePaymentPercentage || 20} onChange={(e) => setSettings({...settings, advancePaymentPercentage: parseInt(e.target.value)})} className="w-full border rounded p-2"/>
-                         <p className="text-xs text-gray-500 mt-1">Percentage guests must pay to book.</p>
-                    </div>
-                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Razorpay Key ID</label>
-                        <input type="text" value={settings.razorpayKey} onChange={(e) => setSettings({...settings, razorpayKey: e.target.value})} className="w-full border rounded p-2"/>
-                    </div>
-                </div>
-
-                <div className="bg-white p-4 rounded border border-gray-200 space-y-4">
-                    <div className="flex items-center gap-2">
-                        <input 
-                            type="checkbox" 
-                            id="enableDiscount" 
-                            checked={settings.longStayDiscount?.enabled ?? true}
-                            onChange={(e) => setSettings({
-                                ...settings, 
-                                longStayDiscount: { ...settings.longStayDiscount, enabled: e.target.checked }
-                            })}
-                        />
-                        <label htmlFor="enableDiscount" className="text-sm font-medium flex items-center gap-2"><Percent size={16} /> Enable Long Stay Discount</label>
-                    </div>
-                    {settings.longStayDiscount?.enabled && (
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs text-gray-500">Minimum Days</label>
-                                <input type="number" min="1" value={settings.longStayDiscount?.minDays ?? 5} onChange={(e) => setSettings({...settings, longStayDiscount: { ...settings.longStayDiscount, minDays: parseInt(e.target.value) }})} className="w-full border rounded p-2"/>
-                            </div>
-                            <div>
-                                <label className="block text-xs text-gray-500">Discount (%)</label>
-                                <input type="number" min="1" max="100" value={settings.longStayDiscount?.percentage ?? 20} onChange={(e) => setSettings({...settings, longStayDiscount: { ...settings.longStayDiscount, percentage: parseInt(e.target.value) }})} className="w-full border rounded p-2 font-bold text-nature-700"/>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-        
-        <div>
-            <h3 className="text-lg font-bold mb-4 border-b pb-2 flex items-center gap-2"><Settings size={20}/> Site Configuration</h3>
-            <div className="space-y-4">
-                <div><label className="block text-sm font-medium text-gray-700">WhatsApp</label><input type="text" value={settings.whatsappNumber} onChange={(e) => setSettings({...settings, whatsappNumber: e.target.value})} className="mt-1 block w-full border p-2 rounded"/></div>
-                <div><label className="block text-sm font-medium text-gray-700">Email</label><input type="email" value={settings.contactEmail} onChange={(e) => setSettings({...settings, contactEmail: e.target.value})} className="mt-1 block w-full border p-2 rounded"/></div>
-                <div><label className="block text-sm font-medium text-gray-700">Admin Password</label><input type="text" value={settings.adminPasswordHash} onChange={(e) => setSettings({...settings, adminPasswordHash: e.target.value})} className="mt-1 block w-full border p-2 rounded bg-gray-50"/></div>
-                <div><label className="block text-sm font-medium text-gray-700">Address</label><textarea value={settings.address} onChange={(e) => setSettings({...settings, address: e.target.value})} className="mt-1 block w-full border p-2 rounded h-20"/></div>
-                <div><label className="block text-sm font-medium text-gray-700 flex items-center gap-2"><Map size={16}/> Google Map Embed URL</label><input type="text" value={settings.googleMapUrl || ''} onChange={(e) => setSettings({...settings, googleMapUrl: e.target.value})} className="mt-1 block w-full border p-2 rounded"/></div>
-                <div><label className="block text-sm font-medium text-gray-700">OpenWeatherMap API Key</label><input type="text" value={settings.weatherApiKey || ''} onChange={(e) => setSettings({...settings, weatherApiKey: e.target.value})} className="mt-1 block w-full border p-2 rounded"/></div>
-            </div>
-        </div>
-        <button onClick={async () => { await api.settings.save(settings); alert("Settings Saved!"); }} className="flex items-center gap-2 bg-nature-600 text-white px-6 py-2 rounded-md hover:bg-nature-700 w-full justify-center"><Save size={18} /> Save Settings</button>
+        <button onClick={async () => { await api.settings.save(settings); alert("Content Saved!"); }} className="flex items-center gap-2 bg-nature-600 text-white px-6 py-2 rounded-md hover:bg-nature-700 w-full justify-center"><Save size={18} /> Save Settings</button>
     </div>
   );
 
@@ -604,6 +589,33 @@ const AdminDashboard = () => {
                 <div className="flex justify-end gap-3 mt-6">
                     <button onClick={() => setShowManualBooking(false)} className="px-4 py-2 border rounded">Cancel</button>
                     <button onClick={createManualBooking} className="px-4 py-2 bg-nature-600 text-white rounded">Save</button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* ✅ NEW: Collect Payment Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 text-center">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Banknote className="text-green-600" size={24}/>
+                </div>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">Record Payment</h3>
+                <p className="text-gray-500 text-sm mb-6">Current Balance Due: <span className="font-bold text-red-500">₹{paymentData.currentBalance}</span></p>
+                
+                <input 
+                    type="number" 
+                    placeholder="Amount Collected (₹)" 
+                    value={paymentData.amountToCollect} 
+                    onChange={(e) => setPaymentData({ ...paymentData, amountToCollect: e.target.value })} 
+                    className="w-full border p-3 rounded-lg mb-4 text-lg font-bold text-center"
+                    autoFocus
+                />
+                
+                <div className="flex gap-2">
+                    <button onClick={() => setShowPaymentModal(false)} className="flex-1 py-3 border rounded-lg text-gray-600 font-medium hover:bg-gray-50">Cancel</button>
+                    <button onClick={handleCollectPayment} className="flex-1 py-3 bg-nature-600 text-white rounded-lg font-bold hover:bg-nature-700">Confirm</button>
                 </div>
             </div>
         </div>
