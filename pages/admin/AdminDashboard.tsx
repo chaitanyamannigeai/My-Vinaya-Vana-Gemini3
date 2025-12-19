@@ -529,7 +529,6 @@ const AdminDashboard = () => {
     </div>
   );
 
-  // ✅ THIS FUNCTION WAS MISSING IN THE PREVIOUS VERSION, CAUSING THE CRASH
   const renderSettings = () => (
     <div className="bg-white p-8 rounded-lg shadow max-w-2xl space-y-8">
         <div className="border border-nature-200 rounded-lg p-6 bg-nature-50">
