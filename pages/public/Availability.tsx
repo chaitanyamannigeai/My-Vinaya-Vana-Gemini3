@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { Room, Booking, PaymentStatus, SiteSettings, PricingRule } from '../../types';
-import { ChevronLeft, ChevronRight, CheckCircle, XCircle, Calendar, MessageCircle, Info, X, User, Phone as PhoneIcon, CreditCard, ShieldCheck, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, XCircle, Calendar, MessageCircle, Info, X, User, Phone as PhoneIcon, CreditCard, ShieldCheck, Sparkles, Banknote } from 'lucide-react';
 
 // Declare Razorpay for TypeScript
 declare global {
@@ -29,6 +29,7 @@ const Availability = () => {
   // Pricing State
   const [calculatedPrice, setCalculatedPrice] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [advanceAmount, setAdvanceAmount] = useState(0); // Added for Advance Payment
 
   useEffect(() => {
     const fetchData = async () => {
@@ -50,12 +51,10 @@ const Availability = () => {
     fetchData();
   }, []);
 
-  // --- 1. ADVANCED PRICING ENGINE (Ported from Accommodation.tsx) ---
+  // --- 1. PRICING ENGINE ---
   const getMultiplierForDate = (dateStr: string): number => {
       const d = new Date(dateStr).getTime();
       let maxMultiplier = 1;
-      
-      // Check Admin Rules (Seasons, Holidays)
       pricingRules.forEach(rule => {
           const start = new Date(rule.startDate).getTime();
           const end = new Date(rule.endDate).getTime();
@@ -67,25 +66,23 @@ const Availability = () => {
   };
 
   const calculateTotalDetails = () => {
-      if (!selectedRoomId || !selectedStart || !selectedEnd) return { total: 0, discount: 0 };
+      if (!selectedRoomId || !selectedStart || !selectedEnd) return { total: 0, discount: 0, advance: 0 };
       const room = rooms.find(r => r.id === selectedRoomId);
-      if (!room) return { total: 0, discount: 0 };
+      if (!room) return { total: 0, discount: 0, advance: 0 };
 
       let rawTotal = 0;
       let current = new Date(selectedStart);
       let days = 0;
       
-      // 1. Loop through nights for accurate seasonal pricing
       while (current < selectedEnd) {
           const dateStr = formatDateLocal(current);
           const multiplier = getMultiplierForDate(dateStr);
           rawTotal += (room.basePrice * multiplier);
-          
           days++;
           current.setDate(current.getDate() + 1);
       }
       
-      // 2. Apply Long Stay Discount (if configured)
+      // Long Stay Discount
       let discount = 0;
       const discountSettings = settings.longStayDiscount;
       if (discountSettings && discountSettings.enabled && days >= discountSettings.minDays) {
@@ -93,18 +90,24 @@ const Availability = () => {
           rawTotal -= discount;
       }
 
-      return { total: Math.round(rawTotal), discount: discount };
+      const total = Math.round(rawTotal);
+      
+      // Calculate Advance
+      const percent = settings.advancePaymentPercentage || 20;
+      const advance = Math.round(total * (percent / 100));
+
+      return { total, discount, advance };
   };
 
-  // Update price whenever selection changes
   useEffect(() => {
-      const { total, discount } = calculateTotalDetails();
+      const { total, discount, advance } = calculateTotalDetails();
       setCalculatedPrice(total);
       setDiscountAmount(discount);
-  }, [selectedStart, selectedEnd, selectedRoomId]);
+      setAdvanceAmount(advance);
+  }, [selectedStart, selectedEnd, selectedRoomId, settings]);
 
 
-  // --- 2. PAYMENT INTEGRATION (Razorpay = GPay/UPI) ---
+  // --- 2. PAYMENT INTEGRATION ---
   const loadRazorpay = () => {
       return new Promise((resolve) => {
           const script = document.createElement('script');
@@ -115,70 +118,74 @@ const Availability = () => {
       });
   };
 
-  const handleOnlinePayment = async (bookingId: string, amount: number, roomName: string) => {
+  // Modified to take the Booking Object instead of just ID
+  const handleOnlinePayment = async (bookingObj: Booking, payAmount: number, roomName: string) => {
       const res = await loadRazorpay();
-      
-      if (!res) {
-          alert('Payment gateway failed to load. Please check internet connection.');
-          return;
-      }
-
-      if (!settings.razorpayKey || settings.razorpayKey === 'rzp_test_123456789') {
-          alert("Payment gateway is in Test Mode (or not configured). Proceeding...");
-      }
+      if (!res) { alert('Payment gateway failed. Check connection.'); setIsSubmitting(false); return; }
 
       const options = {
           key: settings.razorpayKey, 
-          amount: amount * 100, // Amount in paise
+          amount: payAmount * 100, 
           currency: "INR",
           name: "Vinaya Vana",
-          description: `Stay in ${roomName}`,
-          image: "https://vinayavana.com/logo.png", // Replace with your actual logo URL
+          description: `Booking for ${roomName}`,
+          image: "https://vinayavana.com/logo.png",
           
+          // CRITICAL FIX: Save to DB *ONLY* on success
           handler: async function (response: any) {
-              // On Success: Update DB to PAID
               try {
-                  await api.bookings.updateStatus(bookingId, 'PAID' as PaymentStatus);
-                  alert(`Payment Successful! Booking ID: ${response.razorpay_payment_id}`);
+                  const finalBooking = { ...bookingObj };
+                  // Update status based on payment
+                  if (bookingObj.balanceAmount <= 1) {
+                      finalBooking.status = 'PAID' as PaymentStatus;
+                  } else {
+                      finalBooking.status = 'PARTIAL' as PaymentStatus;
+                  }
+                  
+                  // Now we save!
+                  await api.bookings.add(finalBooking);
+                  
+                  alert(`Booking Confirmed! Payment ID: ${response.razorpay_payment_id}`);
                   window.location.reload();
               } catch (e) {
                   alert("Payment successful but database update failed. Please contact support.");
               }
           },
           prefill: {
-              name: guestName,
-              contact: guestPhone,
-              email: "guest@vinayavana.com"
+              name: bookingObj.guestName,
+              contact: bookingObj.guestPhone,
+              email: settings.contactEmail // Use site email as fallback if guest email isn't captured
           },
-          notes: {
-              booking_id: bookingId,
-          },
-          theme: {
-              color: "#1a2e1a" 
-          }
+          theme: { color: "#1a2e1a" }
       };
 
       const rzp = new window.Razorpay(options);
       rzp.on('payment.failed', function (response: any){
           alert(`Payment Failed: ${response.error.description}`);
+          setIsSubmitting(false);
       });
       rzp.open();
   };
 
-  // --- 3. BOOKING LOGIC ---
-  const handleCreateBooking = async (payOnline: boolean) => {
-      if (!selectedStart || !selectedRoomId || !guestName || !guestPhone) return;
+  // --- 3. BOOKING HANDLER ---
+  const handleBookingRequest = async (type: 'FULL' | 'ADVANCE' | 'WHATSAPP') => {
+      if (!selectedStart || !selectedRoomId || !guestName || !guestPhone) {
+          alert("Please fill in all details.");
+          return;
+      }
       setIsSubmitting(true);
 
       const room = rooms.find(r => r.id === selectedRoomId);
       const startStr = formatDateLocal(selectedStart);
       const endStr = selectedEnd ? formatDateLocal(selectedEnd) : startStr;
-      
-      // Use the calculated price (with discounts)
-      const totalAmount = calculatedPrice; 
       const bookingId = `BK-${Date.now()}`;
 
-      // Create Object
+      // Calculate financials
+      const total = calculatedPrice;
+      const paid = type === 'FULL' ? total : (type === 'ADVANCE' ? advanceAmount : 0);
+      const balance = total - paid;
+
+      // Prepare Booking Object (But don't save yet if online!)
       const newBooking: Booking = {
           id: bookingId,
           roomId: selectedRoomId,
@@ -186,35 +193,29 @@ const Availability = () => {
           guestPhone,
           checkIn: startStr,
           checkOut: endStr,
-          totalAmount: totalAmount,
-          status: 'PENDING',
+          totalAmount: total,
+          amountPaid: paid,
+          balanceAmount: balance,
+          status: type === 'WHATSAPP' ? 'PENDING' : 'PARTIAL', // Default status, will be updated on payment
           createdAt: new Date().toISOString()
       };
 
-      try {
-          // A. Save to Database (Always do this first)
-          await api.bookings.add(newBooking);
-
-          if (payOnline) {
-              // B1. Open Payment Gateway (Supports GPay automatically)
-              setShowModal(false);
-              handleOnlinePayment(bookingId, totalAmount, room?.name || 'Room');
-          } else {
-              // B2. Open WhatsApp
-              const text = `*New Booking Request*\nRef: ${bookingId}\nName: ${guestName}\nRoom: ${room?.name}\nDates: ${startStr} to ${endStr}\nTotal Due: ₹${totalAmount}\n\nI would like to confirm this booking using GPay/Cash.`;
-              const waUrl = `https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent(text)}`;
-              
-              window.open(waUrl, '_blank');
-              setShowModal(false);
-              alert("Request sent! Please check WhatsApp.");
+      if (type === 'WHATSAPP') {
+          // WhatsApp Flow: Save as PENDING, then open chat
+          try {
+              await api.bookings.add(newBooking);
+              const text = `*New Booking Request*\nRef: ${bookingId}\nName: ${guestName}\nRoom: ${room?.name}\nDates: ${startStr} to ${endStr}\nTotal: ₹${total}\n\nI want to confirm this via WhatsApp.`;
+              window.open(`https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent(text)}`, '_blank');
+              alert("Request sent! Check WhatsApp.");
               window.location.reload();
+          } catch (e) {
+              alert("Error creating booking.");
+              setIsSubmitting(false);
           }
-
-      } catch (err) {
-          console.error(err);
-          alert("Failed to create booking. Please try again.");
-      } finally {
-          setIsSubmitting(false);
+      } else {
+          // Online Flow: Open Razorpay FIRST. Save to DB only on success.
+          setShowModal(false);
+          handleOnlinePayment(newBooking, paid, room?.name || 'Room');
       }
   };
 
@@ -380,7 +381,7 @@ const Availability = () => {
         </div>
       </div>
 
-      {/* --- PAYMENT & CONFIRMATION MODAL --- */}
+      {/* --- CONFIRMATION & DUAL PAYMENT MODAL --- */}
       {showModal && selectedRoom && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
               <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative">
@@ -445,27 +446,37 @@ const Availability = () => {
                           </div>
                       </div>
 
+                      {/* --- PAYMENT OPTIONS --- */}
                       <div className="grid grid-cols-2 gap-3 pt-2">
-                          {/* OPTION 1: INSTANT PAY (This enables GPay) */}
+                          {/* OPTION 1: ADVANCE PAYMENT */}
                           <button 
-                            onClick={() => handleCreateBooking(true)}
+                            onClick={() => handleBookingRequest('ADVANCE')}
+                            disabled={!guestName || !guestPhone || isSubmitting}
+                            className="bg-white border-2 border-nature-600 text-nature-700 hover:bg-nature-50 py-3 rounded-xl flex flex-col items-center justify-center gap-1 transition-transform hover:scale-[1.02] disabled:opacity-50"
+                          >
+                              <div className="flex items-center gap-2 font-bold text-xs">PAY ADVANCE ({settings.advancePaymentPercentage || 20}%)</div>
+                              <span className="text-lg font-bold">₹{advanceAmount}</span>
+                          </button>
+
+                          {/* OPTION 2: FULL PAYMENT */}
+                          <button 
+                            onClick={() => handleBookingRequest('FULL')}
                             disabled={!guestName || !guestPhone || isSubmitting}
                             className="bg-nature-800 hover:bg-nature-900 text-white font-bold py-3 rounded-xl flex flex-col items-center justify-center gap-1 shadow-lg disabled:opacity-50 transition-transform hover:scale-[1.02]"
                           >
-                              <div className="flex items-center gap-2"><ShieldCheck size={18} /> Pay Now</div>
-                              <span className="text-[10px] font-normal opacity-80">GPay / Card / UPI</span>
-                          </button>
-
-                          {/* OPTION 2: WHATSAPP */}
-                          <button 
-                            onClick={() => handleCreateBooking(false)}
-                            disabled={!guestName || !guestPhone || isSubmitting}
-                            className="bg-white border-2 border-[#25D366] text-[#25D366] hover:bg-green-50 font-bold py-3 rounded-xl flex flex-col items-center justify-center gap-1 disabled:opacity-50 transition-transform hover:scale-[1.02]"
-                          >
-                              <div className="flex items-center gap-2"><MessageCircle size={18} /> WhatsApp</div>
-                              <span className="text-[10px] font-normal text-gray-500">Pay later</span>
+                              <div className="flex items-center gap-2 text-xs">PAY FULL</div>
+                              <span className="text-lg font-bold">₹{calculatedPrice}</span>
                           </button>
                       </div>
+
+                      {/* OPTION 3: WHATSAPP (Full Width below) */}
+                      <button 
+                        onClick={() => handleBookingRequest('WHATSAPP')}
+                        disabled={!guestName || !guestPhone || isSubmitting}
+                        className="w-full bg-green-100 text-green-800 hover:bg-green-200 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                      >
+                          <MessageCircle size={18} /> Book via WhatsApp (Pay Later)
+                      </button>
                       
                       <p className="text-center text-[10px] text-gray-400 mt-2">
                           Secured by Razorpay. 
