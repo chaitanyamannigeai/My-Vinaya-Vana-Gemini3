@@ -153,7 +153,7 @@ const Availability = () => {
           },
           prefill: {
               name: bookingObj.guestName,
-              contact: bookingObj.guestPhone,
+              contact: bookingObj.guestPhone, // Razorpay uses this. If user is logged in to Razorpay, this might be ignored.
               email: settings.contactEmail // Use site email as fallback if guest email isn't captured
           },
           theme: { color: "#1a2e1a" }
@@ -190,7 +190,7 @@ const Availability = () => {
           id: bookingId,
           roomId: selectedRoomId,
           guestName,
-          guestPhone,
+          guestPhone: guestPhone.replace(/[^0-9]/g, ''), // Clean phone number
           checkIn: startStr,
           checkOut: endStr,
           totalAmount: total,
