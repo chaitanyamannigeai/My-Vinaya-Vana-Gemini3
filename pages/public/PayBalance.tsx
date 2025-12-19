@@ -1,9 +1,8 @@
-// pages/public/PayBalance.tsx
 import React, { useState, useEffect } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import axios from 'axios';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
-import { CheckCircle, AlertCircle, Loader, CreditCard } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader, CreditCard, Phone } from 'lucide-react';
 
 const { useParams } = ReactRouterDOM as any;
 
@@ -14,6 +13,7 @@ const PayBalance = () => {
   const [error, setError] = useState('');
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [success, setSuccess] = useState(false);
+  const [manualPhone, setManualPhone] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -23,6 +23,9 @@ const PayBalance = () => {
            api.settings.get()
         ]);
         setBooking(bRes.data);
+        if (bRes.data.guestPhone) {
+            setManualPhone(bRes.data.guestPhone);
+        }
         setSettings(s);
       } catch (e) {
         setError("Invalid Booking ID or Network Error");
@@ -45,24 +48,28 @@ const PayBalance = () => {
 
   const handlePayment = async () => {
     if (!booking) return;
+    
+    // Fallback: If DB had no phone, use the manual one.
+    const finalPhone = manualPhone.replace(/[^0-9]/g, '');
+    
+    if (finalPhone.length < 10) {
+        alert("Please enter a valid phone number to proceed.");
+        return;
+    }
 
     const res = await loadRazorpayScript();
     if (!res) { alert('Razorpay failed to load'); return; }
 
-    // Ensure phone number is valid for Razorpay (remove spaces/dashes)
-    const cleanPhone = booking.guestPhone ? booking.guestPhone.replace(/[^0-9]/g, '') : '';
-
     const options = {
         key: settings.razorpayKey,
-        amount: booking.balanceAmount * 100, // Amount in paise
+        amount: booking.balanceAmount * 100, 
         currency: 'INR',
         name: 'Vinaya Vana',
         description: `Balance Payment for Booking #${booking.id}`,
-        // FIX: PREFILL DATA IS CRITICAL TO SKIP THE CONTACT POPUP
         prefill: { 
             name: booking.guestName,
-            contact: cleanPhone, 
-            email: settings.contactEmail // Fallback email if guest email isn't stored
+            contact: finalPhone, // Explicitly sending sanitized phone
+            email: settings.contactEmail 
         },
         theme: { color: '#3ba573' },
         handler: async function (response: any) {
@@ -82,7 +89,6 @@ const PayBalance = () => {
         const rzp = new window.Razorpay(options);
         rzp.open();
     } catch (err) {
-        console.error("Razorpay Error", err);
         alert("Payment Gateway Error. Please check console.");
     }
   };
@@ -120,6 +126,23 @@ const PayBalance = () => {
                             <span>₹{booking.balanceAmount}</span>
                         </div>
                     </div>
+                    
+                    {/* NEW: Explicit Phone Field to Ensure Razorpay gets it */}
+                    {booking.balanceAmount > 0 && (
+                        <div className="mb-4 text-left">
+                            <label className="text-xs font-bold text-gray-500 ml-1">Confirm Phone Number</label>
+                            <div className="flex items-center border rounded-lg px-3 py-2 bg-gray-50">
+                                <Phone size={16} className="text-gray-400 mr-2"/>
+                                <input 
+                                    type="tel" 
+                                    value={manualPhone} 
+                                    onChange={(e) => setManualPhone(e.target.value)} 
+                                    className="bg-transparent outline-none w-full text-sm font-medium"
+                                    placeholder="Enter mobile number"
+                                />
+                            </div>
+                        </div>
+                    )}
 
                     {booking.balanceAmount <= 0 ? (
                         <div className="text-green-600 font-bold flex items-center justify-center gap-2">

@@ -13,7 +13,6 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('bookings');
   const [loading, setLoading] = useState(false);
   
-  // Data States
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -25,13 +24,9 @@ const AdminDashboard = () => {
   const [trafficStats, setTrafficStats] = useState<{month: string, count: number}[]>([]);
   const [deviceStats, setDeviceStats] = useState<{device_type: string, count: number}[]>([]);
   
-  // Manual Booking State
   const [showManualBooking, setShowManualBooking] = useState(false);
-  const [manualBooking, setManualBooking] = useState({
-    roomId: "", guestName: "", phone: "", checkIn: "", checkOut: "", amount: "", paid: ""
-  });
+  const [manualBooking, setManualBooking] = useState({ roomId: "", guestName: "", phone: "", checkIn: "", checkOut: "", amount: "", paid: "" });
 
-  // Auth Check
   useEffect(() => {
     const checkAuth = () => {
         const isAuth = sessionStorage.getItem('vv_admin_auth');
@@ -41,18 +36,14 @@ const AdminDashboard = () => {
     checkAuth();
   }, [navigate]);
 
-  // Data Loading
   const loadTab = async (tab: string) => {
       setLoading(true);
       try {
           if (tab === 'bookings') setBookings(await api.bookings.getAll());
           else if (tab === 'rooms') setRooms(await api.rooms.getAll());
-          else if (tab === 'locations') { 
-              setLocations(await api.locations.getAll()); 
-              setDrivers(await api.drivers.getAll()); 
-          }
+          else if (tab === 'locations') { setLocations(await api.locations.getAll()); setDrivers(await api.drivers.getAll()); }
           else if (tab === 'drivers') setDrivers(await api.drivers.getAll());
-          else if (tab === 'pricing') setPricingRules(await api.pricing.getAll());
+          else if (tab === 'pricing') setPricingRules(await api.pricing.getAll()); // Always refresh to sync IDs
           else if (tab === 'gallery') setGallery(await api.gallery.getAll());
           else if (tab === 'reviews') setReviews(await api.reviews.getAll());
           else if ((tab === 'settings' || tab === 'home-content')) {
@@ -60,12 +51,11 @@ const AdminDashboard = () => {
               setSettings(s);
               if (tab === 'home-content') {
                   try {
-                      // Fetch Analytics Data
                       const resTraffic = await fetch('/api/analytics/traffic');
                       if (resTraffic.ok) setTrafficStats(await resTraffic.json());
                       const resDevice = await fetch('/api/analytics/devices');
                       if (resDevice.ok) setDeviceStats(await resDevice.json());
-                  } catch (e) { console.error("Analytics Error", e); }
+                  } catch (e) {}
               }
           }
       } catch (e) { console.error("Failed to load tab data", e); } 
@@ -75,12 +65,10 @@ const AdminDashboard = () => {
   useEffect(() => { if (!authLoading) loadTab(activeTab); }, [activeTab, authLoading]);
   const handleLogout = () => { sessionStorage.removeItem('vv_admin_auth'); navigate('/'); };
 
-  // Analytics Calculation
   const calculateAnalytics = () => {
       const totalRevenue = bookings.reduce((sum, b) => sum + (parseFloat(b.amountPaid as any) || 0), 0);
       const totalBookings = bookings.length;
       const pendingBookings = bookings.filter(b => b.status === 'PENDING').length;
-      
       const monthlyRevenue: Record<string, number> = {};
       const months = [];
       const today = new Date();
@@ -103,7 +91,6 @@ const AdminDashboard = () => {
   };
   const analytics = calculateAnalytics();
 
-  // Actions
   const updateBookingStatus = async (id: string, status: PaymentStatus) => {
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
     try { await api.bookings.updateStatus(id, status); loadTab('bookings'); } catch (e) { alert("Failed"); }
@@ -173,7 +160,11 @@ const AdminDashboard = () => {
   const saveLocation = async (id: string) => { try { await api.locations.save(locations.find(l => l.id === id)!); alert("Location Saved!"); } catch(e) {} };
   const deleteLocation = async (id: string) => { if (window.confirm("Delete?")) try { await api.locations.delete(id); setLocations(prev => prev.filter(l => l.id !== id)); } catch(e) {} };
 
-  const addPricingRuleLocal = () => { setPricingRules([{ id: `pr${Date.now()}`, name: 'New Season', startDate: new Date().toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0], multiplier: 1.2 }, ...pricingRules]); };
+  const addPricingRuleLocal = () => { 
+      // Ensure we use a unique temporary ID. Date.now() is usually sufficient.
+      const newRule: PricingRule = { id: `pr${Date.now()}`, name: 'New Season', startDate: new Date().toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0], multiplier: 1.2 };
+      setPricingRules(prev => [newRule, ...prev]); 
+  };
   const updatePricingRuleLocal = (id: string, field: keyof PricingRule, value: any) => { setPricingRules(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r)); };
   const savePricingRule = async (id: string) => { try { await api.pricing.save(pricingRules.find(r => r.id === id)!); alert("Rule Saved!"); } catch (e) { alert("Error"); } };
   const deletePricingRule = async (id: string) => { if (window.confirm("Delete?")) try { await api.pricing.delete(id); setPricingRules(prev => prev.filter(r => r.id !== id)); } catch(e) {} };
@@ -189,7 +180,6 @@ const AdminDashboard = () => {
   const deleteReview = async (id: string) => { if (window.confirm("Delete?")) try { await api.reviews.delete(id); setReviews(prev => prev.filter(r => r.id !== id)); } catch(e) {} };
 
   // --- RENDER FUNCTIONS ---
-  
   const renderBookings = () => (
     <div className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -287,80 +277,6 @@ const AdminDashboard = () => {
     </div>
   );
 
-  const renderRooms = () => (
-    <div className="space-y-6">
-      <button onClick={addRoomLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700 transition-all hover:scale-105"><Plus size={16} /> Add New Room</button>
-      {rooms.map(room => (
-        <div key={room.id} className="bg-white p-6 rounded-lg shadow flex flex-col lg:flex-row gap-6 relative border border-gray-100">
-            <div className="absolute top-4 right-4 flex gap-2 z-10">
-                <button onClick={() => saveRoom(room.id)} className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded shadow hover:bg-blue-700" title="Save Changes"><Save size={16} /> Save</button>
-                <button onClick={() => deleteRoom(room.id)} className="text-red-400 hover:text-red-600 bg-white p-1 rounded border border-gray-200" title="Delete"><Trash2 size={20} /></button>
-            </div>
-            <div className="lg:w-1/3"><ImageUploader label="Room Main Image" value={room.images[0]} onChange={(val) => { const newImgs = [...room.images]; newImgs[0] = val; updateRoomLocal(room.id, 'images', newImgs); }} /></div>
-            <div className="lg:w-2/3 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block text-xs text-gray-500">Room Name</label><input type="text" value={room.name} onChange={(e) => updateRoomLocal(room.id, 'name', e.target.value)} className="border rounded px-3 py-2 w-full font-bold"/></div>
-                     <div><label className="block text-xs text-gray-500">Base Price (₹)</label><input type="number" value={room.basePrice} onChange={(e) => updateRoomLocal(room.id, 'basePrice', parseInt(e.target.value))} className="border rounded px-3 py-2 w-full"/></div>
-                </div>
-                <div><label className="block text-xs text-gray-500">Description</label><textarea value={room.description} onChange={(e) => updateRoomLocal(room.id, 'description', e.target.value)} className="border rounded px-3 py-2 w-full h-20"/></div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div><label className="block text-xs text-gray-500">Capacity</label><input type="number" value={room.capacity} onChange={(e) => updateRoomLocal(room.id, 'capacity', parseInt(e.target.value))} className="border rounded px-3 py-2 w-full"/></div>
-                    <div><label className="block text-xs text-gray-500">Amenities (comma separated)</label><input type="text" value={room.amenities.join(', ')} onChange={(e) => updateRoomAmenitiesLocal(room.id, e.target.value)} className="border rounded px-3 py-2 w-full"/></div>
-                </div>
-            </div>
-        </div>
-      ))}
-    </div>
-  );
-
-  const renderLocations = () => (
-    <div className="space-y-4">
-        <button onClick={addLocationLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700"><Plus size={16} /> Add Cab Location</button>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {locations.map(loc => (
-                <div key={loc.id} className="bg-white p-4 rounded-lg shadow relative border border-gray-100">
-                    <div className="absolute top-2 right-2 flex gap-2 z-10">
-                         <button onClick={() => saveLocation(loc.id)} className="bg-white text-blue-600 p-1 rounded shadow hover:bg-blue-50"><Save size={16}/></button>
-                         <button onClick={() => deleteLocation(loc.id)} className="bg-white text-red-500 hover:bg-red-50 p-1 rounded shadow"><Trash2 size={16}/></button>
-                    </div>
-                    <div className="mb-4"><ImageUploader label="Location Image" value={loc.imageUrl} onChange={(val) => updateLocationLocal(loc.id, 'imageUrl', val)} /></div>
-                    <div className="space-y-2">
-                         <input type="text" value={loc.name} onChange={(e) => updateLocationLocal(loc.id, 'name', e.target.value)} className="font-bold border w-full p-1 rounded" placeholder="Location Name"/>
-                         <textarea value={loc.description} onChange={(e) => updateLocationLocal(loc.id, 'description', e.target.value)} className="text-sm border w-full p-1 rounded h-20" placeholder="Description"/>
-                        <div className="flex gap-2">
-                            <div className="w-1/2"><label className="text-xs block text-gray-500">Price</label><input type="number" value={loc.price ?? ''} onChange={(e) => updateLocationLocal(loc.id, 'price', e.target.value === '' ? 0 : parseFloat(e.target.value))} className="border w-full p-1 rounded"/></div>
-                            <div className="w-1/2"><label className="text-xs block text-gray-500">Driver</label><select value={loc.driverId || ''} onChange={(e) => updateLocationLocal(loc.id, 'driverId', e.target.value || null)} className="border w-full p-1 rounded text-sm"><option value="">Default Driver</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
-                        </div>
-                    </div>
-                </div>
-            ))}
-        </div>
-    </div>
-  );
-
-  const renderDrivers = () => (
-    <div className="space-y-4">
-        <button onClick={addDriverLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700"><Plus size={16} /> Add Driver</button>
-        <div className="grid gap-4">
-            {drivers.map(d => (
-                <div key={d.id} className="bg-white p-4 rounded-lg shadow border-l-4 border-nature-500 relative">
-                    <div className="absolute top-2 right-2 flex gap-2"><button onClick={() => saveDriver(d.id)} className="bg-blue-100 text-blue-600 p-1 rounded hover:bg-blue-200"><Save size={18}/></button><button onClick={() => deleteDriver(d.id)} className="text-gray-400 hover:text-red-500 p-1"><X size={18}/></button></div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                        <div><label className="text-xs text-gray-500 block">Name</label><input type="text" value={d.name} onChange={(e) => updateDriverLocal(d.id, 'name', e.target.value)} className="border w-full p-1 rounded"/></div>
-                        <div><label className="text-xs text-gray-500 block">Phone</label><input type="text" value={d.phone} onChange={(e) => updateDriverLocal(d.id, 'phone', e.target.value)} className="border w-full p-1 rounded"/></div>
-                        <div><label className="text-xs text-gray-500 block">WhatsApp</label><input type="text" value={d.whatsapp} onChange={(e) => updateDriverLocal(d.id, 'whatsapp', e.target.value)} className="border w-full p-1 rounded"/></div>
-                        <div className="flex items-center gap-4 pt-4">
-                            <label className="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" checked={d.isDefault} onChange={(e) => updateDriverLocal(d.id, 'isDefault', e.target.checked)} /> Default</label>
-                             <label className="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" checked={d.active} onChange={(e) => updateDriverLocal(d.id, 'active', e.target.checked)} /> Active</label>
-                        </div>
-                    </div>
-                    <div className="mt-2"><label className="text-xs text-gray-500 block">Vehicle Info</label><input type="text" value={d.vehicleInfo || ''} onChange={(e) => updateDriverLocal(d.id, 'vehicleInfo', e.target.value)} className="border w-full p-1 rounded" placeholder="e.g. Toyota Innova"/></div>
-                </div>
-            ))}
-        </div>
-    </div>
-  );
-
   const renderPricing = () => (
     <div className="space-y-6">
         <button onClick={addPricingRuleLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700"><Plus size={16} /> Add Seasonal Rule</button>
@@ -370,8 +286,9 @@ const AdminDashboard = () => {
                       <div className="absolute top-2 right-2 flex gap-2"><button onClick={() => savePricingRule(rule.id)} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Save size={18}/></button><button onClick={() => deletePricingRule(rule.id)} className="text-gray-400 hover:text-red-500 p-1 rounded"><X size={18}/></button></div>
                     <div className="flex-grow grid grid-cols-1 md:grid-cols-4 gap-4 w-full mt-2 md:mt-0">
                         <div><label className="text-xs text-gray-500">Season Name</label><input type="text" value={rule.name} onChange={(e) => updatePricingRuleLocal(rule.id, 'name', e.target.value)} className="border w-full p-2 rounded"/></div>
-                        <div><label className="text-xs text-gray-500">Start Date</label><input type="date" value={rule.startDate} onChange={(e) => updatePricingRuleLocal(rule.id, 'startDate', e.target.value)} className="border w-full p-2 rounded"/></div>
-                        <div><label className="text-xs text-gray-500">End Date</label><input type="date" value={rule.endDate} onChange={(e) => updatePricingRuleLocal(rule.id, 'endDate', e.target.value)} className="border w-full p-2 rounded"/></div>
+                        {/* BUG FIX: Added || '' to prevent uncontrolled input warning and resetting */}
+                        <div><label className="text-xs text-gray-500">Start Date</label><input type="date" value={rule.startDate || ''} onChange={(e) => updatePricingRuleLocal(rule.id, 'startDate', e.target.value)} className="border w-full p-2 rounded"/></div>
+                        <div><label className="text-xs text-gray-500">End Date</label><input type="date" value={rule.endDate || ''} onChange={(e) => updatePricingRuleLocal(rule.id, 'endDate', e.target.value)} className="border w-full p-2 rounded"/></div>
                         <div><label className="text-xs text-gray-500">Multiplier</label><input type="number" step="0.1" value={rule.multiplier} onChange={(e) => updatePricingRuleLocal(rule.id, 'multiplier', parseFloat(e.target.value))} className="border w-full p-2 rounded font-bold text-nature-700"/></div>
                     </div>
                 </div>
@@ -380,48 +297,6 @@ const AdminDashboard = () => {
     </div>
   );
 
-  const renderGallery = () => (
-      <div className="space-y-6">
-          <button onClick={addGalleryItemLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700"><Plus size={16} /> Add Image</button>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {gallery.map(item => (
-                  <div key={item.id} className="bg-white p-4 rounded-lg shadow relative group border border-gray-100">
-                       <div className="absolute top-2 right-2 flex gap-2 z-10"><button onClick={() => saveGalleryItem(item.id)} className="bg-white p-1 rounded-full text-blue-600 hover:bg-blue-50 shadow"><Save size={16}/></button><button onClick={() => deleteGalleryItem(item.id)} className="bg-white p-1 rounded-full text-red-500 hover:bg-red-50 shadow"><Trash2 size={16}/></button></div>
-                      <div className="mb-3"><ImageUploader value={item.url} onChange={(val) => updateGalleryItemLocal(item.id, 'url', val)}/></div>
-                      <div className="space-y-2">
-                          <div><label className="text-xs text-gray-500">Category</label><input type="text" value={item.category} onChange={(e) => updateGalleryItemLocal(item.id, 'category', e.target.value)} className="border w-full p-1 rounded text-sm"/></div>
-                          <div><label className="text-xs text-gray-500">Caption</label><input type="text" value={item.caption || ''} onChange={(e) => updateGalleryItemLocal(item.id, 'caption', e.target.value)} className="border w-full p-1 rounded text-sm"/></div>
-                      </div>
-                  </div>
-              ))}
-          </div>
-      </div>
-  );
-
-  const renderReviews = () => (
-    <div className="space-y-6">
-        <button onClick={addReviewLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700"><Plus size={16} /> Add Review</button>
-        <div className="grid gap-4">
-            {reviews.map(rev => (
-                <div key={rev.id} className="bg-white p-6 rounded-lg shadow border-l-4 border-yellow-400 relative">
-                    <div className="absolute top-2 right-2 flex gap-2"><button onClick={() => saveReview(rev.id)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Save size={18}/></button><button onClick={() => deleteReview(rev.id)} className="text-gray-400 hover:text-red-500 p-1"><X size={18}/></button></div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div><label className="text-xs text-gray-500">Guest Name</label><input type="text" value={rev.guestName} onChange={(e) => updateReviewLocal(rev.id, 'guestName', e.target.value)} className="border w-full p-1 rounded font-bold"/></div>
-                        <div><label className="text-xs text-gray-500">Location</label><input type="text" value={rev.location} onChange={(e) => updateReviewLocal(rev.id, 'location', e.target.value)} className="border w-full p-1 rounded"/></div>
-                        <div><label className="text-xs text-gray-500">Rating (1-5)</label><input type="number" min="1" max="5" value={rev.rating} onChange={(e) => updateReviewLocal(rev.id, 'rating', parseInt(e.target.value))} className="border w-full p-1 rounded"/></div>
-                    </div>
-                    <div className="mb-4"><label className="text-xs text-gray-500">Comment</label><textarea value={rev.comment} onChange={(e) => updateReviewLocal(rev.id, 'comment', e.target.value)} className="border w-full p-2 rounded h-20 text-sm"></textarea></div>
-                    <div className="flex items-center justify-between">
-                        <div><label className="text-xs text-gray-500">Date</label><input type="date" value={rev.date} onChange={(e) => updateReviewLocal(rev.id, 'date', e.target.value)} className="border ml-2 p-1 rounded"/></div>
-                        <div className="flex items-center gap-2"><input type="checkbox" checked={rev.showOnHome} onChange={(e) => updateReviewLocal(rev.id, 'showOnHome', e.target.checked)} id={`home-${rev.id}`} /><label htmlFor={`home-${rev.id}`} className="text-sm font-medium cursor-pointer">Show on Home Page</label></div>
-                    </div>
-                </div>
-            ))}
-        </div>
-    </div>
-  );
-
-  // --- HOME CONTENT TAB (Fixed Analytics) ---
   const renderHomePageContent = () => (
     <div className="bg-white p-8 rounded-lg shadow max-w-3xl space-y-8">
          <div>
@@ -433,7 +308,6 @@ const AdminDashboard = () => {
             <div><label className="block text-sm font-medium text-gray-700">YouTube Video URL</label><input type="text" value={settings.youtubeVideoUrl} onChange={(e) => setSettings({...settings, youtubeVideoUrl: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"/></div>
         </div>
 
-        {/* --- FIXED TRAFFIC ANALYTICS SECTION --- */}
         <div className="bg-white p-6 rounded-lg shadow border border-gray-100">
             <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-nature-900"><BarChart2 size={20}/> Website Traffic Analytics</h3>
             <div className="mb-8 bg-nature-50 p-4 rounded-lg border border-nature-200 inline-block">
@@ -479,15 +353,45 @@ const AdminDashboard = () => {
     <div className="bg-white p-8 rounded-lg shadow max-w-2xl space-y-8">
         <div className="border border-nature-200 rounded-lg p-6 bg-nature-50">
             <h3 className="text-lg font-bold mb-4 border-b border-nature-200 pb-2 flex items-center gap-2 text-nature-900"><Banknote size={20} /> Payment Configuration</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-1">Advance Payment (%)</label>
-                     <input type="number" min="1" max="100" value={settings.advancePaymentPercentage || 20} onChange={(e) => setSettings({...settings, advancePaymentPercentage: parseInt(e.target.value)})} className="w-full border rounded p-2"/>
-                     <p className="text-xs text-gray-500 mt-1">Percentage guests must pay to book.</p>
+            <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                         <label className="block text-sm font-medium text-gray-700 mb-1">Advance Payment (%)</label>
+                         <input type="number" min="1" max="100" value={settings.advancePaymentPercentage || 20} onChange={(e) => setSettings({...settings, advancePaymentPercentage: parseInt(e.target.value)})} className="w-full border rounded p-2"/>
+                         <p className="text-xs text-gray-500 mt-1">Percentage guests must pay to book.</p>
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Razorpay Key ID</label>
+                        <input type="text" value={settings.razorpayKey} onChange={(e) => setSettings({...settings, razorpayKey: e.target.value})} className="w-full border rounded p-2"/>
+                    </div>
                 </div>
-                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Razorpay Key ID</label>
-                    <input type="text" value={settings.razorpayKey} onChange={(e) => setSettings({...settings, razorpayKey: e.target.value})} className="w-full border rounded p-2"/>
+
+                {/* BUG FIX: Added Missing Long Stay Discount Section */}
+                <div className="bg-white p-4 rounded border border-gray-200 space-y-4">
+                    <div className="flex items-center gap-2">
+                        <input 
+                            type="checkbox" 
+                            id="enableDiscount" 
+                            checked={settings.longStayDiscount?.enabled ?? true}
+                            onChange={(e) => setSettings({
+                                ...settings, 
+                                longStayDiscount: { ...settings.longStayDiscount, enabled: e.target.checked }
+                            })}
+                        />
+                        <label htmlFor="enableDiscount" className="text-sm font-medium flex items-center gap-2"><Percent size={16} /> Enable Long Stay Discount</label>
+                    </div>
+                    {settings.longStayDiscount?.enabled && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs text-gray-500">Minimum Days</label>
+                                <input type="number" min="1" value={settings.longStayDiscount?.minDays ?? 5} onChange={(e) => setSettings({...settings, longStayDiscount: { ...settings.longStayDiscount, minDays: parseInt(e.target.value) }})} className="w-full border rounded p-2"/>
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-500">Discount (%)</label>
+                                <input type="number" min="1" max="100" value={settings.longStayDiscount?.percentage ?? 20} onChange={(e) => setSettings({...settings, longStayDiscount: { ...settings.longStayDiscount, percentage: parseInt(e.target.value) }})} className="w-full border rounded p-2 font-bold text-nature-700"/>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
