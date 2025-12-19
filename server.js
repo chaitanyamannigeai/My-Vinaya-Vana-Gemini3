@@ -257,6 +257,7 @@ app.get('/api/bookings/:id', async (req, res) => {
             id: b.id,
             roomId: b.room_id,
             guestName: b.guest_name,
+            guestPhone: b.guest_phone, // <--- THIS WAS MISSING! ADDED NOW.
             totalAmount: b.total_amount,
             amountPaid: b.amount_paid || 0,
             balanceAmount: b.balance_amount || 0,
