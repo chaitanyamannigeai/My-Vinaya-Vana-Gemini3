@@ -93,7 +93,7 @@ const fixDatabaseSchema = async () => {
             caption VARCHAR(255)
         )`);
 
-        // 5. BOOKINGS (With financial columns)
+        // 5. BOOKINGS
         await connection.query(`CREATE TABLE IF NOT EXISTS bookings (
             id VARCHAR(255) PRIMARY KEY,
             room_id VARCHAR(255),
@@ -108,7 +108,7 @@ const fixDatabaseSchema = async () => {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`);
 
-        // 6. PRICING RULES (With Fix for ID type)
+        // 6. PRICING RULES
         try {
             await connection.query("ALTER TABLE pricing_rules MODIFY id VARCHAR(255)");
         } catch (e) {
@@ -132,17 +132,17 @@ const fixDatabaseSchema = async () => {
             show_on_home BOOLEAN DEFAULT 0
         )`);
 
-        // 8. SITE SETTINGS & LOGS (UPDATED FOR LOCATION TRACKING)
+        // 8. SITE SETTINGS & LOGS (UPDATED)
         await connection.query(`CREATE TABLE IF NOT EXISTS site_settings (key_name VARCHAR(255) PRIMARY KEY, value TEXT)`);
         
-        // Create visit_logs with city/country columns
+        // Updated visit_logs table with new columns
         await connection.query(`CREATE TABLE IF NOT EXISTS visit_logs (
             id INT AUTO_INCREMENT PRIMARY KEY, 
-            ip_address VARCHAR(50), 
-            city VARCHAR(100), 
-            country VARCHAR(100),
             visit_date DATETIME DEFAULT CURRENT_TIMESTAMP, 
-            device_type VARCHAR(50)
+            ip_address VARCHAR(50), 
+            device_type VARCHAR(50),
+            city VARCHAR(100), 
+            country VARCHAR(100)
         )`);
 
         // Auto-fix: Add columns if they don't exist (for existing tables)
