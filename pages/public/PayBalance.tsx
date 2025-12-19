@@ -49,13 +49,21 @@ const PayBalance = () => {
     const res = await loadRazorpayScript();
     if (!res) { alert('Razorpay failed to load'); return; }
 
+    // Ensure phone number is valid for Razorpay (remove spaces/dashes)
+    const cleanPhone = booking.guestPhone ? booking.guestPhone.replace(/[^0-9]/g, '') : '';
+
     const options = {
         key: settings.razorpayKey,
-        amount: booking.balanceAmount * 100,
+        amount: booking.balanceAmount * 100, // Amount in paise
         currency: 'INR',
         name: 'Vinaya Vana',
         description: `Balance Payment for Booking #${booking.id}`,
-        prefill: { name: booking.guestName },
+        // FIX: PREFILL DATA IS CRITICAL TO SKIP THE CONTACT POPUP
+        prefill: { 
+            name: booking.guestName,
+            contact: cleanPhone, 
+            email: settings.contactEmail // Fallback email if guest email isn't stored
+        },
         theme: { color: '#3ba573' },
         handler: async function (response: any) {
              try {
@@ -69,8 +77,14 @@ const PayBalance = () => {
              }
         }
     };
-    const rzp = new window.Razorpay(options);
-    rzp.open();
+    
+    try {
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+    } catch (err) {
+        console.error("Razorpay Error", err);
+        alert("Payment Gateway Error. Please check console.");
+    }
   };
 
   if (loading) return <div className="h-screen flex items-center justify-center"><Loader className="animate-spin text-green-600"/></div>;
