@@ -29,6 +29,10 @@ const AdminDashboard = () => {
   const [showManualBooking, setShowManualBooking] = useState(false);
   const [manualBooking, setManualBooking] = useState({ roomId: "", guestName: "", phone: "", checkIn: "", checkOut: "", amount: "", paid: "" });
 
+  // ✅ NEW: Payment Collection State
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentData, setPaymentData] = useState({ bookingId: '', currentBalance: 0, amountToCollect: '' });
+
   // Auth Check
   useEffect(() => {
     const checkAuth = () => {
@@ -74,7 +78,7 @@ const AdminDashboard = () => {
 
   // Analytics
   const calculateAnalytics = () => {
-      const totalRevenue = bookings.reduce((sum, b) => sum + (parseFloat(b.amountPaid as any) || 0), 0);
+      const totalRevenue = bookings.reduce((sum, b) => sum + (parseFloat((b.amountPaid || 0) as any)), 0);
       const totalBookings = bookings.length;
       const pendingBookings = bookings.filter(b => b.status === 'PENDING').length;
       const monthlyRevenue: Record<string, number> = {};
@@ -87,7 +91,7 @@ const AdminDashboard = () => {
           months.push(key);
       }
       bookings.forEach(b => {
-        if (b.amountPaid > 0) {
+        if (b.amountPaid && b.amountPaid > 0) {
             const bookingDate = new Date(b.checkIn);
             if (!isNaN(bookingDate.getTime())) {
                 const key = bookingDate.toLocaleString('default', { month: 'short', year: '2-digit' });
@@ -99,7 +103,7 @@ const AdminDashboard = () => {
   };
   const analytics = calculateAnalytics();
 
-  // Actions
+  // Booking Actions
   const updateBookingStatus = async (id: string, status: PaymentStatus) => {
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
     try { await api.bookings.updateStatus(id, status); loadTab('bookings'); } catch (e) { alert("Failed"); }
@@ -118,7 +122,7 @@ const AdminDashboard = () => {
         checkIn: manualBooking.checkIn,
         checkOut: manualBooking.checkOut,
         totalAmount: total,
-        amountPaid: paid,
+        amountPaid: paid, // Will be handled by backend schema if mapped
         balanceAmount: total - paid,
         status: (total - paid) <= 1 ? PaymentStatus.PAID : (paid > 0 ? PaymentStatus.PARTIAL : PaymentStatus.PENDING),
         createdAt: new Date().toISOString()
@@ -127,6 +131,33 @@ const AdminDashboard = () => {
       setBookings(await api.bookings.getAll());
       setShowManualBooking(false);
       setManualBooking({ roomId: '', guestName: '', phone: '', checkIn: '', checkOut: '', amount: '', paid: '' });
+  };
+
+  // ✅ NEW: Handle collecting extra payment
+  const handleCollectPayment = async () => {
+      const amount = parseFloat(paymentData.amountToCollect);
+      if (!amount || amount <= 0) { alert("Please enter a valid amount"); return; }
+      
+      try {
+          // Call the new API function
+          await api.bookings.payBalance(paymentData.bookingId, amount);
+          alert("Payment Recorded Successfully!");
+          setShowPaymentModal(false);
+          setPaymentData({ bookingId: '', currentBalance: 0, amountToCollect: '' });
+          // Refresh data to show new balance
+          loadTab('bookings'); 
+      } catch (e) {
+          alert("Failed to update payment. Please try again.");
+      }
+  };
+
+  const openPaymentModal = (booking: Booking) => {
+      setPaymentData({
+          bookingId: booking.id,
+          currentBalance: booking.balanceAmount || 0,
+          amountToCollect: ''
+      });
+      setShowPaymentModal(true);
   };
 
   const copyPaymentLink = (id: string) => {
@@ -188,7 +219,7 @@ const AdminDashboard = () => {
   const saveReview = async (id: string) => { try { await api.reviews.save(reviews.find(r => r.id === id)!); alert("Review Saved!"); } catch (e) { alert("Error"); } };
   const deleteReview = async (id: string) => { if (window.confirm("Delete?")) try { await api.reviews.delete(id); setReviews(prev => prev.filter(r => r.id !== id)); } catch(e) {} };
 
-  // --- RENDER FUNCTIONS (ALL ARE HERE NOW!) ---
+  // --- RENDER FUNCTIONS ---
   const renderBookings = () => (
     <div className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -257,7 +288,8 @@ const AdminDashboard = () => {
                         <td className="px-6 py-4 text-sm">
                             <div className="font-bold">Total: ₹{b.totalAmount}</div>
                             <div className="text-green-600 text-xs">Paid: ₹{b.amountPaid || 0}</div>
-                            {b.balanceAmount > 1 && <div className="text-red-500 text-xs font-bold">Due: ₹{b.balanceAmount}</div>}
+                            {/* Display Balance Amount explicitly */}
+                            {(b.balanceAmount ?? 0) > 1 && <div className="text-red-500 text-xs font-bold">Due: ₹{b.balanceAmount}</div>}
                         </td>
                         <td className="px-6 py-4">
                             <select 
@@ -273,8 +305,19 @@ const AdminDashboard = () => {
                         </td>
                         <td className="px-6 py-4 flex gap-3">
                             <a href={`https://wa.me/${b.guestPhone?.replace(/[^0-9]/g, '')}`} target="_blank" className="text-green-600 hover:text-green-800"><MessageCircle size={18} /></a>
-                            {b.balanceAmount > 1 && (
+                            {(b.balanceAmount ?? 0) > 1 && (
                                 <button onClick={() => copyPaymentLink(b.id)} title="Copy Balance Payment Link" className="text-blue-600 hover:text-blue-800"><LinkIcon size={18} /></button>
+                            )}
+                            
+                            {/* ✅ NEW: COLLECT PAYMENT BUTTON */}
+                            {(b.balanceAmount ?? 0) > 1 && (
+                                <button 
+                                    onClick={() => openPaymentModal(b)} 
+                                    className="text-nature-700 hover:text-nature-900 bg-nature-100 p-1 rounded" 
+                                    title="Record Extra Payment"
+                                >
+                                    <Banknote size={18} />
+                                </button>
                             )}
                         </td>
                         </tr>
@@ -604,6 +647,33 @@ const AdminDashboard = () => {
                 <div className="flex justify-end gap-3 mt-6">
                     <button onClick={() => setShowManualBooking(false)} className="px-4 py-2 border rounded">Cancel</button>
                     <button onClick={createManualBooking} className="px-4 py-2 bg-nature-600 text-white rounded">Save</button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* ✅ NEW: Collect Payment Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 text-center">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Banknote className="text-green-600" size={24}/>
+                </div>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">Record Payment</h3>
+                <p className="text-gray-500 text-sm mb-6">Current Balance Due: <span className="font-bold text-red-500">₹{paymentData.currentBalance}</span></p>
+                
+                <input 
+                    type="number" 
+                    placeholder="Amount Collected (₹)" 
+                    value={paymentData.amountToCollect} 
+                    onChange={(e) => setPaymentData({ ...paymentData, amountToCollect: e.target.value })} 
+                    className="w-full border p-3 rounded-lg mb-4 text-lg font-bold text-center"
+                    autoFocus
+                />
+                
+                <div className="flex gap-2">
+                    <button onClick={() => setShowPaymentModal(false)} className="flex-1 py-3 border rounded-lg text-gray-600 font-medium hover:bg-gray-50">Cancel</button>
+                    <button onClick={handleCollectPayment} className="flex-1 py-3 bg-nature-600 text-white rounded-lg font-bold hover:bg-nature-700">Confirm</button>
                 </div>
             </div>
         </div>
