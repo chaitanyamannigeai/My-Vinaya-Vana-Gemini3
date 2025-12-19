@@ -132,9 +132,26 @@ const fixDatabaseSchema = async () => {
             show_on_home BOOLEAN DEFAULT 0
         )`);
 
-        // 8. SITE SETTINGS & LOGS
+        // 8. SITE SETTINGS & LOGS (UPDATED FOR LOCATION TRACKING)
         await connection.query(`CREATE TABLE IF NOT EXISTS site_settings (key_name VARCHAR(255) PRIMARY KEY, value TEXT)`);
-        await connection.query(`CREATE TABLE IF NOT EXISTS visit_logs (id INT AUTO_INCREMENT PRIMARY KEY, ip_address VARCHAR(50), visit_date DATETIME DEFAULT CURRENT_TIMESTAMP, device_type VARCHAR(50))`);
+        
+        // Create visit_logs with city/country columns
+        await connection.query(`CREATE TABLE IF NOT EXISTS visit_logs (
+            id INT AUTO_INCREMENT PRIMARY KEY, 
+            ip_address VARCHAR(50), 
+            city VARCHAR(100), 
+            country VARCHAR(100),
+            visit_date DATETIME DEFAULT CURRENT_TIMESTAMP, 
+            device_type VARCHAR(50)
+        )`);
+
+        // Auto-fix: Add columns if they don't exist (for existing tables)
+        try {
+            await connection.query("ALTER TABLE visit_logs ADD COLUMN city VARCHAR(100)");
+            await connection.query("ALTER TABLE visit_logs ADD COLUMN country VARCHAR(100)");
+        } catch (e) { 
+            // Columns likely exist, ignore error
+        }
 
         connection.release();
         console.log("✅ All Database Tables Verified/Created.");
@@ -251,8 +268,53 @@ app.get('/api/settings', async (req, res) => { try { const [rows] = await pool.q
 app.post('/api/settings', async (req, res) => { try { await pool.query("INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [JSON.stringify(req.body)]); res.json({ success: true }); } catch(e) { res.status(500).json({error: e.message}); } });
 app.get('/api/weather', async (req, res) => { try { const [settingsRows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'"); if (settingsRows.length === 0) return res.status(400).json({ error: "No settings" }); const settings = parseJSON(settingsRows[0].value); const apiKey = settings.weatherApiKey; if (!apiKey) return res.status(400).json({ error: "No API Key" }); const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${req.query.location || 'Gokarna'}&appid=${apiKey}&units=metric`; const weatherResponse = await axios.get(weatherUrl); res.json({ temp: weatherResponse.data.main.temp, feelsLike: weatherResponse.data.main.feels_like, humidity: weatherResponse.data.main.humidity, windSpeed: weatherResponse.data.wind.speed, description: weatherResponse.data.weather[0].description, icon: weatherResponse.data.weather[0].icon, }); } catch (err) { res.status(500).json({ error: "Weather error" }); } });
 
-// ANALYTICS
-app.post('/api/analytics/track-hit', async (req, res) => { try { const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'"); let settings = rows.length > 0 ? parseJSON(rows[0].value) : {}; settings.websiteHits = (settings.websiteHits || 0) + 1; await pool.query("INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [JSON.stringify(settings)]); const userAgent = req.headers['user-agent'] || ''; const isMobile = /mobile/i.test(userAgent); await pool.query('INSERT INTO visit_logs (ip_address, device_type) VALUES (?, ?)', [req.ip || '0.0.0.0', isMobile ? 'Mobile' : 'Desktop']); res.json({ success: true, newHits: settings.websiteHits }); } catch (err) { res.json({ success: false }); } });
+// ANALYTICS (Updated with Location Tracking)
+app.post('/api/analytics/track-hit', async (req, res) => { 
+    try { 
+        // 1. Update Hit Counter
+        const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'"); 
+        let settings = rows.length > 0 ? parseJSON(rows[0].value) : {}; 
+        settings.websiteHits = (settings.websiteHits || 0) + 1; 
+        await pool.query("INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [JSON.stringify(settings)]); 
+
+        // 2. Get User Details
+        const userAgent = req.headers['user-agent'] || ''; 
+        const isMobile = /mobile/i.test(userAgent); 
+        let ip = req.ip || '0.0.0.0';
+        
+        // Normalize local IP
+        if (ip === '::1' || ip === '127.0.0.1') ip = '';
+
+        // 3. Get Location from External API (Free Service)
+        let city = 'Unknown';
+        let country = 'Unknown';
+        
+        if (ip && ip.length > 7) { // Only check if valid public IP
+            try {
+                // Using ip-api.com (no API key required for low volume)
+                const geoRes = await axios.get(`http://ip-api.com/json/${ip}`);
+                if (geoRes.data && geoRes.data.status === 'success') {
+                    city = geoRes.data.city || 'Unknown';
+                    country = geoRes.data.country || 'Unknown';
+                }
+            } catch (geoError) {
+                console.error("GeoIP Fetch Error:", geoError.message);
+            }
+        }
+
+        // 4. Save to Database (including City & Country)
+        await pool.query(
+            'INSERT INTO visit_logs (ip_address, city, country, device_type) VALUES (?, ?, ?, ?)', 
+            [ip, city, country, isMobile ? 'Mobile' : 'Desktop']
+        ); 
+
+        res.json({ success: true, newHits: settings.websiteHits }); 
+    } catch (err) { 
+        console.error("Track Hit Error:", err);
+        res.json({ success: false }); 
+    } 
+});
+
 app.get('/api/analytics/traffic', async (req, res) => { try { const [rows] = await pool.query(`SELECT DATE_FORMAT(visit_date, '%b %y') as month, COUNT(*) as count FROM visit_logs WHERE visit_date >= DATE_SUB(NOW(), INTERVAL 6 MONTH) GROUP BY DATE_FORMAT(visit_date, '%Y-%m'), month ORDER BY DATE_FORMAT(visit_date, '%Y-%m') ASC`); res.json(rows); } catch (e) { res.json([]); } });
 app.get('/api/analytics/devices', async (req, res) => { try { const [rows] = await pool.query(`SELECT device_type, COUNT(*) as count FROM visit_logs GROUP BY device_type`); res.json(rows); } catch (e) { res.json([]); } });
 
