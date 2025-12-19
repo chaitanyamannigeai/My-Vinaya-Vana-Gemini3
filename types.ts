@@ -26,7 +26,7 @@ export interface Booking {
   checkOut: string;
   totalAmount: number;
   
-  // ✅ NEW FIELDS ADDED HERE
+  // ✅ Payment Fields (Marked optional for safety)
   amountPaid?: number;
   balanceAmount?: number;
   
@@ -72,7 +72,7 @@ export interface SiteSettings {
     minDays: number;
     percentage: number;
   };
-  advancePaymentPercentage?: number; // ✅ Added
+  advancePaymentPercentage?: number; // Added
   houseRules: string;
   weatherApiKey?: string;
   websiteHits?: number;

@@ -2,7 +2,7 @@ import { Room, Booking, Driver, CabLocation, SiteSettings, GalleryItem, PricingR
 
 const API_URL = '/api';
 
-// Default settings to use if DB is empty or for fallback
+// ✅ YOUR EXACT SETTINGS RESTORED
 export const DEFAULT_SETTINGS: SiteSettings = {
   whatsappNumber: '919999999999',
   contactEmail: 'stay@vinayavana.com',
@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   razorpayKey: 'rzp_test_123456789',
   enableOnlinePayments: true,
   adminPasswordHash: 'admin123',
+  // Specific image restored
   heroImageUrl: 'https://images.unsplash.com/photo-1579546059633-82084666f7f6?auto=format&fit=crop&q=80&w=1920&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
   youtubeVideoUrl: 'https://www.youtube.com/watch?v=LXb3EKWsInQ',
   facebookUrl: 'https://www.facebook.com/',
@@ -20,6 +21,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     minDays: 5,
     percentage: 20
   },
+  advancePaymentPercentage: 20,
+  // Specific rules restored
   houseRules: "Check-in time: 12:00 PM | Check-out time: 11:00 AM.\nGovt ID proof is mandatory for all guests.\nQuiet hours start from 10:00 PM.\nSmoking is not allowed inside the rooms.\nPets are not allowed.\nCancellation: 50% refund if cancelled 7 days prior.",
   weatherApiKey: '',
   websiteHits: 0,
@@ -85,10 +88,9 @@ export const api = {
     bookings: {
         getAll: async (): Promise<Booking[]> => fetchWithCache('/bookings'),
         add: async (booking: Booking) => mutate('/bookings', 'POST', booking),
-        // IMPORTANT: When updating status, invalidate the main '/bookings' list cache
         updateStatus: async (id: string, status: PaymentStatus) => mutate(`/bookings/${id}`, 'PUT', { status }, '/bookings'),
         
-        // ✅ NEW: Added the manual payment function here
+        // ✅ REQUIRED for Manual Payments:
         payBalance: async (id: string, amount: number) => mutate(`/bookings/${id}/pay-balance`, 'POST', { amount }, '/bookings')
     },
     drivers: {
@@ -107,7 +109,6 @@ export const api = {
                 const settings = await fetchWithCache('/settings');
                 return deepMerge({ ...DEFAULT_SETTINGS }, settings);
              } catch (e) {
-                 console.warn("Failed to fetch settings, using defaults", e);
                  return DEFAULT_SETTINGS;
              }
         },
