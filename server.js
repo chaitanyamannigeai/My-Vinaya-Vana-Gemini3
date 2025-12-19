@@ -17,6 +17,9 @@ const PORT = process.env.PORT || 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Trust proxy is required when behind a load balancer (like Google Cloud)
+app.set('trust proxy', true); 
+
 app.use(cors());
 app.use(compression()); 
 app.use(express.json({ limit: '50mb' })); 
@@ -46,7 +49,7 @@ const parseJSON = (data) => {
     return data;
 };
 
-// --- DATABASE STARTUP FIXER (CREATES ALL TABLES) ---
+// --- DATABASE STARTUP FIXER ---
 const fixDatabaseSchema = async () => {
     try {
         const connection = await pool.getConnection();
@@ -132,26 +135,22 @@ const fixDatabaseSchema = async () => {
             show_on_home BOOLEAN DEFAULT 0
         )`);
 
-        // 8. SITE SETTINGS & LOGS (UPDATED)
+        // 8. SITE SETTINGS & LOGS
         await connection.query(`CREATE TABLE IF NOT EXISTS site_settings (key_name VARCHAR(255) PRIMARY KEY, value TEXT)`);
-        
-        // Updated visit_logs table with new columns
         await connection.query(`CREATE TABLE IF NOT EXISTS visit_logs (
             id INT AUTO_INCREMENT PRIMARY KEY, 
-            visit_date DATETIME DEFAULT CURRENT_TIMESTAMP, 
             ip_address VARCHAR(50), 
-            device_type VARCHAR(50),
             city VARCHAR(100), 
-            country VARCHAR(100)
+            country VARCHAR(100),
+            visit_date DATETIME DEFAULT CURRENT_TIMESTAMP, 
+            device_type VARCHAR(50)
         )`);
 
-        // Auto-fix: Add columns if they don't exist (for existing tables)
+        // Auto-fix columns
         try {
             await connection.query("ALTER TABLE visit_logs ADD COLUMN city VARCHAR(100)");
             await connection.query("ALTER TABLE visit_logs ADD COLUMN country VARCHAR(100)");
-        } catch (e) { 
-            // Columns likely exist, ignore error
-        }
+        } catch (e) {}
 
         connection.release();
         console.log("✅ All Database Tables Verified/Created.");
@@ -268,7 +267,7 @@ app.get('/api/settings', async (req, res) => { try { const [rows] = await pool.q
 app.post('/api/settings', async (req, res) => { try { await pool.query("INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [JSON.stringify(req.body)]); res.json({ success: true }); } catch(e) { res.status(500).json({error: e.message}); } });
 app.get('/api/weather', async (req, res) => { try { const [settingsRows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'"); if (settingsRows.length === 0) return res.status(400).json({ error: "No settings" }); const settings = parseJSON(settingsRows[0].value); const apiKey = settings.weatherApiKey; if (!apiKey) return res.status(400).json({ error: "No API Key" }); const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${req.query.location || 'Gokarna'}&appid=${apiKey}&units=metric`; const weatherResponse = await axios.get(weatherUrl); res.json({ temp: weatherResponse.data.main.temp, feelsLike: weatherResponse.data.main.feels_like, humidity: weatherResponse.data.main.humidity, windSpeed: weatherResponse.data.wind.speed, description: weatherResponse.data.weather[0].description, icon: weatherResponse.data.weather[0].icon, }); } catch (err) { res.status(500).json({ error: "Weather error" }); } });
 
-// ANALYTICS (Updated with Location Tracking)
+// ANALYTICS (FIXED: Captures Real IP from Load Balancer)
 app.post('/api/analytics/track-hit', async (req, res) => { 
     try { 
         // 1. Update Hit Counter
@@ -280,18 +279,26 @@ app.post('/api/analytics/track-hit', async (req, res) => {
         // 2. Get User Details
         const userAgent = req.headers['user-agent'] || ''; 
         const isMobile = /mobile/i.test(userAgent); 
-        let ip = req.ip || '0.0.0.0';
         
-        // Normalize local IP
+        // --- FIX FOR REAL IP ADDRESS ---
+        let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
+        
+        // x-forwarded-for can be a list (e.g. "client, proxy1, proxy2")
+        if (ip.includes(',')) {
+            ip = ip.split(',')[0].trim();
+        }
+
+        // Normalize local IPs
         if (ip === '::1' || ip === '127.0.0.1') ip = '';
 
         // 3. Get Location from External API (Free Service)
         let city = 'Unknown';
         let country = 'Unknown';
         
-        if (ip && ip.length > 7) { // Only check if valid public IP
+        // Only fetch if valid public IP (basic length check)
+        if (ip && ip.length > 7) { 
             try {
-                // Using ip-api.com (no API key required for low volume)
+                // Using ip-api.com (free, no key needed for non-commercial)
                 const geoRes = await axios.get(`http://ip-api.com/json/${ip}`);
                 if (geoRes.data && geoRes.data.status === 'success') {
                     city = geoRes.data.city || 'Unknown';
