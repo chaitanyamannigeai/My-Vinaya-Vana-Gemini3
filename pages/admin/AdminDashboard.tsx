@@ -180,6 +180,12 @@ const AdminDashboard = () => {
     document.body.removeChild(link);
   };
 
+  // --- HELPER TO GET ROOM NAME ---
+  const getRoomName = (roomId: string) => {
+      const r = rooms.find(room => room.id === roomId);
+      return r ? r.name : 'Unknown Room';
+  };
+
   // --- CRUD HELPERS ---
   const addRoomLocal = () => { setRooms([{ id: `r${Date.now()}`, name: 'New Room', description: 'Description...', basePrice: 3000, capacity: 2, amenities: ['Wifi', 'AC'], images: ['https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&q=80&w=800'] }, ...rooms]); };
   const updateRoomLocal = (id: string, field: keyof Room, value: any) => { setRooms(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r)); };
@@ -263,7 +269,7 @@ const AdminDashboard = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                     <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Guest</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Guest / Room</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dates</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Financials</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
@@ -275,7 +281,8 @@ const AdminDashboard = () => {
                         <tr key={b.id}>
                         <td className="px-6 py-4">
                             <div className="text-sm font-medium text-gray-900">{b.guestName}</div>
-                            <div className="text-sm text-gray-500">{b.guestPhone}</div>
+                            <div className="text-xs text-gray-500 flex items-center gap-1"><Home size={12}/> {getRoomName(b.roomId)}</div>
+                            <div className="text-xs text-gray-400">{b.guestPhone}</div>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-500">
                             <div>{b.checkIn}</div>
@@ -529,6 +536,7 @@ const AdminDashboard = () => {
     </div>
   );
 
+  // ✅ THIS FUNCTION WAS MISSING IN THE PREVIOUS VERSION, CAUSING THE CRASH
   const renderSettings = () => (
     <div className="bg-white p-8 rounded-lg shadow max-w-2xl space-y-8">
         <div className="border border-nature-200 rounded-lg p-6 bg-nature-50">
