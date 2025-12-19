@@ -39,7 +39,7 @@ const AdminDashboard = () => {
     checkAuth();
   }, [navigate]);
 
-  // Data Loading - FIXED: Always refreshes data to prevent duplicates
+  // Data Loading - FIXED: Always refreshes data to prevent duplicate/stale issues
   const loadTab = async (tab: string) => {
       setLoading(true);
       try {
