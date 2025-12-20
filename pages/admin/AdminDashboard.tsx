@@ -116,8 +116,8 @@ const AdminDashboard = () => {
       const paid = Number(manualBooking.paid || 0);
       const booking: Booking = {
         id: `manual-${Date.now()}`,
-        roomId: manualBooking.roomId,
-        guestName: manualBooking.guestName,
+        roomId: manualBooking.roomId.trim(),
+        guestName: manualBooking.guestName.trim(),
         guestPhone: manualBooking.phone,
         checkIn: manualBooking.checkIn,
         checkOut: manualBooking.checkOut,

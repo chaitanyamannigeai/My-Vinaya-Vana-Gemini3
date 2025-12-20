@@ -231,19 +231,26 @@ const Availability = () => {
     setViewDate(newDate);
   };
   
-  // ✅ FIXED: Robust Date & ID Checking
+// ✅ FIXED: Aggressive ID Matching & Debugging
   const isRoomBooked = (roomId: string, dateStr: string) => {
     return bookings.some(b => {
-      // FIX: Force string comparison for ID
-      if (String(b.roomId) !== String(roomId)) return false;
+      // FIX: Trim whitespace and ensure both are strings
+      const bookingRoomId = String(b.roomId).trim();
+      const currentRoomId = String(roomId).trim();
       
-      // FIX: Ensure status check is case-insensitive (e.g. 'Pending' vs 'PENDING')
+      if (bookingRoomId !== currentRoomId) return false;
+      
+      // FIX: Case-insensitive status check
       if (String(b.status).toUpperCase() === 'FAILED') return false;
       
       const checkInStr = normalizeDate(b.checkIn);
       const checkOutStr = normalizeDate(b.checkOut);
       
-      // Date Logic: Booked if date is >= checkIn AND < checkOut
+      // Debugging: If this is the specific room and date range, log it (Open Console F12 to see)
+      // if (bookingRoomId === currentRoomId && dateStr === checkInStr) {
+      //    console.log('Found Booking:', { dateStr, checkInStr, checkOutStr, match: dateStr >= checkInStr && dateStr < checkOutStr });
+      // }
+      
       return dateStr >= checkInStr && dateStr < checkOutStr;
     });
   };

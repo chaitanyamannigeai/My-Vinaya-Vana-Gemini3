@@ -346,15 +346,18 @@ const Accommodation = () => {
       return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
   };
 
-  // ✅ FIXED: Robust Type Checking for Room ID & Status
+// ✅ FIXED: Aggressive ID Matching
   const isDateBooked = (dateStr: string) => {
-    const currentRoomBookings = bookings.filter(b => 
-        // FIX: Force string comparison for ID
-        String(b.roomId) === String(bookingForm.roomId) && 
-        // FIX: Case-insensitive status check
-        String(b.status).toUpperCase() !== 'FAILED'
-    );
+    // 1. Filter bookings for this room (Aggressive Match)
+    const currentRoomBookings = bookings.filter(b => {
+        const bId = String(b.roomId).trim();
+        const formId = String(bookingForm.roomId).trim();
+        const status = String(b.status).toUpperCase();
+        
+        return bId === formId && status !== 'FAILED';
+    });
     
+    // 2. Check if date falls in range
     return currentRoomBookings.some(b => {
       const checkInStr = normalizeDate(b.checkIn);
       const checkOutStr = normalizeDate(b.checkOut);
