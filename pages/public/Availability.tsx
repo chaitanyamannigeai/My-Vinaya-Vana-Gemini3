@@ -51,6 +51,12 @@ const Availability = () => {
     fetchData();
   }, []);
 
+  // --- HELPER: Normalize Date Strings ---
+  const normalizeDate = (dateInput: string | Date) => {
+      if (!dateInput) return '';
+      return String(dateInput).split('T')[0];
+  };
+
   // --- 1. PRICING ENGINE ---
   const getMultiplierForDate = (dateStr: string): number => {
       const d = new Date(dateStr).getTime();
@@ -226,15 +232,20 @@ const Availability = () => {
     newDate.setMonth(newDate.getMonth() + offset);
     setViewDate(newDate);
   };
+  
+  // ✅ FIXED: String-based availability check
   const isRoomBooked = (roomId: string, dateStr: string) => {
-    const target = new Date(dateStr).getTime();
+    // dateStr is YYYY-MM-DD
     return bookings.some(b => {
       if (b.roomId !== roomId) return false;
-      const start = new Date(b.checkIn).getTime();
-      const end = new Date(b.checkOut).getTime();
-      return target >= start && target < end;
+      
+      const checkInStr = normalizeDate(b.checkIn);
+      const checkOutStr = normalizeDate(b.checkOut);
+      
+      return dateStr >= checkInStr && dateStr < checkOutStr;
     });
   };
+  
   const formatDateLocal = (date: Date) => {
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');

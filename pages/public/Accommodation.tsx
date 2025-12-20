@@ -21,6 +21,14 @@ const formatDateLocal = (date: Date) => {
     return `${year}-${month}-${day}`;
 };
 
+// --- HELPER: Normalize Date Strings (Fixes the UTC/Local bug) ---
+const normalizeDate = (dateInput: string | Date) => {
+    if (!dateInput) return '';
+    // If it's a full ISO string (2025-12-21T00:00:00.000Z), split it.
+    // If it's already YYYY-MM-DD, split works too.
+    return String(dateInput).split('T')[0];
+};
+
 const getAmenityIcon = (amenity: string) => {
     const lower = amenity.toLowerCase();
     if (lower.includes('wifi') || lower.includes('net')) return <Wifi size={16} />;
@@ -144,16 +152,20 @@ const Accommodation = () => {
       document.getElementById('booking-sidebar')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
+  // ✅ FIXED: String-based availability check
   const checkAvailability = (roomId: string, checkIn: string, checkOut: string): boolean => {
-      const start = new Date(checkIn).getTime();
-      const end = new Date(checkOut).getTime();
-      // Filter out bookings that are FAILED
+      // Inputs are YYYY-MM-DD strings
+      const reqStart = checkIn;
+      const reqEnd = checkOut;
+      
       const roomBookings = bookings.filter(b => b.roomId === roomId && b.status !== PaymentStatus.FAILED);
 
       for (const b of roomBookings) {
-          const bStart = new Date(b.checkIn).getTime();
-          const bEnd = new Date(b.checkOut).getTime();
-          if (start < bEnd && end > bStart) return false; 
+          const bookedStart = normalizeDate(b.checkIn);
+          const bookedEnd = normalizeDate(b.checkOut);
+          
+          // Logic: (StartA < EndB) and (EndA > StartB) means overlap
+          if (reqStart < bookedEnd && reqEnd > bookedStart) return false; 
       }
       return true;
   };
@@ -171,7 +183,7 @@ const Accommodation = () => {
         return maxMultiplier;
   };
 
-  // --- CORE: Price Calculation (Includes Advance) ---
+  // --- CORE: Price Calculation ---
   useEffect(() => {
     setAvailabilityError(null);
     setPricingBreakdown(null);
@@ -312,7 +324,6 @@ const Accommodation = () => {
     } catch (err) { alert("Booking failed to save."); }
   };
 
-  // Prevent form submission on enter, handled by buttons
   const handleFormSubmit = (e: React.FormEvent) => { e.preventDefault(); }
 
   const getWhatsAppBookingLink = () => {
@@ -323,13 +334,17 @@ const Accommodation = () => {
       return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
   };
 
+  // ✅ FIXED: String-based booking check
   const isDateBooked = (dateStr: string) => {
-    const target = new Date(dateStr).getTime();
     const currentRoomBookings = bookings.filter(b => b.roomId === bookingForm.roomId && b.status !== PaymentStatus.FAILED);
+    
     return currentRoomBookings.some(b => {
-      const start = new Date(b.checkIn).getTime();
-      const end = new Date(b.checkOut).getTime(); 
-      return target >= start && target < end; 
+      // Normalize everything to simple Strings
+      const checkInStr = normalizeDate(b.checkIn);
+      const checkOutStr = normalizeDate(b.checkOut);
+      
+      // Standard logic: Target date is ON or AFTER checkIn AND BEFORE checkOut
+      return dateStr >= checkInStr && dateStr < checkOutStr;
     });
   };
 
@@ -339,14 +354,14 @@ const Accommodation = () => {
 
     if (isDateBooked(dateStr)) return;
 
-    const currentIn = bookingForm.checkIn ? new Date(bookingForm.checkIn) : null;
-    const currentOut = bookingForm.checkOut ? new Date(bookingForm.checkOut) : null;
+    const currentIn = bookingForm.checkIn;
+    const currentOut = bookingForm.checkOut;
 
     if (!currentIn || (currentIn && currentOut)) {
       setBookingForm(prev => ({ ...prev, checkIn: dateStr, checkOut: '' }));
     } 
     else if (currentIn && !currentOut) {
-      if (new Date(dateStr) > currentIn) {
+      if (dateStr > currentIn) {
           setBookingForm(prev => ({ ...prev, checkOut: dateStr }));
       } else {
           setBookingForm(prev => ({ ...prev, checkIn: dateStr, checkOut: '' }));
