@@ -23,8 +23,15 @@ const formatDateLocal = (date: Date) => {
 // --- HELPER: Normalize Date Strings (FIXES THE BUG) ---
 const normalizeDate = (dateInput: string | Date) => {
     if (!dateInput) return '';
-    // Takes "2025-12-23T00:00:00.000Z" and returns "2025-12-23"
-    return String(dateInput).split('T')[0];
+    
+    // FIX 1: Handle Date objects explicitly to prevent "Fri Dec..." string corruption
+    if (dateInput instanceof Date) {
+        return dateInput.toISOString().split('T')[0];
+    }
+    
+    // FIX 2: Handle String inputs
+    const str = String(dateInput);
+    return str.includes('T') ? str.split('T')[0] : str;
 };
 
 const getAmenityIcon = (amenity: string) => {
@@ -335,19 +342,19 @@ const Accommodation = () => {
       return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
   };
 
-  // ✅ FIXED: Robust Type Checking for Room ID
+  // ✅ FIXED: Robust Type Checking for Room ID & Status
   const isDateBooked = (dateStr: string) => {
-    // FIX: Convert IDs to String() ensures strict equality works even if API returns numbers
     const currentRoomBookings = bookings.filter(b => 
+        // FIX: Force string comparison for ID
         String(b.roomId) === String(bookingForm.roomId) && 
-        b.status !== PaymentStatus.FAILED
+        // FIX: Case-insensitive status check
+        String(b.status).toUpperCase() !== 'FAILED'
     );
     
     return currentRoomBookings.some(b => {
       const checkInStr = normalizeDate(b.checkIn);
       const checkOutStr = normalizeDate(b.checkOut);
       
-      // Standard logic: Target date is ON or AFTER checkIn AND BEFORE checkOut
       return dateStr >= checkInStr && dateStr < checkOutStr;
     });
   };

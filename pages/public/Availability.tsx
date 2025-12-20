@@ -51,24 +51,18 @@ const Availability = () => {
     fetchData();
   }, []);
 
-  // --- HELPER: Normalize Date Strings ---
+ // --- HELPER: Normalize Date Strings ---
   const normalizeDate = (dateInput: string | Date) => {
       if (!dateInput) return '';
-      return String(dateInput).split('T')[0];
-  };
-
-  // --- 1. PRICING ENGINE ---
-  const getMultiplierForDate = (dateStr: string): number => {
-      const d = new Date(dateStr).getTime();
-      let maxMultiplier = 1;
-      pricingRules.forEach(rule => {
-          const start = new Date(rule.startDate).getTime();
-          const end = new Date(rule.endDate).getTime();
-          if (d >= start && d <= end) {
-              if (rule.multiplier > maxMultiplier) maxMultiplier = rule.multiplier;
-          }
-      });
-      return maxMultiplier;
+      
+      // FIX 1: Handle Date objects from DB (MySQL often returns these)
+      if (dateInput instanceof Date) {
+          return dateInput.toISOString().split('T')[0];
+      }
+      
+      // FIX 2: Handle existing Strings (ISO or simple YYYY-MM-DD)
+      const str = String(dateInput);
+      return str.includes('T') ? str.split('T')[0] : str;
   };
 
   const calculateTotalDetails = () => {
@@ -233,11 +227,14 @@ const Availability = () => {
     setViewDate(newDate);
   };
   
-  // ✅ FIXED: Robust Type Checking for Room ID
+  // ✅ FIXED: Robust Date & ID Checking
   const isRoomBooked = (roomId: string, dateStr: string) => {
     return bookings.some(b => {
-      // FIX: Force string comparison for Room IDs to prevent type mismatch bugs
+      // FIX: Force string comparison for ID
       if (String(b.roomId) !== String(roomId)) return false;
+      
+      // FIX: Ensure status check is case-insensitive (e.g. 'Pending' vs 'PENDING')
+      if (String(b.status).toUpperCase() === 'FAILED') return false;
       
       const checkInStr = normalizeDate(b.checkIn);
       const checkOutStr = normalizeDate(b.checkOut);
