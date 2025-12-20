@@ -150,13 +150,16 @@ const Accommodation = () => {
       document.getElementById('booking-sidebar')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
-  // ✅ FIXED: String-based availability check
+  // ✅ FIXED: Robust Type Checking for Room ID and Status
   const checkAvailability = (roomId: string, checkIn: string, checkOut: string): boolean => {
-      // Inputs are YYYY-MM-DD strings
       const reqStart = checkIn;
       const reqEnd = checkOut;
       
-      const roomBookings = bookings.filter(b => b.roomId === roomId && b.status !== PaymentStatus.FAILED);
+      // FIX: Convert IDs to String() to handle mismatched types (Number vs String) from API
+      const roomBookings = bookings.filter(b => 
+          String(b.roomId) === String(roomId) && 
+          b.status !== PaymentStatus.FAILED
+      );
 
       for (const b of roomBookings) {
           const bookedStart = normalizeDate(b.checkIn);
@@ -332,12 +335,15 @@ const Accommodation = () => {
       return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
   };
 
-  // ✅ FIXED: String-based booking check
+  // ✅ FIXED: Robust Type Checking for Room ID
   const isDateBooked = (dateStr: string) => {
-    const currentRoomBookings = bookings.filter(b => b.roomId === bookingForm.roomId && b.status !== PaymentStatus.FAILED);
+    // FIX: Convert IDs to String() ensures strict equality works even if API returns numbers
+    const currentRoomBookings = bookings.filter(b => 
+        String(b.roomId) === String(bookingForm.roomId) && 
+        b.status !== PaymentStatus.FAILED
+    );
     
     return currentRoomBookings.some(b => {
-      // Normalize everything to simple Strings
       const checkInStr = normalizeDate(b.checkIn);
       const checkOutStr = normalizeDate(b.checkOut);
       

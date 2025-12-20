@@ -233,15 +233,16 @@ const Availability = () => {
     setViewDate(newDate);
   };
   
-  // ✅ FIXED: String-based availability check
+  // ✅ FIXED: Robust Type Checking for Room ID
   const isRoomBooked = (roomId: string, dateStr: string) => {
-    // dateStr is YYYY-MM-DD
     return bookings.some(b => {
-      if (b.roomId !== roomId) return false;
+      // FIX: Force string comparison for Room IDs to prevent type mismatch bugs
+      if (String(b.roomId) !== String(roomId)) return false;
       
       const checkInStr = normalizeDate(b.checkIn);
       const checkOutStr = normalizeDate(b.checkOut);
       
+      // Date Logic: Booked if date is >= checkIn AND < checkOut
       return dateStr >= checkInStr && dateStr < checkOutStr;
     });
   };
