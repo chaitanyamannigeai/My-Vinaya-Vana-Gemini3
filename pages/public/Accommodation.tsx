@@ -1,4 +1,3 @@
-// pages/public/Accommodation.tsx
 import React, { useState, useEffect } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
@@ -21,11 +20,10 @@ const formatDateLocal = (date: Date) => {
     return `${year}-${month}-${day}`;
 };
 
-// --- HELPER: Normalize Date Strings (Fixes the UTC/Local bug) ---
+// --- HELPER: Normalize Date Strings (FIXES THE BUG) ---
 const normalizeDate = (dateInput: string | Date) => {
     if (!dateInput) return '';
-    // If it's a full ISO string (2025-12-21T00:00:00.000Z), split it.
-    // If it's already YYYY-MM-DD, split works too.
+    // Takes "2025-12-23T00:00:00.000Z" and returns "2025-12-23"
     return String(dateInput).split('T')[0];
 };
 
