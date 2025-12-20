@@ -21,17 +21,21 @@ const formatDateLocal = (date: Date) => {
 };
 
 // --- HELPER: Normalize Date Strings (FIXES THE BUG) ---
-const normalizeDate = (dateInput: string | Date) => {
+const normalizeDate = (dateInput: any) => {
     if (!dateInput) return '';
     
-    // FIX 1: Handle Date objects explicitly to prevent "Fri Dec..." string corruption
+    // FIX 1: Handle Date objects using LOCAL time (prevents timezone shifts)
     if (dateInput instanceof Date) {
-        return dateInput.toISOString().split('T')[0];
+        const year = dateInput.getFullYear();
+        const month = String(dateInput.getMonth() + 1).padStart(2, '0');
+        const day = String(dateInput.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
     
-    // FIX 2: Handle String inputs
+    // FIX 2: Regex to extract YYYY-MM-DD from ANY string format (handles "T" and " " separators)
     const str = String(dateInput);
-    return str.includes('T') ? str.split('T')[0] : str;
+    const match = str.match(/^(\d{4}-\d{2}-\d{2})/);
+    return match ? match[1] : '';
 };
 
 const getAmenityIcon = (amenity: string) => {
