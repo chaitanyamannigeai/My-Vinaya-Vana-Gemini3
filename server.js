@@ -215,7 +215,19 @@ app.post('/api/vehicles', async(req,res)=>{
         res.json({success:true}); 
     }catch(e){res.status(500).json({error:e.message})} 
 });
-app.delete('/api/vehicles/:id', async (req, res) => { try { await pool.query('DELETE FROM cab_vehicles WHERE id = ?', [req.params.id]); res.json({success:true}); } catch(e){res.status(500).json({error:e.message})} });
+// ✅ SAFER DELETE: Unassigns vehicle from drivers before deleting the vehicle
+app.delete('/api/vehicles/:id', async (req, res) => { 
+    try { 
+        const vehicleId = req.params.id;
+        // 1. Unlink this vehicle from any drivers who have it
+        await pool.query('UPDATE drivers SET assigned_vehicle_id = NULL WHERE assigned_vehicle_id = ?', [vehicleId]);
+        // 2. Delete the vehicle
+        await pool.query('DELETE FROM cab_vehicles WHERE id = ?', [vehicleId]); 
+        res.json({success:true}); 
+    } catch(e){
+        res.status(500).json({error:e.message});
+    } 
+});
 
 // REVIEWS
 app.get('/api/reviews', async (req, res) => {
