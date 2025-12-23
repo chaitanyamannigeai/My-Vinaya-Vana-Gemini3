@@ -23,6 +23,14 @@ app.use(cors());
 app.use(compression()); 
 app.use(express.json({ limit: '50mb' })); 
 
+// ✅ NEW BUG FIX: Prevent browser caching for all API routes to ensure fresh data
+app.use('/api', (req, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    next();
+});
+
 const pool = mysql.createPool(process.env.DATABASE_URL || '');
 
 // --- HEALTH CHECK ---
@@ -151,7 +159,7 @@ const fixDatabaseSchema = async () => {
             await connection.query("ALTER TABLE visit_logs ADD COLUMN country VARCHAR(100)");
         } catch (e) {}
 
-        // 9. ✅ NEW: CAB VEHICLES
+        // 9. CAB VEHICLES
         await connection.query(`CREATE TABLE IF NOT EXISTS cab_vehicles (
             id VARCHAR(255) PRIMARY KEY,
             name VARCHAR(255),
@@ -163,7 +171,7 @@ const fixDatabaseSchema = async () => {
             active BOOLEAN DEFAULT 1
         )`);
 
-        // 10. ✅ NEW: DRIVER LINKING
+        // 10. DRIVER LINKING
         try {
             await connection.query("SELECT assigned_vehicle_id FROM drivers LIMIT 1");
         } catch (e) {
@@ -201,7 +209,7 @@ app.post('/api/auth/login', async (req, res) => {
 
 // --- API ROUTES ---
 
-// ✅ NEW: VEHICLES
+// VEHICLES
 app.get('/api/vehicles', async(req,res)=>{ try{const[r]=await pool.query('SELECT * FROM cab_vehicles'); res.json(r.map(v=>({id:v.id, name:v.name, vehicleType:v.vehicle_type, capacity:v.capacity, images:parseJSON(v.images), features:parseJSON(v.features), baseRate:v.base_rate, active:!!v.active})));}catch(e){res.json([]);} });
 app.post('/api/vehicles', async(req,res)=>{ 
     try{ 
@@ -215,7 +223,8 @@ app.post('/api/vehicles', async(req,res)=>{
         res.json({success:true}); 
     }catch(e){res.status(500).json({error:e.message})} 
 });
-// ✅ SAFER DELETE: Unassigns vehicle from drivers before deleting the vehicle
+
+// ✅ SAFER DELETE (Chunk 7 Fix): Unassigns vehicle from drivers before deleting the vehicle
 app.delete('/api/vehicles/:id', async (req, res) => { 
     try { 
         const vehicleId = req.params.id;
@@ -259,8 +268,18 @@ app.post('/api/rooms', async (req, res) => {
 app.delete('/api/rooms/:id', async (req, res) => { try { await pool.query('DELETE FROM rooms WHERE id = ?', [req.params.id]); res.json({success:true}); } catch(e){res.status(500).json({error:e.message})} });
 
 // DRIVERS
-app.get('/api/drivers', async(req,res)=>{ try{const[r]=await pool.query('SELECT * FROM drivers'); res.json(r.map(d=>({id:d.id, name:d.name, phone:d.phone, whatsapp:d.whatsapp, isDefault:!!d.is_default, active:!!d.active, vehicleInfo:d.vehicle_info})));}catch(e){res.json([]);} });
-app.post('/api/drivers', async(req,res)=>{ try{ const {id,name,phone,whatsapp,isDefault,active,vehicleInfo}=req.body; if(isDefault) await pool.query('UPDATE drivers SET is_default=0'); await pool.query("INSERT INTO drivers (id,name,phone,whatsapp,is_default,active,vehicle_info) VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name), phone=VALUES(phone), whatsapp=VALUES(whatsapp), is_default=VALUES(is_default), active=VALUES(active), vehicle_info=VALUES(vehicle_info)",[id,name,phone,whatsapp,isDefault,active,vehicleInfo]); res.json({success:true}); }catch(e){res.status(500).json({error:e.message})} });
+app.get('/api/drivers', async(req,res)=>{ try{const[r]=await pool.query('SELECT * FROM drivers'); res.json(r.map(d=>({id:d.id, name:d.name, phone:d.phone, whatsapp:d.whatsapp, isDefault:!!d.is_default, active:!!d.active, vehicleInfo:d.vehicle_info, assignedVehicleId: d.assigned_vehicle_id})));}catch(e){res.json([]);} });
+app.post('/api/drivers', async(req,res)=>{ 
+    try{ 
+        const {id,name,phone,whatsapp,isDefault,active,vehicleInfo,assignedVehicleId}=req.body; 
+        if(isDefault) await pool.query('UPDATE drivers SET is_default=0'); 
+        await pool.query(
+            "INSERT INTO drivers (id,name,phone,whatsapp,is_default,active,vehicle_info, assigned_vehicle_id) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name), phone=VALUES(phone), whatsapp=VALUES(whatsapp), is_default=VALUES(is_default), active=VALUES(active), vehicle_info=VALUES(vehicle_info), assigned_vehicle_id=VALUES(assigned_vehicle_id)",
+            [id,name,phone,whatsapp,isDefault,active,vehicleInfo, assignedVehicleId]
+        ); 
+        res.json({success:true}); 
+    }catch(e){res.status(500).json({error:e.message})} 
+});
 app.delete('/api/drivers/:id', async (req, res) => { try { await pool.query('DELETE FROM drivers WHERE id = ?', [req.params.id]); res.json({success:true}); } catch(e){res.status(500).json({error:e.message})} });
 
 // LOCATIONS
