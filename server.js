@@ -356,4 +356,63 @@ const distPath = path.join(__dirname, 'dist');
 if (fs.existsSync(distPath)) { app.use(express.static(distPath)); app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html'))); } 
 else { app.get('*', (req, res) => res.send('<h1>Backend Running</h1><p>Frontend not built.</p>')); }
 
+
+// ... existing imports and setup ...
+
+// --- DATABASE STARTUP FIXER ---
+const fixDatabaseSchema = async () => {
+    try {
+        const connection = await pool.getConnection();
+        console.log('🔧 Running Database Startup Checks...');
+
+        // ... (keep existing tables 1-8) ...
+
+        // 9. ✅ NEW: CAB VEHICLES
+        await connection.query(`CREATE TABLE IF NOT EXISTS cab_vehicles (
+            id VARCHAR(255) PRIMARY KEY,
+            name VARCHAR(255),
+            vehicle_type VARCHAR(100),
+            capacity INT,
+            images TEXT,
+            features TEXT,
+            base_rate DECIMAL(10,2),
+            active BOOLEAN DEFAULT 1
+        )`);
+
+        // 10. ✅ NEW: DRIVER LINKING
+        try {
+            await connection.query("SELECT assigned_vehicle_id FROM drivers LIMIT 1");
+        } catch (e) {
+            await connection.query("ALTER TABLE drivers ADD COLUMN assigned_vehicle_id VARCHAR(255) NULL");
+            console.log("✅ Added assigned_vehicle_id column to drivers table");
+        }
+
+        connection.release();
+        console.log("✅ All Database Tables Verified/Created.");
+    } catch (err) {
+        console.error("❌ Startup DB Check Failed:", err.message);
+    }
+};
+// ...
+
+// --- NEW ROUTES: VEHICLES ---
+app.get('/api/vehicles', async(req,res)=>{ try{const[r]=await pool.query('SELECT * FROM cab_vehicles'); res.json(r.map(v=>({id:v.id, name:v.name, vehicleType:v.vehicle_type, capacity:v.capacity, images:parseJSON(v.images), features:parseJSON(v.features), baseRate:v.base_rate, active:!!v.active})));}catch(e){res.json([]);} });
+
+app.post('/api/vehicles', async(req,res)=>{ 
+    try{ 
+        const {id,name,vehicleType,capacity,baseRate,active}=req.body; 
+        const images = JSON.stringify(req.body.images || []); 
+        const features = JSON.stringify(req.body.features || []); 
+        await pool.query(
+            "INSERT INTO cab_vehicles (id,name,vehicle_type,capacity,images,features,base_rate,active) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name), vehicle_type=VALUES(vehicle_type), capacity=VALUES(capacity), images=VALUES(images), features=VALUES(features), base_rate=VALUES(base_rate), active=VALUES(active)",
+            [id,name,vehicleType,capacity,images,features,baseRate,active]
+        ); 
+        res.json({success:true}); 
+    }catch(e){res.status(500).json({error:e.message})} 
+});
+
+app.delete('/api/vehicles/:id', async (req, res) => { try { await pool.query('DELETE FROM cab_vehicles WHERE id = ?', [req.params.id]); res.json({success:true}); } catch(e){res.status(500).json({error:e.message})} });
+
+// ... existing routes ...
+
 app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));

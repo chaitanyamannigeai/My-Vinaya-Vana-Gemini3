@@ -131,3 +131,30 @@ export interface Driver {
   // ... existing fields ...
   assignedVehicleId?: string | null; // Optional link to a CabVehicle
 }
+
+// ... (keep existing enums and interfaces) ...
+
+// ✅ NEW: Represents a vehicle type
+export interface CabVehicle {
+  id: string;
+  name: string;          // e.g., "Toyota Etios"
+  vehicleType: string;   // e.g., "Sedan", "SUV"
+  capacity: number;      // e.g., 4
+  images: string[];      // Array of URLs (Supabase)
+  features: string[];    // e.g., ["AC", "Music System"]
+  baseRate?: number;     // Optional base rate for display
+  active: boolean;
+}
+
+export interface Driver {
+  id: string;
+  name: string;
+  phone: string;
+  whatsapp: string;
+  isDefault: boolean;
+  active: boolean;
+  vehicleInfo?: string;
+  assignedVehicleId?: string | null; // ✅ NEW: Optional link
+}
+
+// ... (keep remaining interfaces like SiteSettings, etc.) ...

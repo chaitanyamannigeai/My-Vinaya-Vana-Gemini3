@@ -1,4 +1,7 @@
 import { Room, Booking, Driver, CabLocation, SiteSettings, GalleryItem, PricingRule, Review, PaymentStatus, WeatherData } from '../types';
+// ... imports including CabVehicle ...
+import { CabVehicle } from '../types'; // Ensure CabVehicle is imported
+
 
 const API_URL = '/api';
 
@@ -27,6 +30,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   weatherApiKey: '',
   websiteHits: 0,
 };
+
 
 const cache: Record<string, any> = {};
 
@@ -135,7 +139,13 @@ export const api = {
     analytics: {
         trackHit: async () => mutate('/analytics/track-hit', 'POST', {}, 'NONE') 
     },
+    vehicles: {
+        getAll: async (): Promise<CabVehicle[]> => fetchWithCache('/vehicles'),
+        save: async (vehicle: CabVehicle) => mutate('/vehicles', 'POST', vehicle),
+        delete: async (id: string) => mutate(`/vehicles/${id}`, 'DELETE', undefined, '/vehicles')
+    },
     docs: {
         getSqlScript: async (): Promise<string> => fetchWithCache('/docs/sql-script')
     }
+
 };

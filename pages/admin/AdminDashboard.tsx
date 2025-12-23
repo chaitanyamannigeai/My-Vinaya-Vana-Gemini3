@@ -4,6 +4,8 @@ import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { Room, Booking, Driver, CabLocation, SiteSettings, PaymentStatus, PricingRule, GalleryItem, Review } from '../../types';
 import { Settings, Calendar, Truck, Map, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent, Download, MessageCircle, CheckCircle, BarChart2, Activity, Loader, TrendingUp, DollarSign, Clock, Link as LinkIcon } from 'lucide-react';
 import ImageUploader from '../../components/ui/ImageUploader';
+// Ensure CabVehicle is imported from types
+import { CabVehicle } from '../../types';
 
 const { useNavigate } = ReactRouterDOM as any;
 
@@ -24,6 +26,9 @@ const AdminDashboard = () => {
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
   const [trafficStats, setTrafficStats] = useState<{month: string, count: number}[]>([]);
   const [deviceStats, setDeviceStats] = useState<{device_type: string, count: number}[]>([]);
+  const [vehicles, setVehicles] = useState<CabVehicle[]>([]); // ✅ NEW State
+
+
   
   // Manual Booking State
   const [showManualBooking, setShowManualBooking] = useState(false);
@@ -75,6 +80,19 @@ const AdminDashboard = () => {
 
   useEffect(() => { if (!authLoading) loadTab(activeTab); }, [activeTab, authLoading]);
   const handleLogout = () => { sessionStorage.removeItem('vv_admin_auth'); navigate('/'); };
+
+  const loadTab = async (tab: string) => {
+      setLoading(true);
+      try {
+          if (tab === 'bookings') setBookings(await api.bookings.getAll());
+          // ... existing tabs ...
+          else if (tab === 'fleet') setVehicles(await api.vehicles.getAll()); // ✅ NEW Tab Load
+          // ... existing tabs ...
+      } catch (e) { console.error("Failed to load tab data", e); } 
+      finally { setLoading(false); }
+  };
+
+  
 
   // Analytics
   const calculateAnalytics = () => {
@@ -220,6 +238,37 @@ const AdminDashboard = () => {
   const updateReviewLocal = (id: string, field: keyof Review, value: any) => { setReviews(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r)); };
   const saveReview = async (id: string) => { try { await api.reviews.save(reviews.find(r => r.id === id)!); alert("Review Saved!"); } catch (e) { alert("Error"); } };
   const deleteReview = async (id: string) => { if (window.confirm("Delete?")) try { await api.reviews.delete(id); setReviews(prev => prev.filter(r => r.id !== id)); } catch(e) {} };
+
+  // ✅ NEW: Vehicle CRUD Helpers
+  const addVehicleLocal = () => { 
+      setVehicles([{ 
+          id: `v${Date.now()}`, 
+          name: 'New Vehicle', 
+          vehicleType: 'Sedan', 
+          capacity: 4, 
+          images: [], 
+          features: ['AC', 'Music'], 
+          baseRate: 0,
+          active: true 
+      }, ...vehicles]); 
+  };
+
+  const updateVehicleLocal = (id: string, field: keyof CabVehicle, value: any) => { 
+      setVehicles(prev => prev.map(v => v.id === id ? { ...v, [field]: value } : v)); 
+  };
+  
+  // Helper for comma-separated features
+  const updateVehicleFeatures = (id: string, val: string) => {
+      setVehicles(prev => prev.map(v => v.id === id ? { ...v, features: val.split(',').map(s => s.trim()) } : v));
+  };
+  
+  const saveVehicle = async (id: string) => { 
+      try { await api.vehicles.save(vehicles.find(v => v.id === id)!); alert("Vehicle Saved!"); } catch (e) { alert("Error"); } 
+  };
+  
+  const deleteVehicle = async (id: string) => { 
+      if (window.confirm("Delete?")) try { await api.vehicles.delete(id); setVehicles(prev => prev.filter(v => v.id !== id)); } catch(e) {} 
+  };
 
   // --- RENDER FUNCTIONS ---
   const renderBookings = () => (
@@ -483,6 +532,60 @@ const AdminDashboard = () => {
         </div>
     </div>
   );
+
+  // ... renderFunctions ...
+
+  // ✅ NEW: Render Fleet (Vehicle Management)
+  const renderFleet = () => (
+    <div className="space-y-6">
+        <button onClick={addVehicleLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700 transition-all hover:scale-105"><Plus size={16} /> Add Vehicle Type</button>
+        <div className="grid gap-6">
+            {vehicles.map(v => (
+                <div key={v.id} className="bg-white p-6 rounded-lg shadow flex flex-col lg:flex-row gap-6 relative border border-gray-100">
+                    <div className="absolute top-4 right-4 flex gap-2 z-10">
+                        <button onClick={() => saveVehicle(v.id)} className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded shadow hover:bg-blue-700"><Save size={16} /> Save</button>
+                        <button onClick={() => deleteVehicle(v.id)} className="text-red-400 hover:text-red-600 bg-white p-1 rounded border border-gray-200"><Trash2 size={20} /></button>
+                    </div>
+                    {/* Basic Image Upload (Main Image only for Chunk 3) */}
+                    <div className="lg:w-1/3">
+                        <ImageUploader 
+                            label="Main Vehicle Image" 
+                            value={v.images[0] || ''} 
+                            onChange={(val) => { 
+                                const newImgs = [...v.images]; 
+                                newImgs[0] = val; 
+                                updateVehicleLocal(v.id, 'images', newImgs); 
+                            }} 
+                        />
+                    </div>
+                    <div className="lg:w-2/3 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><label className="block text-xs text-gray-500">Vehicle Name</label><input type="text" value={v.name} onChange={(e) => updateVehicleLocal(v.id, 'name', e.target.value)} className="border rounded px-3 py-2 w-full font-bold" placeholder="e.g. Toyota Innova"/></div>
+                            <div><label className="block text-xs text-gray-500">Vehicle Type</label><input type="text" value={v.vehicleType} onChange={(e) => updateVehicleLocal(v.id, 'vehicleType', e.target.value)} className="border rounded px-3 py-2 w-full" placeholder="e.g. SUV"/></div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div><label className="block text-xs text-gray-500">Capacity</label><input type="number" value={v.capacity} onChange={(e) => updateVehicleLocal(v.id, 'capacity', parseInt(e.target.value))} className="border rounded px-3 py-2 w-full"/></div>
+                            <div><label className="block text-xs text-gray-500">Display Rate (₹/km or fixed)</label><input type="number" value={v.baseRate || ''} onChange={(e) => updateVehicleLocal(v.id, 'baseRate', parseFloat(e.target.value))} className="border rounded px-3 py-2 w-full"/></div>
+                            <div className="flex items-center pt-5"><label className="flex items-center gap-2 cursor-pointer font-medium"><input type="checkbox" checked={v.active} onChange={(e) => updateVehicleLocal(v.id, 'active', e.target.checked)} /> Active / Available</label></div>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-500">Features (comma separated)</label>
+                            <input type="text" value={v.features.join(', ')} onChange={(e) => updateVehicleFeatures(v.id, e.target.value)} className="border rounded px-3 py-2 w-full" placeholder="AC, Music System, Carrier"/>
+                        </div>
+                    </div>
+                </div>
+            ))}
+            {vehicles.length === 0 && <p className="text-gray-500 text-center py-8">No vehicles in fleet. Add one to get started.</p>}
+        </div>
+    </div>
+  );
+
+  // ... inside return statement, Sidebar Navigation ...
+  // Add 'fleet' to the list
+  // {['bookings', 'rooms', 'locations', 'fleet', 'drivers', ...].map(tab => ...
+
+  // ... inside return statement, Content Area ...
+  // {activeTab === 'fleet' && renderFleet()}
 
   const renderHomePageContent = () => (
     <div className="bg-white p-8 rounded-lg shadow max-w-3xl space-y-8">
