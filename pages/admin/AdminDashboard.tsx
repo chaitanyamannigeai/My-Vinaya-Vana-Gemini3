@@ -24,8 +24,6 @@ const AdminDashboard = () => {
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
   const [trafficStats, setTrafficStats] = useState<{month: string, count: number}[]>([]);
   const [deviceStats, setDeviceStats] = useState<{device_type: string, count: number}[]>([]);
-  
-  // Vehicle State
   const [vehicles, setVehicles] = useState<CabVehicle[]>([]);
   
   // Manual Booking State
@@ -55,9 +53,13 @@ const AdminDashboard = () => {
           else if (tab === 'locations') { 
               setLocations(await api.locations.getAll()); 
               setDrivers(await api.drivers.getAll()); 
+              setVehicles(await api.vehicles.getAll()); // Load vehicles for dropdown
           }
           else if (tab === 'fleet') setVehicles(await api.vehicles.getAll());
-          else if (tab === 'drivers') setDrivers(await api.drivers.getAll());
+          else if (tab === 'drivers') {
+              setDrivers(await api.drivers.getAll());
+              setVehicles(await api.vehicles.getAll()); // Load vehicles for dropdown
+          }
           else if (tab === 'pricing') setPricingRules(await api.pricing.getAll());
           else if (tab === 'gallery') setGallery(await api.gallery.getAll());
           else if (tab === 'reviews') setReviews(await api.reviews.getAll());
@@ -80,7 +82,7 @@ const AdminDashboard = () => {
   useEffect(() => { if (!authLoading) loadTab(activeTab); }, [activeTab, authLoading]);
   const handleLogout = () => { sessionStorage.removeItem('vv_admin_auth'); navigate('/'); };
 
-  // Analytics
+  // Analytics & Actions (Abbreviated for brevity, logic identical to previous chunks)
   const calculateAnalytics = () => {
       const totalRevenue = bookings.reduce((sum, b) => sum + (parseFloat((b.amountPaid || 0) as any)), 0);
       const totalBookings = bookings.length;
@@ -107,7 +109,6 @@ const AdminDashboard = () => {
   };
   const analytics = calculateAnalytics();
 
-  // Booking Actions
   const updateBookingStatus = async (id: string, status: PaymentStatus) => {
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
     try { await api.bookings.updateStatus(id, status); loadTab('bookings'); } catch (e) { alert("Failed"); }
@@ -223,56 +224,17 @@ const AdminDashboard = () => {
   const saveReview = async (id: string) => { try { await api.reviews.save(reviews.find(r => r.id === id)!); alert("Review Saved!"); } catch (e) { alert("Error"); } };
   const deleteReview = async (id: string) => { if (window.confirm("Delete?")) try { await api.reviews.delete(id); setReviews(prev => prev.filter(r => r.id !== id)); } catch(e) {} };
 
-  // Vehicle CRUD Helpers
+  // Vehicle CRUD
   const addVehicleLocal = () => { 
-      setVehicles([{ 
-          id: `v${Date.now()}`, 
-          name: 'New Vehicle', 
-          vehicleType: 'Sedan', 
-          capacity: 4, 
-          images: [], 
-          features: ['AC', 'Music'], 
-          baseRate: 0,
-          active: true 
-      }, ...vehicles]); 
+      setVehicles([{ id: `v${Date.now()}`, name: 'New Vehicle', vehicleType: 'Sedan', capacity: 4, images: [], features: ['AC', 'Music'], baseRate: 0, active: true }, ...vehicles]); 
   };
-  
-  const updateVehicleLocal = (id: string, field: keyof CabVehicle, value: any) => { 
-      setVehicles(prev => prev.map(v => v.id === id ? { ...v, [field]: value } : v)); 
-  };
-  
-  const updateVehicleFeatures = (id: string, val: string) => {
-      setVehicles(prev => prev.map(v => v.id === id ? { ...v, features: val.split(',').map(s => s.trim()) } : v));
-  };
-
-  // ✅ NEW: Image Array Helpers
-  const addVehicleImageSlot = (id: string) => {
-      setVehicles(prev => prev.map(v => v.id === id ? { ...v, images: [...v.images, ''] } : v));
-  };
-
-  const updateVehicleImage = (id: string, index: number, val: string) => {
-      setVehicles(prev => prev.map(v => {
-          if (v.id !== id) return v;
-          const newImages = [...v.images];
-          newImages[index] = val;
-          return { ...v, images: newImages };
-      }));
-  };
-
-  const removeVehicleImage = (id: string, index: number) => {
-      setVehicles(prev => prev.map(v => {
-          if (v.id !== id) return v;
-          return { ...v, images: v.images.filter((_, i) => i !== index) };
-      }));
-  };
-  
-  const saveVehicle = async (id: string) => { 
-      try { await api.vehicles.save(vehicles.find(v => v.id === id)!); alert("Vehicle Saved!"); } catch (e) { alert("Error"); } 
-  };
-  
-  const deleteVehicle = async (id: string) => { 
-      if (window.confirm("Delete?")) try { await api.vehicles.delete(id); setVehicles(prev => prev.filter(v => v.id !== id)); } catch(e) {} 
-  };
+  const updateVehicleLocal = (id: string, field: keyof CabVehicle, value: any) => { setVehicles(prev => prev.map(v => v.id === id ? { ...v, [field]: value } : v)); };
+  const updateVehicleFeatures = (id: string, val: string) => { setVehicles(prev => prev.map(v => v.id === id ? { ...v, features: val.split(',').map(s => s.trim()) } : v)); };
+  const addVehicleImageSlot = (id: string) => { setVehicles(prev => prev.map(v => v.id === id ? { ...v, images: [...v.images, ''] } : v)); };
+  const updateVehicleImage = (id: string, index: number, val: string) => { setVehicles(prev => prev.map(v => { if (v.id !== id) return v; const newImages = [...v.images]; newImages[index] = val; return { ...v, images: newImages }; })); };
+  const removeVehicleImage = (id: string, index: number) => { setVehicles(prev => prev.map(v => { if (v.id !== id) return v; return { ...v, images: v.images.filter((_, i) => i !== index) }; })); };
+  const saveVehicle = async (id: string) => { try { await api.vehicles.save(vehicles.find(v => v.id === id)!); alert("Vehicle Saved!"); } catch (e) { alert("Error"); } };
+  const deleteVehicle = async (id: string) => { if (window.confirm("Delete?")) try { await api.vehicles.delete(id); setVehicles(prev => prev.filter(v => v.id !== id)); } catch(e) {} };
 
   // --- RENDER FUNCTIONS ---
   const renderBookings = () => (
@@ -291,7 +253,6 @@ const AdminDashboard = () => {
                 <div className="bg-yellow-100 p-3 rounded-full text-yellow-600"><Clock size={24} /></div>
             </div>
         </div>
-
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2"><TrendingUp size={20} className="text-nature-600"/> Monthly Revenue Trend</h3>
             <div className="flex items-end justify-between h-48 gap-2 pt-4 border-b border-gray-200 px-4">
@@ -309,7 +270,6 @@ const AdminDashboard = () => {
                 })}
             </div>
         </div>
-
         <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
                 <h3 className="font-bold text-gray-700">Guest Reservations</h3>
@@ -360,18 +320,8 @@ const AdminDashboard = () => {
                         </td>
                         <td className="px-6 py-4 flex gap-3">
                             <a href={`https://wa.me/${b.guestPhone?.replace(/[^0-9]/g, '')}`} target="_blank" className="text-green-600 hover:text-green-800"><MessageCircle size={18} /></a>
-                            {(b.balanceAmount ?? 0) > 1 && (
-                                <button onClick={() => copyPaymentLink(b.id)} title="Copy Balance Payment Link" className="text-blue-600 hover:text-blue-800"><LinkIcon size={18} /></button>
-                            )}
-                            {(b.balanceAmount ?? 0) > 1 && (
-                                <button 
-                                    onClick={() => openPaymentModal(b)} 
-                                    className="text-nature-700 hover:text-nature-900 bg-nature-100 p-1 rounded" 
-                                    title="Record Extra Payment"
-                                >
-                                    <Banknote size={18} />
-                                </button>
-                            )}
+                            {(b.balanceAmount ?? 0) > 1 && <button onClick={() => copyPaymentLink(b.id)} title="Copy Balance Payment Link" className="text-blue-600 hover:text-blue-800"><LinkIcon size={18} /></button>}
+                            {(b.balanceAmount ?? 0) > 1 && <button onClick={() => openPaymentModal(b)} className="text-nature-700 hover:text-nature-900 bg-nature-100 p-1 rounded" title="Record Extra Payment"><Banknote size={18} /></button>}
                         </td>
                         </tr>
                     ))}
@@ -433,7 +383,6 @@ const AdminDashboard = () => {
     </div>
   );
 
-  // ✅ NEW: Render Fleet (Enhanced with Gallery)
   const renderFleet = () => (
     <div className="space-y-6">
         <button onClick={addVehicleLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700 transition-all hover:scale-105"><Plus size={16} /> Add Vehicle Type</button>
@@ -444,49 +393,21 @@ const AdminDashboard = () => {
                         <button onClick={() => saveVehicle(v.id)} className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded shadow hover:bg-blue-700"><Save size={16} /> Save</button>
                         <button onClick={() => deleteVehicle(v.id)} className="text-red-400 hover:text-red-600 bg-white p-1 rounded border border-gray-200"><Trash2 size={20} /></button>
                     </div>
-                    
-                    {/* Image Section: Main + Gallery */}
                     <div className="lg:w-1/3 space-y-4">
-                        {/* Main Image (Index 0) */}
-                        <div className="border-b pb-4">
-                            <ImageUploader 
-                                label="Main Vehicle Image (Thumbnail)" 
-                                value={v.images[0] || ''} 
-                                onChange={(val) => updateVehicleImage(v.id, 0, val)} 
-                            />
-                        </div>
-                        
-                        {/* Additional Gallery Images */}
+                        <div className="border-b pb-4"><ImageUploader label="Main Vehicle Image (Thumbnail)" value={v.images[0] || ''} onChange={(val) => updateVehicleImage(v.id, 0, val)} /></div>
                         <div>
                             <label className="block text-xs text-gray-500 mb-2 font-bold">Gallery Images</label>
                             <div className="grid grid-cols-2 gap-2">
                                 {v.images.slice(1).map((img, idx) => (
                                     <div key={idx + 1} className="relative group">
-                                        <ImageUploader 
-                                            value={img} 
-                                            onChange={(val) => updateVehicleImage(v.id, idx + 1, val)} 
-                                        />
-                                        <button 
-                                            onClick={() => removeVehicleImage(v.id, idx + 1)}
-                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 z-10"
-                                            title="Remove Image"
-                                        >
-                                            <X size={12} />
-                                        </button>
+                                        <ImageUploader value={img} onChange={(val) => updateVehicleImage(v.id, idx + 1, val)} />
+                                        <button onClick={() => removeVehicleImage(v.id, idx + 1)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 z-10" title="Remove Image"><X size={12} /></button>
                                     </div>
                                 ))}
-                                <button 
-                                    onClick={() => addVehicleImageSlot(v.id)}
-                                    className="border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center h-24 text-gray-400 hover:border-nature-500 hover:text-nature-600 transition-colors"
-                                >
-                                    <Plus size={20} />
-                                    <span className="text-xs mt-1">Add Photo</span>
-                                </button>
+                                <button onClick={() => addVehicleImageSlot(v.id)} className="border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center h-24 text-gray-400 hover:border-nature-500 hover:text-nature-600 transition-colors"><Plus size={20} /><span className="text-xs mt-1">Add Photo</span></button>
                             </div>
                         </div>
                     </div>
-
-                    {/* Content Section */}
                     <div className="lg:w-2/3 space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div><label className="block text-xs text-gray-500">Vehicle Name</label><input type="text" value={v.name} onChange={(e) => updateVehicleLocal(v.id, 'name', e.target.value)} className="border rounded px-3 py-2 w-full font-bold" placeholder="e.g. Toyota Innova"/></div>
@@ -509,6 +430,7 @@ const AdminDashboard = () => {
     </div>
   );
 
+  // ✅ UPDATED: Driver Rendering with Vehicle Selection
   const renderDrivers = () => (
     <div className="space-y-4">
         <button onClick={addDriverLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700"><Plus size={16} /> Add Driver</button>
@@ -525,7 +447,27 @@ const AdminDashboard = () => {
                              <label className="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" checked={d.active} onChange={(e) => updateDriverLocal(d.id, 'active', e.target.checked)} /> Active</label>
                         </div>
                     </div>
-                    <div className="mt-2"><label className="text-xs text-gray-500 block">Vehicle Info</label><input type="text" value={d.vehicleInfo || ''} onChange={(e) => updateDriverLocal(d.id, 'vehicleInfo', e.target.value)} className="border w-full p-1 rounded" placeholder="e.g. Toyota Innova"/></div>
+                    
+                    {/* Vehicle Assignment Dropdown */}
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs text-gray-500 block">Vehicle Description (Manual Text)</label>
+                            <input type="text" value={d.vehicleInfo || ''} onChange={(e) => updateDriverLocal(d.id, 'vehicleInfo', e.target.value)} className="border w-full p-1 rounded" placeholder="e.g. Toyota Innova"/>
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-500 block font-bold text-nature-700">Assign Fleet Vehicle</label>
+                            <select 
+                                value={d.assignedVehicleId || ''} 
+                                onChange={(e) => updateDriverLocal(d.id, 'assignedVehicleId', e.target.value || null)} 
+                                className="border w-full p-1 rounded bg-nature-50 text-sm"
+                            >
+                                <option value="">-- No Vehicle Assigned --</option>
+                                {vehicles.filter(v => v.active).map(v => (
+                                    <option key={v.id} value={v.id}>{v.name} ({v.vehicleType})</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
                 </div>
             ))}
         </div>
@@ -672,7 +614,6 @@ const AdminDashboard = () => {
                         <input type="text" value={settings.razorpayKey} onChange={(e) => setSettings({...settings, razorpayKey: e.target.value})} className="w-full border rounded p-2"/>
                     </div>
                 </div>
-
                 <div className="bg-white p-4 rounded border border-gray-200 space-y-4">
                     <div className="flex items-center gap-2">
                         <input 
@@ -701,7 +642,6 @@ const AdminDashboard = () => {
                 </div>
             </div>
         </div>
-        
         <div>
             <h3 className="text-lg font-bold mb-4 border-b pb-2 flex items-center gap-2"><Settings size={20}/> Site Configuration</h3>
             <div className="space-y-4">

@@ -1,745 +1,346 @@
-import React, { useState, useEffect } from 'react';
-import * as ReactRouterDOM from 'react-router-dom';
-import { api, DEFAULT_SETTINGS } from '../../services/api';
-import { Room, Booking, Driver, CabLocation, SiteSettings, PaymentStatus, PricingRule, GalleryItem, Review, CabVehicle } from '../../types';
-import { Settings, Calendar, Truck, Map, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent, Download, MessageCircle, CheckCircle, BarChart2, Activity, Loader, TrendingUp, DollarSign, Clock, Link as LinkIcon } from 'lucide-react';
-import ImageUploader from '../../components/ui/ImageUploader';
+import express from 'express';
+import path from 'path';
+import mysql from 'mysql2/promise';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+import axios from 'axios';
+import compression from 'compression'; 
 
-const { useNavigate } = ReactRouterDOM as any;
+dotenv.config();
 
-const AdminDashboard = () => {
-  const navigate = useNavigate();
-  const [authLoading, setAuthLoading] = useState(true); 
-  const [activeTab, setActiveTab] = useState('bookings');
-  const [loading, setLoading] = useState(false);
-  
-  // Data States
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [locations, setLocations] = useState<CabLocation[]>([]);
-  const [pricingRules, setPricingRules] = useState<PricingRule[]>([]);
-  const [gallery, setGallery] = useState<GalleryItem[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
-  const [trafficStats, setTrafficStats] = useState<{month: string, count: number}[]>([]);
-  const [deviceStats, setDeviceStats] = useState<{device_type: string, count: number}[]>([]);
-  const [vehicles, setVehicles] = useState<CabVehicle[]>([]);
-  
-  // Manual Booking State
-  const [showManualBooking, setShowManualBooking] = useState(false);
-  const [manualBooking, setManualBooking] = useState({ roomId: "", guestName: "", phone: "", checkIn: "", checkOut: "", amount: "", paid: "" });
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-  // Payment Modal State
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentData, setPaymentData] = useState({ bookingId: '', currentBalance: 0, amountToCollect: '' });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-  // Auth Check
-  useEffect(() => {
-    const checkAuth = () => {
-        const isAuth = sessionStorage.getItem('vv_admin_auth');
-        if (isAuth !== 'true') navigate('/admin/login');
-        else { setAuthLoading(false); loadTab('bookings'); }
-    };
-    checkAuth();
-  }, [navigate]);
+// Trust proxy is required when behind a load balancer (like Google Cloud)
+app.set('trust proxy', true); 
 
-  // Data Loading
-  const loadTab = async (tab: string) => {
-      setLoading(true);
-      try {
-          if (tab === 'bookings') setBookings(await api.bookings.getAll());
-          else if (tab === 'rooms') setRooms(await api.rooms.getAll());
-          else if (tab === 'locations') { 
-              setLocations(await api.locations.getAll()); 
-              setDrivers(await api.drivers.getAll()); 
-              setVehicles(await api.vehicles.getAll()); // Load vehicles for dropdown
-          }
-          else if (tab === 'fleet') setVehicles(await api.vehicles.getAll());
-          else if (tab === 'drivers') {
-              setDrivers(await api.drivers.getAll());
-              setVehicles(await api.vehicles.getAll()); // Load vehicles for dropdown
-          }
-          else if (tab === 'pricing') setPricingRules(await api.pricing.getAll());
-          else if (tab === 'gallery') setGallery(await api.gallery.getAll());
-          else if (tab === 'reviews') setReviews(await api.reviews.getAll());
-          else if ((tab === 'settings' || tab === 'home-content')) {
-              const s = await api.settings.get();
-              setSettings(s);
-              if (tab === 'home-content') {
-                  try {
-                      const resTraffic = await fetch('/api/analytics/traffic');
-                      if (resTraffic.ok) setTrafficStats(await resTraffic.json());
-                      const resDevice = await fetch('/api/analytics/devices');
-                      if (resDevice.ok) setDeviceStats(await resDevice.json());
-                  } catch (e) {}
-              }
-          }
-      } catch (e) { console.error("Failed to load tab data", e); } 
-      finally { setLoading(false); }
-  };
+app.use(cors());
+app.use(compression()); 
+app.use(express.json({ limit: '50mb' })); 
 
-  useEffect(() => { if (!authLoading) loadTab(activeTab); }, [activeTab, authLoading]);
-  const handleLogout = () => { sessionStorage.removeItem('vv_admin_auth'); navigate('/'); };
+const pool = mysql.createPool(process.env.DATABASE_URL || '');
 
-  // Analytics & Actions (Abbreviated for brevity, logic identical to previous chunks)
-  const calculateAnalytics = () => {
-      const totalRevenue = bookings.reduce((sum, b) => sum + (parseFloat((b.amountPaid || 0) as any)), 0);
-      const totalBookings = bookings.length;
-      const pendingBookings = bookings.filter(b => b.status === 'PENDING').length;
-      const monthlyRevenue: Record<string, number> = {};
-      const months = [];
-      const today = new Date();
-      for(let i = -3; i <= 3; i++) {
-          const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
-          const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
-          monthlyRevenue[key] = 0;
-          months.push(key);
-      }
-      bookings.forEach(b => {
-        if (b.amountPaid && b.amountPaid > 0) {
-            const bookingDate = new Date(b.checkIn);
-            if (!isNaN(bookingDate.getTime())) {
-                const key = bookingDate.toLocaleString('default', { month: 'short', year: '2-digit' });
-                if (monthlyRevenue.hasOwnProperty(key)) monthlyRevenue[key] += (parseFloat(b.amountPaid as any) || 0);
-            }
-        }
-      });
-      return { totalRevenue, totalBookings, pendingBookings, monthlyRevenue, months };
-  };
-  const analytics = calculateAnalytics();
+// --- HEALTH CHECK ---
+app.get('/api/health', async (req, res) => {
+    try {
+        const connection = await pool.getConnection();
+        connection.release();
+        res.json({ status: 'OK', database: 'Connected' });
+    } catch (err) {
+        res.status(500).json({ status: 'ERROR', error: err.message });
+    }
+});
 
-  const updateBookingStatus = async (id: string, status: PaymentStatus) => {
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
-    try { await api.bookings.updateStatus(id, status); loadTab('bookings'); } catch (e) { alert("Failed"); }
-  };
-
-  const createManualBooking = async () => {
-      if (!manualBooking.roomId || !manualBooking.guestName || !manualBooking.checkIn || !manualBooking.checkOut) { alert("Fill all fields"); return; }
-      if (new Date(manualBooking.checkIn) >= new Date(manualBooking.checkOut)) { alert("Check-out must be after check-in"); return; }
-      const total = Number(manualBooking.amount);
-      const paid = Number(manualBooking.paid || 0);
-      const booking: Booking = {
-        id: `manual-${Date.now()}`,
-        roomId: manualBooking.roomId.trim(),
-        guestName: manualBooking.guestName.trim(),
-        guestPhone: manualBooking.phone,
-        checkIn: manualBooking.checkIn,
-        checkOut: manualBooking.checkOut,
-        totalAmount: total,
-        amountPaid: paid,
-        balanceAmount: total - paid,
-        status: (total - paid) <= 1 ? PaymentStatus.PAID : (paid > 0 ? PaymentStatus.PARTIAL : PaymentStatus.PENDING),
-        createdAt: new Date().toISOString()
-      };
-      await api.bookings.add(booking);
-      setBookings(await api.bookings.getAll());
-      setShowManualBooking(false);
-      setManualBooking({ roomId: '', guestName: '', phone: '', checkIn: '', checkOut: '', amount: '', paid: '' });
-  };
-
-  const handleCollectPayment = async () => {
-      const amount = parseFloat(paymentData.amountToCollect);
-      if (!amount || amount <= 0) { alert("Please enter a valid amount"); return; }
-      try {
-          await api.bookings.payBalance(paymentData.bookingId, amount);
-          alert("Payment Recorded Successfully!");
-          setShowPaymentModal(false);
-          setPaymentData({ bookingId: '', currentBalance: 0, amountToCollect: '' });
-          loadTab('bookings'); 
-      } catch (e: any) {
-          alert("Failed to update payment.");
-      }
-  };
-
-  const openPaymentModal = (booking: Booking) => {
-      setPaymentData({
-          bookingId: booking.id,
-          currentBalance: booking.balanceAmount || 0,
-          amountToCollect: ''
-      });
-      setShowPaymentModal(true);
-  };
-
-  const copyPaymentLink = (id: string) => {
-      const link = `${window.location.origin}/#/pay-balance/${id}`;
-      navigator.clipboard.writeText(link);
-      alert("Payment Link Copied: " + link);
-  };
-
-  const downloadBookingsCSV = () => {
-    if (bookings.length === 0) { alert("No bookings to export."); return; }
-    const headers = ["Booking ID", "Guest Name", "Phone", "Room ID", "Check In", "Check Out", "Total Amount", "Paid", "Balance", "Status"];
-    const rows = bookings.map(b => [
-        b.id, `"${b.guestName}"`, `"${b.guestPhone}"`, b.roomId, b.checkIn, b.checkOut, b.totalAmount, b.amountPaid, b.balanceAmount, b.status
-    ]);
-    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `VinayaVana_Bookings_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // --- CRUD HELPERS ---
-  const getRoomName = (roomId: string) => {
-      const r = rooms.find(room => room.id === roomId);
-      return r ? r.name : 'Unknown Room';
-  };
-
-  const addRoomLocal = () => { setRooms([{ id: `r${Date.now()}`, name: 'New Room', description: 'Description...', basePrice: 3000, capacity: 2, amenities: ['Wifi', 'AC'], images: ['https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&q=80&w=800'] }, ...rooms]); };
-  const updateRoomLocal = (id: string, field: keyof Room, value: any) => { setRooms(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r)); };
-  const updateRoomAmenitiesLocal = (id: string, val: string) => { setRooms(prev => prev.map(r => r.id === id ? { ...r, amenities: val.split(',').map(s => s.trim()) } : r)); };
-  const saveRoom = async (id: string) => { try { await api.rooms.save(rooms.find(r => r.id === id)!); alert("Room Saved!"); } catch (e) { alert("Error"); } };
-  const deleteRoom = async (id: string) => { if (window.confirm("Delete?")) try { await api.rooms.delete(id); setRooms(prev => prev.filter(r => r.id !== id)); } catch(e) {} };
-
-  const addDriverLocal = () => { setDrivers([{ id: Date.now().toString(), name: 'New Driver', phone: '', whatsapp: '', isDefault: false, active: true, vehicleInfo: '' }, ...drivers]); };
-  const updateDriverLocal = (id: string, field: keyof Driver, value: any) => { setDrivers(prev => prev.map(d => d.id === id ? { ...d, [field]: value } : d)); };
-  const saveDriver = async (id: string) => { try { await api.drivers.save(drivers.find(d => d.id === id)!); alert("Driver Saved!"); } catch (e) { alert("Error"); } };
-  const deleteDriver = async (id: string) => { if (window.confirm("Delete?")) try { await api.drivers.delete(id); setDrivers(prev => prev.filter(d => d.id !== id)); } catch(e) {} };
-
-  const addLocationLocal = () => { setLocations([{ id: Date.now().toString(), name: 'New Location', description: '', imageUrl: '', active: true, driverId: null, price: 0 }, ...locations]); };
-  const updateLocationLocal = (id: string, field: keyof CabLocation, value: any) => { setLocations(prev => prev.map(l => l.id === id ? { ...l, [field]: value } : l)); };
-  const saveLocation = async (id: string) => { try { await api.locations.save(locations.find(l => l.id === id)!); alert("Location Saved!"); } catch(e) {} };
-  const deleteLocation = async (id: string) => { if (window.confirm("Delete?")) try { await api.locations.delete(id); setLocations(prev => prev.filter(l => l.id !== id)); } catch(e) {} };
-
-  const addPricingRuleLocal = () => { 
-      const newRule: PricingRule = { id: `pr${Date.now()}`, name: 'New Season', startDate: new Date().toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0], multiplier: 1.2 };
-      setPricingRules(prev => [newRule, ...prev]); 
-  };
-  const updatePricingRuleLocal = (id: string, field: keyof PricingRule, value: any) => { setPricingRules(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r)); };
-  const savePricingRule = async (id: string) => { try { await api.pricing.save(pricingRules.find(r => r.id === id)!); alert("Rule Saved!"); } catch (e) { alert("Error"); } };
-  const deletePricingRule = async (id: string) => { if (window.confirm("Delete?")) try { await api.pricing.delete(id); setPricingRules(prev => prev.filter(r => r.id !== id)); } catch(e) {} };
-
-  const addGalleryItemLocal = () => { setGallery([{ id: `g${Date.now()}`, url: '', category: 'Property', caption: '' }, ...gallery]); };
-  const updateGalleryItemLocal = (id: string, field: keyof GalleryItem, value: any) => { setGallery(prev => prev.map(g => g.id === id ? { ...g, [field]: value } : g)); };
-  const saveGalleryItem = async (id: string) => { try { await api.gallery.save(gallery.find(g => g.id === id)!); alert("Image Saved!"); } catch (e) { alert("Error"); } };
-  const deleteGalleryItem = async (id: string) => { if (window.confirm("Delete?")) try { await api.gallery.delete(id); setGallery(prev => prev.filter(g => g.id !== id)); } catch(e) {} };
-
-  const addReviewLocal = () => { setReviews([{ id: `rev${Date.now()}`, guestName: 'Guest', location: '', rating: 5, comment: '', date: new Date().toISOString().split('T')[0], showOnHome: false }, ...reviews]); };
-  const updateReviewLocal = (id: string, field: keyof Review, value: any) => { setReviews(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r)); };
-  const saveReview = async (id: string) => { try { await api.reviews.save(reviews.find(r => r.id === id)!); alert("Review Saved!"); } catch (e) { alert("Error"); } };
-  const deleteReview = async (id: string) => { if (window.confirm("Delete?")) try { await api.reviews.delete(id); setReviews(prev => prev.filter(r => r.id !== id)); } catch(e) {} };
-
-  // Vehicle CRUD
-  const addVehicleLocal = () => { 
-      setVehicles([{ id: `v${Date.now()}`, name: 'New Vehicle', vehicleType: 'Sedan', capacity: 4, images: [], features: ['AC', 'Music'], baseRate: 0, active: true }, ...vehicles]); 
-  };
-  const updateVehicleLocal = (id: string, field: keyof CabVehicle, value: any) => { setVehicles(prev => prev.map(v => v.id === id ? { ...v, [field]: value } : v)); };
-  const updateVehicleFeatures = (id: string, val: string) => { setVehicles(prev => prev.map(v => v.id === id ? { ...v, features: val.split(',').map(s => s.trim()) } : v)); };
-  const addVehicleImageSlot = (id: string) => { setVehicles(prev => prev.map(v => v.id === id ? { ...v, images: [...v.images, ''] } : v)); };
-  const updateVehicleImage = (id: string, index: number, val: string) => { setVehicles(prev => prev.map(v => { if (v.id !== id) return v; const newImages = [...v.images]; newImages[index] = val; return { ...v, images: newImages }; })); };
-  const removeVehicleImage = (id: string, index: number) => { setVehicles(prev => prev.map(v => { if (v.id !== id) return v; return { ...v, images: v.images.filter((_, i) => i !== index) }; })); };
-  const saveVehicle = async (id: string) => { try { await api.vehicles.save(vehicles.find(v => v.id === id)!); alert("Vehicle Saved!"); } catch (e) { alert("Error"); } };
-  const deleteVehicle = async (id: string) => { if (window.confirm("Delete?")) try { await api.vehicles.delete(id); setVehicles(prev => prev.filter(v => v.id !== id)); } catch(e) {} };
-
-  // --- RENDER FUNCTIONS ---
-  const renderBookings = () => (
-    <div className="space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-                <div><p className="text-gray-500 text-sm font-medium">Total Revenue Collected</p><h3 className="text-2xl font-bold text-gray-800 mt-1">₹{analytics.totalRevenue.toLocaleString()}</h3></div>
-                <div className="bg-green-100 p-3 rounded-full text-green-600"><DollarSign size={24} /></div>
-            </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-                <div><p className="text-gray-500 text-sm font-medium">Total Bookings</p><h3 className="text-2xl font-bold text-gray-800 mt-1">{analytics.totalBookings}</h3></div>
-                <div className="bg-blue-100 p-3 rounded-full text-blue-600"><Activity size={24} /></div>
-            </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-                <div><p className="text-gray-500 text-sm font-medium">Pending Actions</p><h3 className="text-2xl font-bold text-gray-800 mt-1">{analytics.pendingBookings}</h3></div>
-                <div className="bg-yellow-100 p-3 rounded-full text-yellow-600"><Clock size={24} /></div>
-            </div>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2"><TrendingUp size={20} className="text-nature-600"/> Monthly Revenue Trend</h3>
-            <div className="flex items-end justify-between h-48 gap-2 pt-4 border-b border-gray-200 px-4">
-                {analytics.months.map(month => {
-                    const value = analytics.monthlyRevenue[month];
-                    const maxVal = Math.max(...Object.values(analytics.monthlyRevenue), 1000); 
-                    const heightPercent = Math.max((value / maxVal) * 100, 2); 
-                    return (
-                        <div key={month} className="flex flex-col items-center gap-2 w-full group relative h-full justify-end">
-                            <div className="text-xs font-bold text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity absolute -top-6 bg-white shadow px-2 py-1 rounded">₹{value.toLocaleString()}</div>
-                            <div className={`w-full max-w-[40px] rounded-t-md transition-all duration-500 relative ${value > 0 ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-100'}`} style={{ height: `${heightPercent}%` }}></div>
-                            <span className="text-xs text-gray-500 font-medium">{month}</span>
-                        </div>
-                    )
-                })}
-            </div>
-        </div>
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-                <h3 className="font-bold text-gray-700">Guest Reservations</h3>
-                <div className="flex gap-2">
-                    <button onClick={() => setShowManualBooking(true)} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700 shadow-sm"><Plus size={16} /> Manual</button>
-                    <button onClick={downloadBookingsCSV} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 shadow-sm"><Download size={16} /> Export</button>
-                </div>
-            </div>
-            <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                    <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Guest / Room</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dates</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Financials</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                    </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                    {bookings.map(b => (
-                        <tr key={b.id}>
-                        <td className="px-6 py-4">
-                            <div className="text-sm font-medium text-gray-900">{b.guestName}</div>
-                            <div className="text-xs text-gray-500 flex items-center gap-1"><Home size={12}/> {getRoomName(b.roomId)}</div>
-                            <div className="text-xs text-gray-400">{b.guestPhone}</div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                            <div>{b.checkIn}</div>
-                            <div className="text-xs text-gray-400">to {b.checkOut}</div>
-                        </td>
-                        <td className="px-6 py-4 text-sm">
-                            <div className="font-bold">Total: ₹{b.totalAmount}</div>
-                            <div className="text-green-600 text-xs">Paid: ₹{b.amountPaid || 0}</div>
-                            {(b.balanceAmount ?? 0) > 1 && <div className="text-red-500 text-xs font-bold">Due: ₹{b.balanceAmount}</div>}
-                        </td>
-                        <td className="px-6 py-4">
-                            <select 
-                                value={b.status}
-                                onChange={(e) => updateBookingStatus(b.id, e.target.value as PaymentStatus)}
-                                className={`text-xs rounded-full px-2 py-1 font-bold border-none outline-none cursor-pointer ${b.status === 'PAID' ? 'bg-green-100 text-green-800' : b.status === 'PARTIAL' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}`}
-                            >
-                                <option value="PENDING">Pending</option>
-                                <option value="PARTIAL">Partial</option>
-                                <option value="PAID">Paid</option>
-                                <option value="FAILED">Failed</option>
-                            </select>
-                        </td>
-                        <td className="px-6 py-4 flex gap-3">
-                            <a href={`https://wa.me/${b.guestPhone?.replace(/[^0-9]/g, '')}`} target="_blank" className="text-green-600 hover:text-green-800"><MessageCircle size={18} /></a>
-                            {(b.balanceAmount ?? 0) > 1 && <button onClick={() => copyPaymentLink(b.id)} title="Copy Balance Payment Link" className="text-blue-600 hover:text-blue-800"><LinkIcon size={18} /></button>}
-                            {(b.balanceAmount ?? 0) > 1 && <button onClick={() => openPaymentModal(b)} className="text-nature-700 hover:text-nature-900 bg-nature-100 p-1 rounded" title="Record Extra Payment"><Banknote size={18} /></button>}
-                        </td>
-                        </tr>
-                    ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-  );
-
-  const renderRooms = () => (
-    <div className="space-y-6">
-      <button onClick={addRoomLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700 transition-all hover:scale-105"><Plus size={16} /> Add New Room</button>
-      {rooms.map(room => (
-        <div key={room.id} className="bg-white p-6 rounded-lg shadow flex flex-col lg:flex-row gap-6 relative border border-gray-100">
-            <div className="absolute top-4 right-4 flex gap-2 z-10">
-                <button onClick={() => saveRoom(room.id)} className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded shadow hover:bg-blue-700" title="Save Changes"><Save size={16} /> Save</button>
-                <button onClick={() => deleteRoom(room.id)} className="text-red-400 hover:text-red-600 bg-white p-1 rounded border border-gray-200" title="Delete"><Trash2 size={20} /></button>
-            </div>
-            <div className="lg:w-1/3"><ImageUploader label="Room Main Image" value={room.images[0]} onChange={(val) => { const newImgs = [...room.images]; newImgs[0] = val; updateRoomLocal(room.id, 'images', newImgs); }} /></div>
-            <div className="lg:w-2/3 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block text-xs text-gray-500">Room Name</label><input type="text" value={room.name} onChange={(e) => updateRoomLocal(room.id, 'name', e.target.value)} className="border rounded px-3 py-2 w-full font-bold"/></div>
-                     <div><label className="block text-xs text-gray-500">Base Price (₹)</label><input type="number" value={room.basePrice} onChange={(e) => updateRoomLocal(room.id, 'basePrice', parseInt(e.target.value))} className="border rounded px-3 py-2 w-full"/></div>
-                </div>
-                <div><label className="block text-xs text-gray-500">Description</label><textarea value={room.description} onChange={(e) => updateRoomLocal(room.id, 'description', e.target.value)} className="border rounded px-3 py-2 w-full h-20"/></div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div><label className="block text-xs text-gray-500">Capacity</label><input type="number" value={room.capacity} onChange={(e) => updateRoomLocal(room.id, 'capacity', parseInt(e.target.value))} className="border rounded px-3 py-2 w-full"/></div>
-                    <div><label className="block text-xs text-gray-500">Amenities (comma separated)</label><input type="text" value={room.amenities.join(', ')} onChange={(e) => updateRoomAmenitiesLocal(room.id, e.target.value)} className="border rounded px-3 py-2 w-full"/></div>
-                </div>
-            </div>
-        </div>
-      ))}
-    </div>
-  );
-
-  const renderLocations = () => (
-    <div className="space-y-4">
-        <button onClick={addLocationLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700"><Plus size={16} /> Add Cab Location</button>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {locations.map(loc => (
-                <div key={loc.id} className="bg-white p-4 rounded-lg shadow relative border border-gray-100">
-                    <div className="absolute top-2 right-2 flex gap-2 z-10">
-                         <button onClick={() => saveLocation(loc.id)} className="bg-white text-blue-600 p-1 rounded shadow hover:bg-blue-50"><Save size={16}/></button>
-                         <button onClick={() => deleteLocation(loc.id)} className="bg-white text-red-500 hover:bg-red-50 p-1 rounded shadow"><Trash2 size={16}/></button>
-                    </div>
-                    <div className="mb-4"><ImageUploader label="Location Image" value={loc.imageUrl} onChange={(val) => updateLocationLocal(loc.id, 'imageUrl', val)} /></div>
-                    <div className="space-y-2">
-                         <input type="text" value={loc.name} onChange={(e) => updateLocationLocal(loc.id, 'name', e.target.value)} className="font-bold border w-full p-1 rounded" placeholder="Location Name"/>
-                         <textarea value={loc.description} onChange={(e) => updateLocationLocal(loc.id, 'description', e.target.value)} className="text-sm border w-full p-1 rounded h-20" placeholder="Description"/>
-                        <div className="flex gap-2">
-                            <div className="w-1/2"><label className="text-xs block text-gray-500">Price</label><input type="number" value={loc.price ?? ''} onChange={(e) => updateLocationLocal(loc.id, 'price', e.target.value === '' ? 0 : parseFloat(e.target.value))} className="border w-full p-1 rounded"/></div>
-                            <div className="w-1/2"><label className="text-xs block text-gray-500">Driver</label><select value={loc.driverId || ''} onChange={(e) => updateLocationLocal(loc.id, 'driverId', e.target.value || null)} className="border w-full p-1 rounded text-sm"><option value="">Default Driver</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
-                        </div>
-                    </div>
-                </div>
-            ))}
-        </div>
-    </div>
-  );
-
-  const renderFleet = () => (
-    <div className="space-y-6">
-        <button onClick={addVehicleLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700 transition-all hover:scale-105"><Plus size={16} /> Add Vehicle Type</button>
-        <div className="grid gap-6">
-            {vehicles.map(v => (
-                <div key={v.id} className="bg-white p-6 rounded-lg shadow flex flex-col lg:flex-row gap-6 relative border border-gray-100">
-                    <div className="absolute top-4 right-4 flex gap-2 z-10">
-                        <button onClick={() => saveVehicle(v.id)} className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded shadow hover:bg-blue-700"><Save size={16} /> Save</button>
-                        <button onClick={() => deleteVehicle(v.id)} className="text-red-400 hover:text-red-600 bg-white p-1 rounded border border-gray-200"><Trash2 size={20} /></button>
-                    </div>
-                    <div className="lg:w-1/3 space-y-4">
-                        <div className="border-b pb-4"><ImageUploader label="Main Vehicle Image (Thumbnail)" value={v.images[0] || ''} onChange={(val) => updateVehicleImage(v.id, 0, val)} /></div>
-                        <div>
-                            <label className="block text-xs text-gray-500 mb-2 font-bold">Gallery Images</label>
-                            <div className="grid grid-cols-2 gap-2">
-                                {v.images.slice(1).map((img, idx) => (
-                                    <div key={idx + 1} className="relative group">
-                                        <ImageUploader value={img} onChange={(val) => updateVehicleImage(v.id, idx + 1, val)} />
-                                        <button onClick={() => removeVehicleImage(v.id, idx + 1)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 z-10" title="Remove Image"><X size={12} /></button>
-                                    </div>
-                                ))}
-                                <button onClick={() => addVehicleImageSlot(v.id)} className="border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center h-24 text-gray-400 hover:border-nature-500 hover:text-nature-600 transition-colors"><Plus size={20} /><span className="text-xs mt-1">Add Photo</span></button>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="lg:w-2/3 space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label className="block text-xs text-gray-500">Vehicle Name</label><input type="text" value={v.name} onChange={(e) => updateVehicleLocal(v.id, 'name', e.target.value)} className="border rounded px-3 py-2 w-full font-bold" placeholder="e.g. Toyota Innova"/></div>
-                            <div><label className="block text-xs text-gray-500">Vehicle Type</label><input type="text" value={v.vehicleType} onChange={(e) => updateVehicleLocal(v.id, 'vehicleType', e.target.value)} className="border rounded px-3 py-2 w-full" placeholder="e.g. SUV"/></div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div><label className="block text-xs text-gray-500">Capacity</label><input type="number" value={v.capacity} onChange={(e) => updateVehicleLocal(v.id, 'capacity', parseInt(e.target.value))} className="border rounded px-3 py-2 w-full"/></div>
-                            <div><label className="block text-xs text-gray-500">Display Rate (₹/km or fixed)</label><input type="number" value={v.baseRate || ''} onChange={(e) => updateVehicleLocal(v.id, 'baseRate', parseFloat(e.target.value))} className="border rounded px-3 py-2 w-full"/></div>
-                            <div className="flex items-center pt-5"><label className="flex items-center gap-2 cursor-pointer font-medium"><input type="checkbox" checked={v.active} onChange={(e) => updateVehicleLocal(v.id, 'active', e.target.checked)} /> Active / Available</label></div>
-                        </div>
-                        <div>
-                            <label className="block text-xs text-gray-500">Features (comma separated)</label>
-                            <input type="text" value={v.features.join(', ')} onChange={(e) => updateVehicleFeatures(v.id, e.target.value)} className="border rounded px-3 py-2 w-full" placeholder="AC, Music System, Carrier"/>
-                        </div>
-                    </div>
-                </div>
-            ))}
-            {vehicles.length === 0 && <p className="text-gray-500 text-center py-8">No vehicles in fleet. Add one to get started.</p>}
-        </div>
-    </div>
-  );
-
-  // ✅ UPDATED: Driver Rendering with Vehicle Selection
-  const renderDrivers = () => (
-    <div className="space-y-4">
-        <button onClick={addDriverLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700"><Plus size={16} /> Add Driver</button>
-        <div className="grid gap-4">
-            {drivers.map(d => (
-                <div key={d.id} className="bg-white p-4 rounded-lg shadow border-l-4 border-nature-500 relative">
-                    <div className="absolute top-2 right-2 flex gap-2"><button onClick={() => saveDriver(d.id)} className="bg-blue-100 text-blue-600 p-1 rounded hover:bg-blue-200"><Save size={18}/></button><button onClick={() => deleteDriver(d.id)} className="text-gray-400 hover:text-red-500 p-1"><X size={18}/></button></div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                        <div><label className="text-xs text-gray-500 block">Name</label><input type="text" value={d.name} onChange={(e) => updateDriverLocal(d.id, 'name', e.target.value)} className="border w-full p-1 rounded"/></div>
-                        <div><label className="text-xs text-gray-500 block">Phone</label><input type="text" value={d.phone} onChange={(e) => updateDriverLocal(d.id, 'phone', e.target.value)} className="border w-full p-1 rounded"/></div>
-                        <div><label className="text-xs text-gray-500 block">WhatsApp</label><input type="text" value={d.whatsapp} onChange={(e) => updateDriverLocal(d.id, 'whatsapp', e.target.value)} className="border w-full p-1 rounded"/></div>
-                        <div className="flex items-center gap-4 pt-4">
-                            <label className="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" checked={d.isDefault} onChange={(e) => updateDriverLocal(d.id, 'isDefault', e.target.checked)} /> Default</label>
-                             <label className="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" checked={d.active} onChange={(e) => updateDriverLocal(d.id, 'active', e.target.checked)} /> Active</label>
-                        </div>
-                    </div>
-                    
-                    {/* Vehicle Assignment Dropdown */}
-                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-xs text-gray-500 block">Vehicle Description (Manual Text)</label>
-                            <input type="text" value={d.vehicleInfo || ''} onChange={(e) => updateDriverLocal(d.id, 'vehicleInfo', e.target.value)} className="border w-full p-1 rounded" placeholder="e.g. Toyota Innova"/>
-                        </div>
-                        <div>
-                            <label className="text-xs text-gray-500 block font-bold text-nature-700">Assign Fleet Vehicle</label>
-                            <select 
-                                value={d.assignedVehicleId || ''} 
-                                onChange={(e) => updateDriverLocal(d.id, 'assignedVehicleId', e.target.value || null)} 
-                                className="border w-full p-1 rounded bg-nature-50 text-sm"
-                            >
-                                <option value="">-- No Vehicle Assigned --</option>
-                                {vehicles.filter(v => v.active).map(v => (
-                                    <option key={v.id} value={v.id}>{v.name} ({v.vehicleType})</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            ))}
-        </div>
-    </div>
-  );
-
-  const renderPricing = () => (
-    <div className="space-y-6">
-        <button onClick={addPricingRuleLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700"><Plus size={16} /> Add Seasonal Rule</button>
-        <div className="grid gap-4">
-            {pricingRules.map(rule => (
-                <div key={rule.id} className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row items-center gap-4 relative">
-                      <div className="absolute top-2 right-2 flex gap-2"><button onClick={() => savePricingRule(rule.id)} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Save size={18}/></button><button onClick={() => deletePricingRule(rule.id)} className="text-gray-400 hover:text-red-500 p-1 rounded"><X size={18}/></button></div>
-                    <div className="flex-grow grid grid-cols-1 md:grid-cols-4 gap-4 w-full mt-2 md:mt-0">
-                        <div><label className="text-xs text-gray-500">Season Name</label><input type="text" value={rule.name} onChange={(e) => updatePricingRuleLocal(rule.id, 'name', e.target.value)} className="border w-full p-2 rounded"/></div>
-                        <div>
-                            <label className="text-xs text-gray-500">Start Date</label>
-                            <input 
-                                type="date" 
-                                value={rule.startDate ? String(rule.startDate).split('T')[0] : ''} 
-                                onChange={(e) => updatePricingRuleLocal(rule.id, 'startDate', e.target.value)} 
-                                className="border w-full p-2 rounded"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs text-gray-500">End Date</label>
-                            <input 
-                                type="date" 
-                                value={rule.endDate ? String(rule.endDate).split('T')[0] : ''} 
-                                onChange={(e) => updatePricingRuleLocal(rule.id, 'endDate', e.target.value)} 
-                                className="border w-full p-2 rounded"
-                            />
-                        </div>
-                        <div><label className="text-xs text-gray-500">Multiplier</label><input type="number" step="0.1" value={rule.multiplier} onChange={(e) => updatePricingRuleLocal(rule.id, 'multiplier', parseFloat(e.target.value))} className="border w-full p-2 rounded font-bold text-nature-700"/></div>
-                    </div>
-                </div>
-            ))}
-        </div>
-    </div>
-  );
-
-  const renderGallery = () => (
-      <div className="space-y-6">
-          <button onClick={addGalleryItemLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700"><Plus size={16} /> Add Image</button>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {gallery.map(item => (
-                  <div key={item.id} className="bg-white p-4 rounded-lg shadow relative group border border-gray-100">
-                       <div className="absolute top-2 right-2 flex gap-2 z-10"><button onClick={() => saveGalleryItem(item.id)} className="bg-white p-1 rounded-full text-blue-600 hover:bg-blue-50 shadow"><Save size={16}/></button><button onClick={() => deleteGalleryItem(item.id)} className="bg-white p-1 rounded-full text-red-500 hover:bg-red-50 shadow"><Trash2 size={16}/></button></div>
-                      <div className="mb-3"><ImageUploader value={item.url} onChange={(val) => updateGalleryItemLocal(item.id, 'url', val)}/></div>
-                      <div className="space-y-2">
-                          <div><label className="text-xs text-gray-500">Category</label><input type="text" value={item.category} onChange={(e) => updateGalleryItemLocal(item.id, 'category', e.target.value)} className="border w-full p-1 rounded text-sm"/></div>
-                          <div><label className="text-xs text-gray-500">Caption</label><input type="text" value={item.caption || ''} onChange={(e) => updateGalleryItemLocal(item.id, 'caption', e.target.value)} className="border w-full p-1 rounded text-sm"/></div>
-                      </div>
-                  </div>
-              ))}
-          </div>
-      </div>
-  );
-
-  const renderReviews = () => (
-    <div className="space-y-6">
-        <button onClick={addReviewLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700"><Plus size={16} /> Add Review</button>
-        <div className="grid gap-4">
-            {reviews.map(rev => (
-                <div key={rev.id} className="bg-white p-6 rounded-lg shadow border-l-4 border-yellow-400 relative">
-                    <div className="absolute top-2 right-2 flex gap-2"><button onClick={() => saveReview(rev.id)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Save size={18}/></button><button onClick={() => deleteReview(rev.id)} className="text-gray-400 hover:text-red-500 p-1"><X size={18}/></button></div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div><label className="text-xs text-gray-500">Guest Name</label><input type="text" value={rev.guestName} onChange={(e) => updateReviewLocal(rev.id, 'guestName', e.target.value)} className="border w-full p-1 rounded font-bold"/></div>
-                        <div><label className="text-xs text-gray-500">Location</label><input type="text" value={rev.location} onChange={(e) => updateReviewLocal(rev.id, 'location', e.target.value)} className="border w-full p-1 rounded"/></div>
-                        <div><label className="text-xs text-gray-500">Rating (1-5)</label><input type="number" min="1" max="5" value={rev.rating} onChange={(e) => updateReviewLocal(rev.id, 'rating', parseInt(e.target.value))} className="border w-full p-1 rounded"/></div>
-                    </div>
-                    <div className="mb-4"><label className="text-xs text-gray-500">Comment</label><textarea value={rev.comment} onChange={(e) => updateReviewLocal(rev.id, 'comment', e.target.value)} className="border w-full p-2 rounded h-20 text-sm"></textarea></div>
-                    <div className="flex items-center justify-between">
-                        <div><label className="text-xs text-gray-500">Date</label><input type="date" value={rev.date} onChange={(e) => updateReviewLocal(rev.id, 'date', e.target.value)} className="border ml-2 p-1 rounded"/></div>
-                        <div className="flex items-center gap-2"><input type="checkbox" checked={rev.showOnHome} onChange={(e) => updateReviewLocal(rev.id, 'showOnHome', e.target.checked)} id={`home-${rev.id}`} /><label htmlFor={`home-${rev.id}`} className="text-sm font-medium cursor-pointer">Show on Home Page</label></div>
-                    </div>
-                </div>
-            ))}
-        </div>
-    </div>
-  );
-
-  const renderHomePageContent = () => (
-    <div className="bg-white p-8 rounded-lg shadow max-w-3xl space-y-8">
-         <div>
-            <h3 className="text-lg font-bold mb-4 border-b pb-2 flex items-center gap-2"><LayoutTemplate size={20} /> Hero Section</h3>
-            <div className="space-y-4"><ImageUploader label="Hero Background Image" value={settings.heroImageUrl} onChange={(val) => setSettings({...settings, heroImageUrl: val})} /></div>
-        </div>
-        <div>
-            <h3 className="text-lg font-bold mb-4 border-b pb-2 flex items-center gap-2"><LayoutTemplate size={20} /> YouTube Video Section</h3>
-            <div><label className="block text-sm font-medium text-gray-700">YouTube Video URL</label><input type="text" value={settings.youtubeVideoUrl} onChange={(e) => setSettings({...settings, youtubeVideoUrl: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"/></div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-100">
-            <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-nature-900"><BarChart2 size={20}/> Website Traffic Analytics</h3>
-            <div className="mb-8 bg-nature-50 p-4 rounded-lg border border-nature-200 inline-block">
-                <p className="text-gray-700 text-sm">Total Historical Visits</p>
-                <p className="font-bold text-nature-700 text-2xl">{settings.websiteHits?.toLocaleString() || 0}</p>
-            </div>
-            <div className="mt-4">
-                <h4 className="text-sm font-bold text-gray-500 mb-4 uppercase">Monthly Unique Visits (Last 6 Months)</h4>
-                <div className="flex items-end justify-between h-48 gap-2 pt-4 border-b border-gray-200 px-4">
-                    {trafficStats.length > 0 ? trafficStats.map(stat => {
-                        const maxVal = Math.max(...trafficStats.map(s => s.count), 10);
-                        const heightPercent = Math.max((stat.count / maxVal) * 100, 2);
-                        return (
-                            <div key={stat.month} className="flex flex-col items-center gap-2 w-full group relative h-full justify-end">
-                                <div className="text-xs font-bold text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 bg-white shadow px-2 py-1 rounded">{stat.count.toLocaleString()}</div>
-                                <div className="w-full max-w-[40px] rounded-t-md transition-all duration-500 bg-blue-500 hover:bg-blue-600 relative" style={{ height: `${heightPercent}%` }}></div>
-                                <span className="text-xs text-gray-500 font-medium">{stat.month}</span>
-                            </div>
-                        );
-                    }) : <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">Waiting for visitor data...</div>}
-                </div>
-            </div>
-            <div className="mt-8 pt-6 border-t border-gray-100">
-                <h4 className="text-sm font-bold text-gray-500 mb-4 uppercase flex items-center gap-2"><User size={16}/> Visitor Devices</h4>
-                <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-lg">
-                    {deviceStats.length > 0 ? deviceStats.map(stat => (
-                        <div key={stat.device_type} className="flex-1">
-                            <div className="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>{stat.device_type}</span><span>{stat.count} visits</span></div>
-                            <div className="w-full bg-gray-200 rounded-full h-2.5"><div className={`h-2.5 rounded-full ${stat.device_type === 'Mobile' ? 'bg-purple-500' : 'bg-blue-500'}`} style={{ width: `${(stat.count / deviceStats.reduce((a, b) => a + b.count, 0)) * 100}%` }}></div></div>
-                        </div>
-                    )) : <p className="text-xs text-gray-400 w-full text-center">No device data yet.</p>}
-                </div>
-            </div>
-        </div>
-        <button onClick={async () => { await api.settings.save(settings); alert("Content Saved!"); }} className="flex items-center gap-2 bg-nature-600 text-white px-6 py-2 rounded-md hover:bg-nature-700 w-full justify-center"><Save size={18} /> Save Content</button>
-    </div>
-  );
-
-  const renderSettings = () => (
-    <div className="bg-white p-8 rounded-lg shadow max-w-2xl space-y-8">
-        <div className="border border-nature-200 rounded-lg p-6 bg-nature-50">
-            <h3 className="text-lg font-bold mb-4 border-b border-nature-200 pb-2 flex items-center gap-2 text-nature-900"><Banknote size={20} /> Payment Configuration</h3>
-            <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                         <label className="block text-sm font-medium text-gray-700 mb-1">Advance Payment (%)</label>
-                         <input type="number" min="1" max="100" value={settings.advancePaymentPercentage || 20} onChange={(e) => setSettings({...settings, advancePaymentPercentage: parseInt(e.target.value)})} className="w-full border rounded p-2"/>
-                         <p className="text-xs text-gray-500 mt-1">Percentage guests must pay to book.</p>
-                    </div>
-                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Razorpay Key ID</label>
-                        <input type="text" value={settings.razorpayKey} onChange={(e) => setSettings({...settings, razorpayKey: e.target.value})} className="w-full border rounded p-2"/>
-                    </div>
-                </div>
-                <div className="bg-white p-4 rounded border border-gray-200 space-y-4">
-                    <div className="flex items-center gap-2">
-                        <input 
-                            type="checkbox" 
-                            id="enableDiscount" 
-                            checked={settings.longStayDiscount?.enabled ?? true}
-                            onChange={(e) => setSettings({
-                                ...settings, 
-                                longStayDiscount: { ...settings.longStayDiscount, enabled: e.target.checked }
-                            })}
-                        />
-                        <label htmlFor="enableDiscount" className="text-sm font-medium flex items-center gap-2"><Percent size={16} /> Enable Long Stay Discount</label>
-                    </div>
-                    {settings.longStayDiscount?.enabled && (
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs text-gray-500">Minimum Days</label>
-                                <input type="number" min="1" value={settings.longStayDiscount?.minDays ?? 5} onChange={(e) => setSettings({...settings, longStayDiscount: { ...settings.longStayDiscount, minDays: parseInt(e.target.value) }})} className="w-full border rounded p-2"/>
-                            </div>
-                            <div>
-                                <label className="block text-xs text-gray-500">Discount (%)</label>
-                                <input type="number" min="1" max="100" value={settings.longStayDiscount?.percentage ?? 20} onChange={(e) => setSettings({...settings, longStayDiscount: { ...settings.longStayDiscount, percentage: parseInt(e.target.value) }})} className="w-full border rounded p-2 font-bold text-nature-700"/>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-        <div>
-            <h3 className="text-lg font-bold mb-4 border-b pb-2 flex items-center gap-2"><Settings size={20}/> Site Configuration</h3>
-            <div className="space-y-4">
-                <div><label className="block text-sm font-medium text-gray-700">WhatsApp</label><input type="text" value={settings.whatsappNumber} onChange={(e) => setSettings({...settings, whatsappNumber: e.target.value})} className="mt-1 block w-full border p-2 rounded"/></div>
-                <div><label className="block text-sm font-medium text-gray-700">Email</label><input type="email" value={settings.contactEmail} onChange={(e) => setSettings({...settings, contactEmail: e.target.value})} className="mt-1 block w-full border p-2 rounded"/></div>
-                <div><label className="block text-sm font-medium text-gray-700">Admin Password</label><input type="text" value={settings.adminPasswordHash} onChange={(e) => setSettings({...settings, adminPasswordHash: e.target.value})} className="mt-1 block w-full border p-2 rounded bg-gray-50"/></div>
-                <div><label className="block text-sm font-medium text-gray-700">Address</label><textarea value={settings.address} onChange={(e) => setSettings({...settings, address: e.target.value})} className="mt-1 block w-full border p-2 rounded h-20"/></div>
-                <div><label className="block text-sm font-medium text-gray-700 flex items-center gap-2"><Map size={16}/> Google Map Embed URL</label><input type="text" value={settings.googleMapUrl || ''} onChange={(e) => setSettings({...settings, googleMapUrl: e.target.value})} className="mt-1 block w-full border p-2 rounded"/></div>
-                <div><label className="block text-sm font-medium text-gray-700">OpenWeatherMap API Key</label><input type="text" value={settings.weatherApiKey || ''} onChange={(e) => setSettings({...settings, weatherApiKey: e.target.value})} className="mt-1 block w-full border p-2 rounded"/></div>
-            </div>
-        </div>
-        <button onClick={async () => { await api.settings.save(settings); alert("Settings Saved!"); }} className="flex items-center gap-2 bg-nature-600 text-white px-6 py-2 rounded-md hover:bg-nature-700 w-full justify-center"><Save size={18} /> Save Settings</button>
-    </div>
-  );
-
-  if (authLoading) return <div className="flex h-screen items-center justify-center bg-gray-100"><Loader className="animate-spin text-nature-600" size={40} /></div>;
-
-  return (
-    <div className="min-h-screen bg-gray-100 flex">
-      <div className="w-64 bg-nature-900 text-white flex flex-col hidden md:flex shrink-0">
-        <div className="p-6 font-serif font-bold text-xl border-b border-nature-800">Admin Panel</div>
-        <nav className="flex-grow py-4 overflow-y-auto">
-          {['bookings', 'rooms', 'locations', 'fleet', 'drivers', 'pricing', 'gallery', 'reviews', 'home-content', 'settings'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full text-left px-6 py-3 flex items-center gap-3 hover:bg-nature-800 capitalize ${activeTab === tab ? 'bg-nature-800 border-r-4 border-green-400' : ''}`}>
-                <span className="capitalize">{tab.replace('-', ' ')}</span>
-            </button>
-          ))}
-        </nav>
-        <button onClick={handleLogout} className="p-6 flex items-center gap-2 text-red-300 hover:text-white border-t border-nature-800"><LogOut size={18}/> Logout</button>
-      </div>
-
-      <div className="flex-grow p-8 h-screen overflow-auto">
-        <h1 className="text-2xl font-bold text-gray-800 capitalize mb-8">{activeTab.replace('-', ' ')}</h1>
-        <div className="animate-fade-in max-w-6xl">
-            {activeTab === 'bookings' && renderBookings()}
-            {activeTab === 'rooms' && renderRooms()}
-            {activeTab === 'locations' && renderLocations()}
-            {activeTab === 'fleet' && renderFleet()} 
-            {activeTab === 'drivers' && renderDrivers()}
-            {activeTab === 'pricing' && renderPricing()}
-            {activeTab === 'gallery' && renderGallery()}
-            {activeTab === 'reviews' && renderReviews()}
-            {activeTab === 'home-content' && renderHomePageContent()}
-            {activeTab === 'settings' && renderSettings()}
-        </div>
-      </div>
-
-      {showManualBooking && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-3">
-                <h3 className="text-lg font-bold mb-4">Manual Booking</h3>
-                <select value={manualBooking.roomId} onChange={(e) => setManualBooking({ ...manualBooking, roomId: e.target.value })} className="w-full border p-2 rounded">
-                    <option value="">Select Room</option>
-                    {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                </select>
-                <input type="text" placeholder="Guest Name" value={manualBooking.guestName} onChange={(e) => setManualBooking({ ...manualBooking, guestName: e.target.value })} className="w-full border p-2 rounded"/>
-                <input type="text" placeholder="Phone" value={manualBooking.phone} onChange={(e) => setManualBooking({ ...manualBooking, phone: e.target.value })} className="w-full border p-2 rounded"/>
-                <div className="grid grid-cols-2 gap-2">
-                    <input type="date" value={manualBooking.checkIn} onChange={(e) => setManualBooking({ ...manualBooking, checkIn: e.target.value })} className="border p-2 rounded"/>
-                    <input type="date" value={manualBooking.checkOut} onChange={(e) => setManualBooking({ ...manualBooking, checkOut: e.target.value })} className="border p-2 rounded"/>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                    <input type="number" placeholder="Total Amount" value={manualBooking.amount} onChange={(e) => setManualBooking({ ...manualBooking, amount: e.target.value })} className="border p-2 rounded"/>
-                    <input type="number" placeholder="Paid So Far" value={manualBooking.paid} onChange={(e) => setManualBooking({ ...manualBooking, paid: e.target.value })} className="border p-2 rounded"/>
-                </div>
-                <div className="flex justify-end gap-3 mt-6">
-                    <button onClick={() => setShowManualBooking(false)} className="px-4 py-2 border rounded">Cancel</button>
-                    <button onClick={createManualBooking} className="px-4 py-2 bg-nature-600 text-white rounded">Save</button>
-                </div>
-            </div>
-        </div>
-      )}
-
-      {showPaymentModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 text-center">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Banknote className="text-green-600" size={24}/>
-                </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">Record Payment</h3>
-                <p className="text-gray-500 text-sm mb-6">Current Balance Due: <span className="font-bold text-red-500">₹{paymentData.currentBalance}</span></p>
-                <input 
-                    type="number" 
-                    placeholder="Amount Collected (₹)" 
-                    value={paymentData.amountToCollect} 
-                    onChange={(e) => setPaymentData({ ...paymentData, amountToCollect: e.target.value })} 
-                    className="w-full border p-3 rounded-lg mb-4 text-lg font-bold text-center"
-                    autoFocus
-                />
-                <div className="flex gap-2">
-                    <button onClick={() => setShowPaymentModal(false)} className="flex-1 py-3 border rounded-lg text-gray-600 font-medium hover:bg-gray-50">Cancel</button>
-                    <button onClick={handleCollectPayment} className="flex-1 py-3 bg-nature-600 text-white rounded-lg font-bold hover:bg-nature-700">Confirm</button>
-                </div>
-            </div>
-        </div>
-      )}
-    </div>
-  );
+const parseJSON = (data) => {
+    if (typeof data === 'string') {
+        try { 
+            const parsed = JSON.parse(data);
+            if (Array.isArray(parsed)) return parsed;
+            if (typeof parsed === 'object' && parsed !== null) return parsed;
+            return data;
+        } catch (e) { return data; }
+    }
+    return data;
 };
 
-export default AdminDashboard;
+// --- DATABASE STARTUP FIXER ---
+const fixDatabaseSchema = async () => {
+    try {
+        const connection = await pool.getConnection();
+        console.log('🔧 Running Database Startup Checks...');
+
+        // 1. ROOMS
+        await connection.query(`CREATE TABLE IF NOT EXISTS rooms (
+            id VARCHAR(255) PRIMARY KEY,
+            name VARCHAR(255),
+            description TEXT,
+            base_price INT,
+            capacity INT,
+            amenities TEXT, 
+            images TEXT
+        )`);
+
+        // 2. DRIVERS
+        await connection.query(`CREATE TABLE IF NOT EXISTS drivers (
+            id VARCHAR(255) PRIMARY KEY,
+            name VARCHAR(255),
+            phone VARCHAR(50),
+            whatsapp VARCHAR(50),
+            is_default BOOLEAN DEFAULT 0,
+            active BOOLEAN DEFAULT 1,
+            vehicle_info VARCHAR(255)
+        )`);
+
+        // 3. CAB LOCATIONS
+        await connection.query(`CREATE TABLE IF NOT EXISTS cab_locations (
+            id VARCHAR(255) PRIMARY KEY,
+            name VARCHAR(255),
+            description TEXT,
+            image_url TEXT,
+            price INT,
+            driver_id VARCHAR(255),
+            active BOOLEAN DEFAULT 1
+        )`);
+
+        // 4. GALLERY
+        await connection.query(`CREATE TABLE IF NOT EXISTS gallery (
+            id VARCHAR(255) PRIMARY KEY,
+            url TEXT,
+            category VARCHAR(100),
+            caption VARCHAR(255)
+        )`);
+
+        // 5. BOOKINGS
+        await connection.query(`CREATE TABLE IF NOT EXISTS bookings (
+            id VARCHAR(255) PRIMARY KEY,
+            room_id VARCHAR(255),
+            guest_name VARCHAR(255),
+            guest_phone VARCHAR(50),
+            check_in VARCHAR(50),
+            check_out VARCHAR(50),
+            total_amount DECIMAL(10,2),
+            amount_paid DECIMAL(10,2) DEFAULT 0,
+            balance_amount DECIMAL(10,2) DEFAULT 0,
+            status VARCHAR(50),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+
+        // 6. PRICING RULES
+        try {
+            await connection.query("ALTER TABLE pricing_rules MODIFY id VARCHAR(255)");
+        } catch (e) {
+            await connection.query(`CREATE TABLE IF NOT EXISTS pricing_rules (
+                id VARCHAR(255) PRIMARY KEY,
+                name VARCHAR(255),
+                start_date DATE,
+                end_date DATE,
+                multiplier DECIMAL(3,1)
+            )`);
+        }
+
+        // 7. REVIEWS
+        await connection.query(`CREATE TABLE IF NOT EXISTS reviews (
+            id VARCHAR(255) PRIMARY KEY,
+            guest_name VARCHAR(255),
+            location VARCHAR(255),
+            rating INT,
+            comment TEXT,
+            date VARCHAR(50),
+            show_on_home BOOLEAN DEFAULT 0
+        )`);
+
+        // 8. SITE SETTINGS & LOGS
+        await connection.query(`CREATE TABLE IF NOT EXISTS site_settings (key_name VARCHAR(255) PRIMARY KEY, value TEXT)`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS visit_logs (
+            id INT AUTO_INCREMENT PRIMARY KEY, 
+            ip_address VARCHAR(50), 
+            city VARCHAR(100), 
+            country VARCHAR(100),
+            visit_date DATETIME DEFAULT CURRENT_TIMESTAMP, 
+            device_type VARCHAR(50)
+        )`);
+
+        // Auto-fix columns for logs
+        try {
+            await connection.query("ALTER TABLE visit_logs ADD COLUMN city VARCHAR(100)");
+            await connection.query("ALTER TABLE visit_logs ADD COLUMN country VARCHAR(100)");
+        } catch (e) {}
+
+        // 9. ✅ NEW: CAB VEHICLES
+        await connection.query(`CREATE TABLE IF NOT EXISTS cab_vehicles (
+            id VARCHAR(255) PRIMARY KEY,
+            name VARCHAR(255),
+            vehicle_type VARCHAR(100),
+            capacity INT,
+            images TEXT,
+            features TEXT,
+            base_rate DECIMAL(10,2),
+            active BOOLEAN DEFAULT 1
+        )`);
+
+        // 10. ✅ NEW: DRIVER LINKING
+        try {
+            await connection.query("SELECT assigned_vehicle_id FROM drivers LIMIT 1");
+        } catch (e) {
+            await connection.query("ALTER TABLE drivers ADD COLUMN assigned_vehicle_id VARCHAR(255) NULL");
+            console.log("✅ Added assigned_vehicle_id column to drivers table");
+        }
+
+        connection.release();
+        console.log("✅ All Database Tables Verified/Created.");
+    } catch (err) {
+        console.error("❌ Startup DB Check Failed:", err.message);
+    }
+};
+// Run immediately on start
+fixDatabaseSchema();
+
+
+// --- AUTH ---
+app.post('/api/auth/login', async (req, res) => {
+    const { password } = req.body;
+    try {
+        const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
+        let adminPassword = 'admin123';
+        if (rows.length > 0) {
+            const settings = parseJSON(rows[0].value);
+            if (settings?.adminPasswordHash) adminPassword = settings.adminPasswordHash;
+        }
+        if (password === adminPassword) res.json({ success: true });
+        else res.status(401).json({ error: 'Invalid password' });
+    } catch (err) {
+        if (password === 'admin123') res.json({ success: true });
+        else res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// --- API ROUTES ---
+
+// ✅ NEW: VEHICLES
+app.get('/api/vehicles', async(req,res)=>{ try{const[r]=await pool.query('SELECT * FROM cab_vehicles'); res.json(r.map(v=>({id:v.id, name:v.name, vehicleType:v.vehicle_type, capacity:v.capacity, images:parseJSON(v.images), features:parseJSON(v.features), baseRate:v.base_rate, active:!!v.active})));}catch(e){res.json([]);} });
+app.post('/api/vehicles', async(req,res)=>{ 
+    try{ 
+        const {id,name,vehicleType,capacity,baseRate,active}=req.body; 
+        const images = JSON.stringify(req.body.images || []); 
+        const features = JSON.stringify(req.body.features || []); 
+        await pool.query(
+            "INSERT INTO cab_vehicles (id,name,vehicle_type,capacity,images,features,base_rate,active) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name), vehicle_type=VALUES(vehicle_type), capacity=VALUES(capacity), images=VALUES(images), features=VALUES(features), base_rate=VALUES(base_rate), active=VALUES(active)",
+            [id,name,vehicleType,capacity,images,features,baseRate,active]
+        ); 
+        res.json({success:true}); 
+    }catch(e){res.status(500).json({error:e.message})} 
+});
+app.delete('/api/vehicles/:id', async (req, res) => { try { await pool.query('DELETE FROM cab_vehicles WHERE id = ?', [req.params.id]); res.json({success:true}); } catch(e){res.status(500).json({error:e.message})} });
+
+// REVIEWS
+app.get('/api/reviews', async (req, res) => {
+    try { const [rows] = await pool.query('SELECT * FROM reviews'); res.json(rows.map(r => ({ id: r.id, guestName: r.guest_name, location: r.location, rating: r.rating, comment: r.comment, date: r.date, showOnHome: !!r.show_on_home }))); } catch(e) { res.json([]); }
+});
+app.post('/api/reviews', async (req, res) => {
+    const { id, guestName, location, rating, comment, date, showOnHome } = req.body;
+    try { await pool.query(`INSERT INTO reviews (id, guest_name, location, rating, comment, date, show_on_home) VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE guest_name=VALUES(guest_name), location=VALUES(location), rating=VALUES(rating), comment=VALUES(comment), date=VALUES(date), show_on_home=VALUES(show_on_home)`, [id, guestName, location, rating, comment, date, showOnHome ? 1 : 0]); res.json({ success: true, id }); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/reviews/:id', async (req, res) => { try { await pool.query('DELETE FROM reviews WHERE id = ?', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({error: e.message}); } });
+
+// PRICING
+app.get('/api/pricing', async (req, res) => {
+    try { const [rows] = await pool.query('SELECT * FROM pricing_rules'); res.json(rows.map(r => ({ id: r.id, name: r.name, startDate: r.start_date, endDate: r.end_date, multiplier: r.multiplier }))); } catch(e) { res.json([]); }
+});
+app.post('/api/pricing', async (req, res) => {
+    const { id, name, startDate, endDate, multiplier } = req.body;
+    try { await pool.query(`INSERT INTO pricing_rules (id, name, start_date, end_date, multiplier) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), start_date=VALUES(start_date), end_date=VALUES(end_date), multiplier=VALUES(multiplier)`, [String(id), String(name), startDate, endDate, parseFloat(multiplier)]); res.json({ success: true }); } catch (e) { res.status(500).json({error: e.message}); }
+});
+app.delete('/api/pricing/:id', async (req, res) => { try { await pool.query('DELETE FROM pricing_rules WHERE id = ?', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({error: e.message}); } });
+
+// ROOMS
+app.get('/api/rooms', async (req, res) => {
+  try { const [rows] = await pool.query('SELECT * FROM rooms'); res.json(rows.map(r => ({id: r.id, name: r.name, description: r.description, basePrice: r.base_price, capacity: r.capacity, amenities: parseJSON(r.amenities), images: parseJSON(r.images)}))); } catch (e) { res.json([]); }
+});
+app.post('/api/rooms', async (req, res) => {
+  try { const { id, name, description, capacity, basePrice } = req.body; const amenities = JSON.stringify(req.body.amenities || []); const images = JSON.stringify(req.body.images || []); await pool.query("INSERT INTO rooms (id, name, description, base_price, capacity, amenities, images) VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description), base_price=VALUES(base_price), capacity=VALUES(capacity), amenities=VALUES(amenities), images=VALUES(images)", [id, name, description, basePrice, capacity, amenities, images]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/rooms/:id', async (req, res) => { try { await pool.query('DELETE FROM rooms WHERE id = ?', [req.params.id]); res.json({success:true}); } catch(e){res.status(500).json({error:e.message})} });
+
+// DRIVERS
+app.get('/api/drivers', async(req,res)=>{ try{const[r]=await pool.query('SELECT * FROM drivers'); res.json(r.map(d=>({id:d.id, name:d.name, phone:d.phone, whatsapp:d.whatsapp, isDefault:!!d.is_default, active:!!d.active, vehicleInfo:d.vehicle_info})));}catch(e){res.json([]);} });
+app.post('/api/drivers', async(req,res)=>{ try{ const {id,name,phone,whatsapp,isDefault,active,vehicleInfo}=req.body; if(isDefault) await pool.query('UPDATE drivers SET is_default=0'); await pool.query("INSERT INTO drivers (id,name,phone,whatsapp,is_default,active,vehicle_info) VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name), phone=VALUES(phone), whatsapp=VALUES(whatsapp), is_default=VALUES(is_default), active=VALUES(active), vehicle_info=VALUES(vehicle_info)",[id,name,phone,whatsapp,isDefault,active,vehicleInfo]); res.json({success:true}); }catch(e){res.status(500).json({error:e.message})} });
+app.delete('/api/drivers/:id', async (req, res) => { try { await pool.query('DELETE FROM drivers WHERE id = ?', [req.params.id]); res.json({success:true}); } catch(e){res.status(500).json({error:e.message})} });
+
+// LOCATIONS
+app.get('/api/locations', async(req,res)=>{ try{const[r]=await pool.query('SELECT * FROM cab_locations'); res.json(r.map(l=>({id:l.id, name:l.name, description:l.description, imageUrl:l.image_url, price:l.price, driverId:l.driver_id, active:!!l.active})));}catch(e){res.json([]);} });
+app.post('/api/locations', async(req,res)=>{ try{ const {id,name,description,imageUrl,price,driverId,active}=req.body; await pool.query("INSERT INTO cab_locations (id,name,description,image_url,price,driver_id,active) VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description), image_url=VALUES(image_url), price=VALUES(price), driver_id=VALUES(driver_id), active=VALUES(active)",[id,name,description,imageUrl,price,driverId,active]); res.json({success:true}); }catch(e){res.status(500).json({error:e.message})} });
+app.delete('/api/locations/:id', async (req, res) => { try { await pool.query('DELETE FROM cab_locations WHERE id = ?', [req.params.id]); res.json({success:true}); } catch(e){res.status(500).json({error:e.message})} });
+
+// GALLERY
+app.get('/api/gallery', async(req,res)=>{ try{const[r]=await pool.query('SELECT * FROM gallery'); res.json(r);}catch(e){res.json([]);} });
+app.post('/api/gallery', async(req,res)=>{ try{ const {id,url,category,caption}=req.body; await pool.query("INSERT INTO gallery (id,url,category,caption) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE url=VALUES(url), category=VALUES(category), caption=VALUES(caption)",[id,url,category,caption]); res.json({success:true}); }catch(e){res.status(500).json({error:e.message})} });
+app.delete('/api/gallery/:id', async (req, res) => { try { await pool.query('DELETE FROM gallery WHERE id = ?', [req.params.id]); res.json({success:true}); } catch(e){res.status(500).json({error:e.message})} });
+
+// BOOKINGS
+app.get('/api/bookings', async (req, res) => { 
+    try { 
+        const [rows] = await pool.query('SELECT * FROM bookings ORDER BY created_at DESC'); 
+        res.json(rows.map(b => ({ 
+            id: b.id, roomId: b.room_id, guestName: b.guest_name, guestPhone: b.guest_phone, checkIn: b.check_in, checkOut: b.check_out, 
+            totalAmount: b.total_amount, amountPaid: b.amount_paid || 0, balanceAmount: b.balance_amount || 0, status: b.status, createdAt: b.created_at 
+        }))); 
+    } catch (err) { res.status(500).json({ error: err.message }); } 
+});
+app.get('/api/bookings/:id', async (req, res) => {
+    try { const [rows] = await pool.query('SELECT * FROM bookings WHERE id = ?', [req.params.id]); if (rows.length === 0) return res.status(404).json({ error: "Not found" }); const b = rows[0]; res.json({ id: b.id, roomId: b.room_id, guestName: b.guest_name, guestPhone: b.guest_phone, totalAmount: b.total_amount, amountPaid: b.amount_paid || 0, balanceAmount: b.balance_amount || 0, status: b.status }); } catch (err) { res.status(500).json({ error: err.message }); }
+});
+app.post('/api/bookings', async (req, res) => { 
+    try { 
+        const { id, roomId, guestName, guestPhone, checkIn, checkOut, totalAmount, amountPaid, status } = req.body; 
+        const paid = parseFloat(amountPaid) || 0; const total = parseFloat(totalAmount) || 0; const balance = total - paid;
+        await pool.query(`INSERT INTO bookings (id, room_id, guest_name, guest_phone, check_in, check_out, total_amount, amount_paid, balance_amount, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status=VALUES(status), amount_paid=VALUES(amount_paid), balance_amount=VALUES(balance_amount)`, [id, roomId, guestName, guestPhone, checkIn, checkOut, total, paid, balance, status]); 
+        res.json({ success: true, bookingId: id }); 
+    } catch(e) { res.status(500).json({ error: e.message }); } 
+});
+app.put('/api/bookings/:id', async (req, res) => { 
+    try { await pool.query('UPDATE bookings SET status = ? WHERE id = ?', [req.body.status, req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); } 
+});
+app.post('/api/bookings/:id/pay-balance', async (req, res) => {
+    try {
+        const { amount } = req.body; const paymentAmount = parseFloat(amount);
+        const [rows] = await pool.query('SELECT total_amount, amount_paid FROM bookings WHERE id = ?', [req.params.id]);
+        if (rows.length === 0) return res.status(404).json({ error: "Booking not found" });
+        const currentPaid = parseFloat(rows[0].amount_paid || 0); const total = parseFloat(rows[0].total_amount || 0);
+        const newPaid = currentPaid + paymentAmount; const newBalance = total - newPaid; const newStatus = newBalance <= 1 ? 'PAID' : 'PARTIAL';
+        await pool.query('UPDATE bookings SET amount_paid = ?, balance_amount = ?, status = ? WHERE id = ?', [newPaid, newBalance, newStatus, req.params.id]);
+        res.json({ success: true, newStatus, newBalance });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// SETTINGS & WEATHER
+app.get('/api/settings', async (req, res) => { try { const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'"); res.json(rows.length > 0 ? parseJSON(rows[0].value) : {}); } catch(e) { res.json({}); } });
+app.post('/api/settings', async (req, res) => { try { await pool.query("INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [JSON.stringify(req.body)]); res.json({ success: true }); } catch(e) { res.status(500).json({error: e.message}); } });
+app.get('/api/weather', async (req, res) => { try { const [settingsRows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'"); if (settingsRows.length === 0) return res.status(400).json({ error: "No settings" }); const settings = parseJSON(settingsRows[0].value); const apiKey = settings.weatherApiKey; if (!apiKey) return res.status(400).json({ error: "No API Key" }); const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${req.query.location || 'Gokarna'}&appid=${apiKey}&units=metric`; const weatherResponse = await axios.get(weatherUrl); res.json({ temp: weatherResponse.data.main.temp, feelsLike: weatherResponse.data.main.feels_like, humidity: weatherResponse.data.main.humidity, windSpeed: weatherResponse.data.wind.speed, description: weatherResponse.data.weather[0].description, icon: weatherResponse.data.weather[0].icon, }); } catch (err) { res.status(500).json({ error: "Weather error" }); } });
+
+// ANALYTICS
+app.post('/api/analytics/track-hit', async (req, res) => { 
+    try { 
+        const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'"); 
+        let settings = rows.length > 0 ? parseJSON(rows[0].value) : {}; 
+        settings.websiteHits = (settings.websiteHits || 0) + 1; 
+        await pool.query("INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [JSON.stringify(settings)]); 
+
+        const userAgent = req.headers['user-agent'] || ''; 
+        const isMobile = /mobile/i.test(userAgent); 
+        let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
+        if (ip.includes(',')) { ip = ip.split(',')[0].trim(); }
+        if (ip === '::1' || ip === '127.0.0.1') ip = '';
+
+        let city = 'Unknown';
+        let country = 'Unknown';
+        
+        if (ip && ip.length > 7) { 
+            try {
+                const geoRes = await axios.get(`http://ip-api.com/json/${ip}`);
+                if (geoRes.data && geoRes.data.status === 'success') {
+                    city = geoRes.data.city || 'Unknown';
+                    country = geoRes.data.country || 'Unknown';
+                }
+            } catch (geoError) { console.error("GeoIP Fetch Error:", geoError.message); }
+        }
+
+        await pool.query('INSERT INTO visit_logs (ip_address, city, country, device_type) VALUES (?, ?, ?, ?)', [ip, city, country, isMobile ? 'Mobile' : 'Desktop']); 
+        res.json({ success: true, newHits: settings.websiteHits }); 
+    } catch (err) { console.error("Track Hit Error:", err); res.json({ success: false }); } 
+});
+
+app.get('/api/analytics/traffic', async (req, res) => { try { const [rows] = await pool.query(`SELECT DATE_FORMAT(visit_date, '%b %y') as month, COUNT(*) as count FROM visit_logs WHERE visit_date >= DATE_SUB(NOW(), INTERVAL 6 MONTH) GROUP BY DATE_FORMAT(visit_date, '%Y-%m'), month ORDER BY DATE_FORMAT(visit_date, '%Y-%m') ASC`); res.json(rows); } catch (e) { res.json([]); } });
+app.get('/api/analytics/devices', async (req, res) => { try { const [rows] = await pool.query(`SELECT device_type, COUNT(*) as count FROM visit_logs GROUP BY device_type`); res.json(rows); } catch (e) { res.json([]); } });
+
+// FALLBACKS
+app.use('/api/*', (req, res) => res.status(404).json({ error: `API endpoint not found` }));
+const distPath = path.join(__dirname, 'dist');
+if (fs.existsSync(distPath)) { app.use(express.static(distPath)); app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html'))); } 
+else { app.get('*', (req, res) => res.send('<h1>Backend Running</h1><p>Frontend not built.</p>')); }
+
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
