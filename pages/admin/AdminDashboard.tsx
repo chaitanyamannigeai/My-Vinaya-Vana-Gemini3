@@ -53,6 +53,7 @@ const AdminDashboard = () => {
       setLoading(true);
       try {
           if (tab === 'bookings') setBookings(await api.bookings.getAll());
+          else if (tab === 'fleet') setVehicles(await api.vehicles.getAll()); // ✅ NEW Tab Load
           else if (tab === 'rooms') setRooms(await api.rooms.getAll());
           else if (tab === 'locations') { 
               setLocations(await api.locations.getAll()); 
@@ -80,19 +81,7 @@ const AdminDashboard = () => {
 
   useEffect(() => { if (!authLoading) loadTab(activeTab); }, [activeTab, authLoading]);
   const handleLogout = () => { sessionStorage.removeItem('vv_admin_auth'); navigate('/'); };
-
-  const loadTab = async (tab: string) => {
-      setLoading(true);
-      try {
-          if (tab === 'bookings') setBookings(await api.bookings.getAll());
-          // ... existing tabs ...
-          else if (tab === 'fleet') setVehicles(await api.vehicles.getAll()); // ✅ NEW Tab Load
-          // ... existing tabs ...
-      } catch (e) { console.error("Failed to load tab data", e); } 
-      finally { setLoading(false); }
-  };
-
-  
+ 
 
   // Analytics
   const calculateAnalytics = () => {
