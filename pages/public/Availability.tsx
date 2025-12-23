@@ -68,6 +68,19 @@ const Availability = () => {
       const match = str.match(/^(\d{4}-\d{2}-\d{2})/);
       return match ? match[1] : '';
   };
+  // ✅ ADD THIS MISSING FUNCTION
+  const getMultiplierForDate = (date: string): number => {
+      const d = new Date(date).getTime();
+      let maxMultiplier = 1;
+      pricingRules.forEach(rule => {
+          const start = new Date(rule.startDate).getTime();
+          const end = new Date(rule.endDate).getTime();
+          if (d >= start && d <= end) {
+              if (rule.multiplier > maxMultiplier) maxMultiplier = rule.multiplier;
+          }
+      });
+      return maxMultiplier;
+  };
 
   const calculateTotalDetails = () => {
       if (!selectedRoomId || !selectedStart || !selectedEnd) return { total: 0, discount: 0, advance: 0 };
