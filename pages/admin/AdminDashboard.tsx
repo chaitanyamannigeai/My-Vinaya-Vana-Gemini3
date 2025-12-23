@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
-import { Room, Booking, Driver, CabLocation, SiteSettings, PaymentStatus, PricingRule, GalleryItem, Review } from '../../types';
+import { Room, Booking, Driver, CabLocation, SiteSettings, PaymentStatus, PricingRule, GalleryItem, Review, CabVehicle } from '../../types';
 import { Settings, Calendar, Truck, Map, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent, Download, MessageCircle, CheckCircle, BarChart2, Activity, Loader, TrendingUp, DollarSign, Clock, Link as LinkIcon } from 'lucide-react';
 import ImageUploader from '../../components/ui/ImageUploader';
-// Ensure CabVehicle is imported from types
-import { CabVehicle } from '../../types';
 
 const { useNavigate } = ReactRouterDOM as any;
 
@@ -26,9 +24,9 @@ const AdminDashboard = () => {
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
   const [trafficStats, setTrafficStats] = useState<{month: string, count: number}[]>([]);
   const [deviceStats, setDeviceStats] = useState<{device_type: string, count: number}[]>([]);
-  const [vehicles, setVehicles] = useState<CabVehicle[]>([]); // ✅ NEW State
-
-
+  
+  // ✅ NEW: Vehicle State
+  const [vehicles, setVehicles] = useState<CabVehicle[]>([]);
   
   // Manual Booking State
   const [showManualBooking, setShowManualBooking] = useState(false);
@@ -53,12 +51,12 @@ const AdminDashboard = () => {
       setLoading(true);
       try {
           if (tab === 'bookings') setBookings(await api.bookings.getAll());
-          else if (tab === 'fleet') setVehicles(await api.vehicles.getAll()); // ✅ NEW Tab Load
           else if (tab === 'rooms') setRooms(await api.rooms.getAll());
           else if (tab === 'locations') { 
               setLocations(await api.locations.getAll()); 
               setDrivers(await api.drivers.getAll()); 
           }
+          else if (tab === 'fleet') setVehicles(await api.vehicles.getAll()); // ✅ NEW Tab Load
           else if (tab === 'drivers') setDrivers(await api.drivers.getAll());
           else if (tab === 'pricing') setPricingRules(await api.pricing.getAll());
           else if (tab === 'gallery') setGallery(await api.gallery.getAll());
@@ -81,7 +79,6 @@ const AdminDashboard = () => {
 
   useEffect(() => { if (!authLoading) loadTab(activeTab); }, [activeTab, authLoading]);
   const handleLogout = () => { sessionStorage.removeItem('vv_admin_auth'); navigate('/'); };
- 
 
   // Analytics
   const calculateAnalytics = () => {
@@ -143,7 +140,6 @@ const AdminDashboard = () => {
   const handleCollectPayment = async () => {
       const amount = parseFloat(paymentData.amountToCollect);
       if (!amount || amount <= 0) { alert("Please enter a valid amount"); return; }
-      
       try {
           await api.bookings.payBalance(paymentData.bookingId, amount);
           alert("Payment Recorded Successfully!");
@@ -187,13 +183,12 @@ const AdminDashboard = () => {
     document.body.removeChild(link);
   };
 
-  // --- HELPER TO GET ROOM NAME ---
+  // --- CRUD HELPERS ---
   const getRoomName = (roomId: string) => {
       const r = rooms.find(room => room.id === roomId);
       return r ? r.name : 'Unknown Room';
   };
 
-  // --- CRUD HELPERS ---
   const addRoomLocal = () => { setRooms([{ id: `r${Date.now()}`, name: 'New Room', description: 'Description...', basePrice: 3000, capacity: 2, amenities: ['Wifi', 'AC'], images: ['https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&q=80&w=800'] }, ...rooms]); };
   const updateRoomLocal = (id: string, field: keyof Room, value: any) => { setRooms(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r)); };
   const updateRoomAmenitiesLocal = (id: string, val: string) => { setRooms(prev => prev.map(r => r.id === id ? { ...r, amenities: val.split(',').map(s => s.trim()) } : r)); };
@@ -241,12 +236,11 @@ const AdminDashboard = () => {
           active: true 
       }, ...vehicles]); 
   };
-
+  
   const updateVehicleLocal = (id: string, field: keyof CabVehicle, value: any) => { 
       setVehicles(prev => prev.map(v => v.id === id ? { ...v, [field]: value } : v)); 
   };
   
-  // Helper for comma-separated features
   const updateVehicleFeatures = (id: string, val: string) => {
       setVehicles(prev => prev.map(v => v.id === id ? { ...v, features: val.split(',').map(s => s.trim()) } : v));
   };
@@ -329,7 +323,6 @@ const AdminDashboard = () => {
                         <td className="px-6 py-4 text-sm">
                             <div className="font-bold">Total: ₹{b.totalAmount}</div>
                             <div className="text-green-600 text-xs">Paid: ₹{b.amountPaid || 0}</div>
-                            {/* Display Balance Amount explicitly */}
                             {(b.balanceAmount ?? 0) > 1 && <div className="text-red-500 text-xs font-bold">Due: ₹{b.balanceAmount}</div>}
                         </td>
                         <td className="px-6 py-4">
@@ -349,8 +342,6 @@ const AdminDashboard = () => {
                             {(b.balanceAmount ?? 0) > 1 && (
                                 <button onClick={() => copyPaymentLink(b.id)} title="Copy Balance Payment Link" className="text-blue-600 hover:text-blue-800"><LinkIcon size={18} /></button>
                             )}
-                            
-                            {/* ✅ COLLECT PAYMENT BUTTON */}
                             {(b.balanceAmount ?? 0) > 1 && (
                                 <button 
                                     onClick={() => openPaymentModal(b)} 
@@ -421,6 +412,51 @@ const AdminDashboard = () => {
     </div>
   );
 
+  // ✅ NEW: Render Fleet (Vehicle Management)
+  const renderFleet = () => (
+    <div className="space-y-6">
+        <button onClick={addVehicleLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700 transition-all hover:scale-105"><Plus size={16} /> Add Vehicle Type</button>
+        <div className="grid gap-6">
+            {vehicles.map(v => (
+                <div key={v.id} className="bg-white p-6 rounded-lg shadow flex flex-col lg:flex-row gap-6 relative border border-gray-100">
+                    <div className="absolute top-4 right-4 flex gap-2 z-10">
+                        <button onClick={() => saveVehicle(v.id)} className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded shadow hover:bg-blue-700"><Save size={16} /> Save</button>
+                        <button onClick={() => deleteVehicle(v.id)} className="text-red-400 hover:text-red-600 bg-white p-1 rounded border border-gray-200"><Trash2 size={20} /></button>
+                    </div>
+                    {/* Basic Image Upload (Main Image only for Chunk 3) */}
+                    <div className="lg:w-1/3">
+                        <ImageUploader 
+                            label="Main Vehicle Image" 
+                            value={v.images[0] || ''} 
+                            onChange={(val) => { 
+                                const newImgs = [...v.images]; 
+                                newImgs[0] = val; 
+                                updateVehicleLocal(v.id, 'images', newImgs); 
+                            }} 
+                        />
+                    </div>
+                    <div className="lg:w-2/3 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><label className="block text-xs text-gray-500">Vehicle Name</label><input type="text" value={v.name} onChange={(e) => updateVehicleLocal(v.id, 'name', e.target.value)} className="border rounded px-3 py-2 w-full font-bold" placeholder="e.g. Toyota Innova"/></div>
+                            <div><label className="block text-xs text-gray-500">Vehicle Type</label><input type="text" value={v.vehicleType} onChange={(e) => updateVehicleLocal(v.id, 'vehicleType', e.target.value)} className="border rounded px-3 py-2 w-full" placeholder="e.g. SUV"/></div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div><label className="block text-xs text-gray-500">Capacity</label><input type="number" value={v.capacity} onChange={(e) => updateVehicleLocal(v.id, 'capacity', parseInt(e.target.value))} className="border rounded px-3 py-2 w-full"/></div>
+                            <div><label className="block text-xs text-gray-500">Display Rate (₹/km or fixed)</label><input type="number" value={v.baseRate || ''} onChange={(e) => updateVehicleLocal(v.id, 'baseRate', parseFloat(e.target.value))} className="border rounded px-3 py-2 w-full"/></div>
+                            <div className="flex items-center pt-5"><label className="flex items-center gap-2 cursor-pointer font-medium"><input type="checkbox" checked={v.active} onChange={(e) => updateVehicleLocal(v.id, 'active', e.target.checked)} /> Active / Available</label></div>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-500">Features (comma separated)</label>
+                            <input type="text" value={v.features.join(', ')} onChange={(e) => updateVehicleFeatures(v.id, e.target.value)} className="border rounded px-3 py-2 w-full" placeholder="AC, Music System, Carrier"/>
+                        </div>
+                    </div>
+                </div>
+            ))}
+            {vehicles.length === 0 && <p className="text-gray-500 text-center py-8">No vehicles in fleet. Add one to get started.</p>}
+        </div>
+    </div>
+  );
+
   const renderDrivers = () => (
     <div className="space-y-4">
         <button onClick={addDriverLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700"><Plus size={16} /> Add Driver</button>
@@ -453,7 +489,6 @@ const AdminDashboard = () => {
                       <div className="absolute top-2 right-2 flex gap-2"><button onClick={() => savePricingRule(rule.id)} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Save size={18}/></button><button onClick={() => deletePricingRule(rule.id)} className="text-gray-400 hover:text-red-500 p-1 rounded"><X size={18}/></button></div>
                     <div className="flex-grow grid grid-cols-1 md:grid-cols-4 gap-4 w-full mt-2 md:mt-0">
                         <div><label className="text-xs text-gray-500">Season Name</label><input type="text" value={rule.name} onChange={(e) => updatePricingRuleLocal(rule.id, 'name', e.target.value)} className="border w-full p-2 rounded"/></div>
-                        
                         <div>
                             <label className="text-xs text-gray-500">Start Date</label>
                             <input 
@@ -472,7 +507,6 @@ const AdminDashboard = () => {
                                 className="border w-full p-2 rounded"
                             />
                         </div>
-                        
                         <div><label className="text-xs text-gray-500">Multiplier</label><input type="number" step="0.1" value={rule.multiplier} onChange={(e) => updatePricingRuleLocal(rule.id, 'multiplier', parseFloat(e.target.value))} className="border w-full p-2 rounded font-bold text-nature-700"/></div>
                     </div>
                 </div>
@@ -522,60 +556,6 @@ const AdminDashboard = () => {
     </div>
   );
 
-  // ... renderFunctions ...
-
-  // ✅ NEW: Render Fleet (Vehicle Management)
-  const renderFleet = () => (
-    <div className="space-y-6">
-        <button onClick={addVehicleLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700 transition-all hover:scale-105"><Plus size={16} /> Add Vehicle Type</button>
-        <div className="grid gap-6">
-            {vehicles.map(v => (
-                <div key={v.id} className="bg-white p-6 rounded-lg shadow flex flex-col lg:flex-row gap-6 relative border border-gray-100">
-                    <div className="absolute top-4 right-4 flex gap-2 z-10">
-                        <button onClick={() => saveVehicle(v.id)} className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded shadow hover:bg-blue-700"><Save size={16} /> Save</button>
-                        <button onClick={() => deleteVehicle(v.id)} className="text-red-400 hover:text-red-600 bg-white p-1 rounded border border-gray-200"><Trash2 size={20} /></button>
-                    </div>
-                    {/* Basic Image Upload (Main Image only for Chunk 3) */}
-                    <div className="lg:w-1/3">
-                        <ImageUploader 
-                            label="Main Vehicle Image" 
-                            value={v.images[0] || ''} 
-                            onChange={(val) => { 
-                                const newImgs = [...v.images]; 
-                                newImgs[0] = val; 
-                                updateVehicleLocal(v.id, 'images', newImgs); 
-                            }} 
-                        />
-                    </div>
-                    <div className="lg:w-2/3 space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label className="block text-xs text-gray-500">Vehicle Name</label><input type="text" value={v.name} onChange={(e) => updateVehicleLocal(v.id, 'name', e.target.value)} className="border rounded px-3 py-2 w-full font-bold" placeholder="e.g. Toyota Innova"/></div>
-                            <div><label className="block text-xs text-gray-500">Vehicle Type</label><input type="text" value={v.vehicleType} onChange={(e) => updateVehicleLocal(v.id, 'vehicleType', e.target.value)} className="border rounded px-3 py-2 w-full" placeholder="e.g. SUV"/></div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div><label className="block text-xs text-gray-500">Capacity</label><input type="number" value={v.capacity} onChange={(e) => updateVehicleLocal(v.id, 'capacity', parseInt(e.target.value))} className="border rounded px-3 py-2 w-full"/></div>
-                            <div><label className="block text-xs text-gray-500">Display Rate (₹/km or fixed)</label><input type="number" value={v.baseRate || ''} onChange={(e) => updateVehicleLocal(v.id, 'baseRate', parseFloat(e.target.value))} className="border rounded px-3 py-2 w-full"/></div>
-                            <div className="flex items-center pt-5"><label className="flex items-center gap-2 cursor-pointer font-medium"><input type="checkbox" checked={v.active} onChange={(e) => updateVehicleLocal(v.id, 'active', e.target.checked)} /> Active / Available</label></div>
-                        </div>
-                        <div>
-                            <label className="block text-xs text-gray-500">Features (comma separated)</label>
-                            <input type="text" value={v.features.join(', ')} onChange={(e) => updateVehicleFeatures(v.id, e.target.value)} className="border rounded px-3 py-2 w-full" placeholder="AC, Music System, Carrier"/>
-                        </div>
-                    </div>
-                </div>
-            ))}
-            {vehicles.length === 0 && <p className="text-gray-500 text-center py-8">No vehicles in fleet. Add one to get started.</p>}
-        </div>
-    </div>
-  );
-
-  // ... inside return statement, Sidebar Navigation ...
-  // Add 'fleet' to the list
-  // {['bookings', 'rooms', 'locations', 'fleet', 'drivers', ...].map(tab => ...
-
-  // ... inside return statement, Content Area ...
-  // {activeTab === 'fleet' && renderFleet()}
-
   const renderHomePageContent = () => (
     <div className="bg-white p-8 rounded-lg shadow max-w-3xl space-y-8">
          <div>
@@ -586,14 +566,12 @@ const AdminDashboard = () => {
             <h3 className="text-lg font-bold mb-4 border-b pb-2 flex items-center gap-2"><LayoutTemplate size={20} /> YouTube Video Section</h3>
             <div><label className="block text-sm font-medium text-gray-700">YouTube Video URL</label><input type="text" value={settings.youtubeVideoUrl} onChange={(e) => setSettings({...settings, youtubeVideoUrl: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"/></div>
         </div>
-
         <div className="bg-white p-6 rounded-lg shadow border border-gray-100">
             <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-nature-900"><BarChart2 size={20}/> Website Traffic Analytics</h3>
             <div className="mb-8 bg-nature-50 p-4 rounded-lg border border-nature-200 inline-block">
                 <p className="text-gray-700 text-sm">Total Historical Visits</p>
                 <p className="font-bold text-nature-700 text-2xl">{settings.websiteHits?.toLocaleString() || 0}</p>
             </div>
-            
             <div className="mt-4">
                 <h4 className="text-sm font-bold text-gray-500 mb-4 uppercase">Monthly Unique Visits (Last 6 Months)</h4>
                 <div className="flex items-end justify-between h-48 gap-2 pt-4 border-b border-gray-200 px-4">
@@ -610,7 +588,6 @@ const AdminDashboard = () => {
                     }) : <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">Waiting for visitor data...</div>}
                 </div>
             </div>
-            
             <div className="mt-8 pt-6 border-t border-gray-100">
                 <h4 className="text-sm font-bold text-gray-500 mb-4 uppercase flex items-center gap-2"><User size={16}/> Visitor Devices</h4>
                 <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-lg">
@@ -623,12 +600,10 @@ const AdminDashboard = () => {
                 </div>
             </div>
         </div>
-
         <button onClick={async () => { await api.settings.save(settings); alert("Content Saved!"); }} className="flex items-center gap-2 bg-nature-600 text-white px-6 py-2 rounded-md hover:bg-nature-700 w-full justify-center"><Save size={18} /> Save Content</button>
     </div>
   );
 
-  // ✅ THIS FUNCTION WAS MISSING IN THE PREVIOUS VERSION, CAUSING THE CRASH
   const renderSettings = () => (
     <div className="bg-white p-8 rounded-lg shadow max-w-2xl space-y-8">
         <div className="border border-nature-200 rounded-lg p-6 bg-nature-50">
@@ -697,7 +672,7 @@ const AdminDashboard = () => {
       <div className="w-64 bg-nature-900 text-white flex flex-col hidden md:flex shrink-0">
         <div className="p-6 font-serif font-bold text-xl border-b border-nature-800">Admin Panel</div>
         <nav className="flex-grow py-4 overflow-y-auto">
-          {['bookings', 'rooms', 'locations', 'drivers', 'pricing', 'gallery', 'reviews', 'home-content', 'settings'].map(tab => (
+          {['bookings', 'rooms', 'locations', 'fleet', 'drivers', 'pricing', 'gallery', 'reviews', 'home-content', 'settings'].map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full text-left px-6 py-3 flex items-center gap-3 hover:bg-nature-800 capitalize ${activeTab === tab ? 'bg-nature-800 border-r-4 border-green-400' : ''}`}>
                 <span className="capitalize">{tab.replace('-', ' ')}</span>
             </button>
@@ -712,6 +687,7 @@ const AdminDashboard = () => {
             {activeTab === 'bookings' && renderBookings()}
             {activeTab === 'rooms' && renderRooms()}
             {activeTab === 'locations' && renderLocations()}
+            {activeTab === 'fleet' && renderFleet()} 
             {activeTab === 'drivers' && renderDrivers()}
             {activeTab === 'pricing' && renderPricing()}
             {activeTab === 'gallery' && renderGallery()}
@@ -747,7 +723,6 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* ✅ NEW: Collect Payment Modal */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 text-center">
@@ -756,7 +731,6 @@ const AdminDashboard = () => {
                 </div>
                 <h3 className="text-lg font-bold text-gray-800 mb-2">Record Payment</h3>
                 <p className="text-gray-500 text-sm mb-6">Current Balance Due: <span className="font-bold text-red-500">₹{paymentData.currentBalance}</span></p>
-                
                 <input 
                     type="number" 
                     placeholder="Amount Collected (₹)" 
@@ -765,7 +739,6 @@ const AdminDashboard = () => {
                     className="w-full border p-3 rounded-lg mb-4 text-lg font-bold text-center"
                     autoFocus
                 />
-                
                 <div className="flex gap-2">
                     <button onClick={() => setShowPaymentModal(false)} className="flex-1 py-3 border rounded-lg text-gray-600 font-medium hover:bg-gray-50">Cancel</button>
                     <button onClick={handleCollectPayment} className="flex-1 py-3 bg-nature-600 text-white rounded-lg font-bold hover:bg-nature-700">Confirm</button>
