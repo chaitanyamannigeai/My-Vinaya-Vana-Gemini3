@@ -7,10 +7,10 @@ const Cabs = () => {
   const [locations, setLocations] = useState<CabLocation[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
-  const [vehicles, setVehicles] = useState<CabVehicle[]>([]); // ✅ NEW: Vehicle State
+  const [vehicles, setVehicles] = useState<CabVehicle[]>([]); 
   const [loading, setLoading] = useState(true);
 
-  // ✅ NEW: Track active image for each vehicle card (for mini-gallery)
+  // Track active image for each vehicle card (for mini-gallery)
   const [activeImages, setActiveImages] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -20,7 +20,7 @@ const Cabs = () => {
                 api.locations.getAll(),
                 api.drivers.getAll(),
                 api.settings.get(),
-                api.vehicles.getAll() // ✅ NEW: Fetch Vehicles
+                api.vehicles.getAll() 
             ]);
             setLocations(fetchedLocs.filter(l => l.active));
             setDrivers(fetchedDrivers.filter(d => d.active));
@@ -43,22 +43,35 @@ const Cabs = () => {
       return defaultDriver;
   };
 
-  // ✅ NEW: Handle Image Swap
+  // Handle Image Swap
   const handleImageClick = (vehicleId: string, imgUrl: string) => {
       setActiveImages(prev => ({...prev, [vehicleId]: imgUrl}));
   };
 
-  // ✅ NEW: Book Specific Vehicle
+  // ✅ BUG FIX: Find the specific driver assigned to this vehicle
   const handleBookVehicle = (vehicle: CabVehicle) => {
+      // 1. Find the driver who has this vehicle assigned
+      const linkedDriver = drivers.find(d => d.assignedVehicleId === vehicle.id);
+      
+      // 2. Use that driver's number, otherwise fallback to Admin's number
+      // We explicitly clean the number to remove spaces/dashes for the WhatsApp URL
+      const rawNumber = linkedDriver?.whatsapp || linkedDriver?.phone || settings.whatsappNumber;
+      const cleanNumber = rawNumber?.replace(/[^0-9]/g, '');
+
       const text = `Hello, I am interested in booking the *${vehicle.name}* (${vehicle.vehicleType}). Please let me know availability.`;
-      window.open(`https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent(text)}`, '_blank');
+      
+      window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   // Book Location/Route
   const handleBookRide = (loc: CabLocation) => {
       const driver = getDriverForLocation(loc);
+      // Clean the number for route booking as well
+      const rawNumber = driver?.whatsapp || settings.whatsappNumber;
+      const cleanNumber = rawNumber?.replace(/[^0-9]/g, '');
+
       const text = `Hello, I would like to book the cab for *${loc.name}*. Price mentioned is ₹${loc.price}.`;
-      window.open(`https://wa.me/${driver?.whatsapp || settings.whatsappNumber}?text=${encodeURIComponent(text)}`, '_blank');
+      window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   if (loading) return (
@@ -102,7 +115,7 @@ const Cabs = () => {
               </div>
           </div>
 
-          {/* 3. ✅ NEW: OUR PREMIUM FLEET SECTION */}
+          {/* 3. OUR PREMIUM FLEET SECTION */}
           {vehicles.length > 0 && (
               <div className="animate-fade-in">
                   <div className="text-center mb-10">
@@ -113,9 +126,10 @@ const Cabs = () => {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                       {vehicles.map(vehicle => {
-                          // Determine active image: explicit state -> first image -> placeholder
                           const activeImg = activeImages[vehicle.id] || (vehicle.images && vehicle.images.length > 0 ? vehicle.images[0] : 'https://via.placeholder.com/400x300?text=Vehicle');
-                          
+                          // ✅ Find driver for UI display (Optional nice-to-have)
+                          const assignedDriver = drivers.find(d => d.assignedVehicleId === vehicle.id);
+
                           return (
                               <div key={vehicle.id} className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col group">
                                   {/* Main Image Area */}
@@ -126,7 +140,7 @@ const Cabs = () => {
                                       </div>
                                   </div>
                                   
-                                  {/* Thumbnail Gallery (Only if > 1 image) */}
+                                  {/* Thumbnail Gallery */}
                                   {vehicle.images && vehicle.images.length > 1 && (
                                       <div className="flex gap-2 p-3 bg-gray-50 overflow-x-auto border-b border-gray-100 no-scrollbar">
                                           {vehicle.images.map((img, idx) => (
@@ -163,6 +177,14 @@ const Cabs = () => {
                                               <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full border border-gray-200">{f}</span>
                                           ))}
                                       </div>
+                                      
+                                      {/* Driven By Badge (Optional Visual Confirmation) */}
+                                      {assignedDriver && (
+                                          <div className="mb-4 text-xs text-gray-400 flex items-center gap-1">
+                                              <ShieldCheck size={12} className="text-green-500"/>
+                                              Driven by {assignedDriver.name}
+                                          </div>
+                                      )}
 
                                       <button 
                                           onClick={() => handleBookVehicle(vehicle)}
@@ -178,7 +200,7 @@ const Cabs = () => {
               </div>
           )}
 
-          {/* 4. POPULAR ROUTES (Existing Functionality Preserved) */}
+          {/* 4. POPULAR ROUTES */}
           {locations.length > 0 && (
              <div>
                  <div className="text-center mb-10">
