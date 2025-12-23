@@ -146,6 +146,31 @@ const fixDatabaseSchema = async () => {
             device_type VARCHAR(50)
         )`);
 
+            
+
+        // 9. CAB VEHICLES (New Table)
+        await connection.query(`CREATE TABLE IF NOT EXISTS cab_vehicles (
+            id VARCHAR(255) PRIMARY KEY,
+            name VARCHAR(255),
+            vehicle_type VARCHAR(100),
+            capacity INT,
+            images TEXT,       -- Stores JSON array of URLs
+            features TEXT,     -- Stores JSON array of strings
+            base_rate DECIMAL(10,2),
+            active BOOLEAN DEFAULT 1
+        )`);
+
+        // 10. DRIVER LINKING (Safe Column Addition)
+        // We check if the column exists first to avoid errors on restart
+        try {
+            await connection.query("SELECT assigned_vehicle_id FROM drivers LIMIT 1");
+        } catch (e) {
+            // Column doesn't exist, so add it
+            await connection.query("ALTER TABLE drivers ADD COLUMN assigned_vehicle_id VARCHAR(255) NULL");
+            console.log("✅ Added assigned_vehicle_id column to drivers table");
+        }
+
+
         // Auto-fix columns
         try {
             await connection.query("ALTER TABLE visit_logs ADD COLUMN city VARCHAR(100)");

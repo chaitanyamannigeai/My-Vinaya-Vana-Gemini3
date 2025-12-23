@@ -111,3 +111,23 @@ export interface WeatherData {
   description: string;
   icon: string;
 }
+
+
+// ✅ NEW: Represents a vehicle type offered (e.g., "Toyota Innova")
+export interface CabVehicle {
+  id: string;
+  name: string;          // e.g., "Toyota Etios"
+  vehicleType: string;   // e.g., "Sedan", "SUV", "Tempo Traveller"
+  capacity: number;      // e.g., 4
+  images: string[];      // Array of Supabase URLs
+  features: string[];    // e.g., ["AC", "Carrier", "Music System"]
+  baseRate?: number;     // Optional: For display (e.g. "12" -> "Rs 12/km")
+  active: boolean;
+}
+
+// ✅ UPDATE: Driver (No breaking changes, just preparation)
+// We will eventually link drivers to vehicles in Chunk 5.
+export interface Driver {
+  // ... existing fields ...
+  assignedVehicleId?: string | null; // Optional link to a CabVehicle
+}
