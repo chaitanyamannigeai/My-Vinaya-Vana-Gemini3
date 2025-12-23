@@ -1,25 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
-import { CabLocation, Driver, SiteSettings } from '../../types';
-import { MapPin, Phone, MessageCircle, Navigation, Car, ShieldCheck, Music, Wind, Briefcase } from 'lucide-react';
+import { CabLocation, Driver, SiteSettings, CabVehicle } from '../../types';
+import { MapPin, Phone, MessageCircle, Navigation, Car, ShieldCheck, Music, Wind, Briefcase, Users, Fuel, Star } from 'lucide-react';
 
 const Cabs = () => {
   const [locations, setLocations] = useState<CabLocation[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
+  const [vehicles, setVehicles] = useState<CabVehicle[]>([]); // ✅ NEW: Vehicle State
   const [loading, setLoading] = useState(true);
+
+  // ✅ NEW: Track active image for each vehicle card (for mini-gallery)
+  const [activeImages, setActiveImages] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const fetchData = async () => {
         try {
-            const [fetchedLocs, fetchedDrivers, fetchedSettings] = await Promise.all([
+            const [fetchedLocs, fetchedDrivers, fetchedSettings, fetchedVehicles] = await Promise.all([
                 api.locations.getAll(),
                 api.drivers.getAll(),
-                api.settings.get()
+                api.settings.get(),
+                api.vehicles.getAll() // ✅ NEW: Fetch Vehicles
             ]);
             setLocations(fetchedLocs.filter(l => l.active));
             setDrivers(fetchedDrivers.filter(d => d.active));
             setSettings(fetchedSettings);
+            setVehicles(fetchedVehicles.filter(v => v.active));
         } catch (e) {
             console.error(e);
         } finally {
@@ -29,7 +35,7 @@ const Cabs = () => {
     fetchData();
   }, []);
 
-  // Find the designated "Travel Desk" driver
+  // Helper: Find designated "Travel Desk" driver or default
   const defaultDriver = drivers.find(d => d.isDefault) || drivers[0];
 
   const getDriverForLocation = (loc: CabLocation) => {
@@ -37,142 +43,172 @@ const Cabs = () => {
       return defaultDriver;
   };
 
+  // ✅ NEW: Handle Image Swap
+  const handleImageClick = (vehicleId: string, imgUrl: string) => {
+      setActiveImages(prev => ({...prev, [vehicleId]: imgUrl}));
+  };
+
+  // ✅ NEW: Book Specific Vehicle
+  const handleBookVehicle = (vehicle: CabVehicle) => {
+      const text = `Hello, I am interested in booking the *${vehicle.name}* (${vehicle.vehicleType}). Please let me know availability.`;
+      window.open(`https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  // Book Location/Route
   const handleBookRide = (loc: CabLocation) => {
       const driver = getDriverForLocation(loc);
-      if (!driver) return;
-      
-      const text = `Hi ${driver.name}, I am interested in booking a cab for: *${loc.name}* (Price: ₹${loc.price}). Is it available?`;
-      const url = `https://wa.me/${driver.whatsapp || driver.phone}?text=${encodeURIComponent(text)}`;
-      window.open(url, '_blank');
+      const text = `Hello, I would like to book the cab for *${loc.name}*. Price mentioned is ₹${loc.price}.`;
+      window.open(`https://wa.me/${driver?.whatsapp || settings.whatsappNumber}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
-  const handleGeneralInquiry = () => {
-      const driver = defaultDriver;
-      const phone = driver ? (driver.whatsapp || driver.phone) : settings.whatsappNumber;
-      
-      const text = `Hi ${driver ? driver.name : ''}, I need a cab service in Gokarna. Can you help with a custom itinerary?`;
-      const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
-      window.open(url, '_blank');
-  };
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-nature-600"></div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="bg-gray-50 min-h-screen pb-20">
       
-      {/* 1. COMPACT HERO SECTION */}
-      <div 
-        className="relative h-[35vh] bg-cover bg-center flex items-center justify-center"
-        style={{ 
-            backgroundImage: `url("${settings.heroImageUrl}")`,
-            backgroundColor: '#1a2e1a'
-        }}
-      >
-        <div className="absolute inset-0 bg-black bg-opacity-70 backdrop-blur-[2px]"></div>
-        <div className="relative z-10 text-center px-4 animate-fade-in-up">
-            <h1 className="text-3xl md:text-5xl font-serif font-bold text-white mb-2 shadow-sm">
-                Travel Desk
-            </h1>
-            <p className="text-gray-300 font-light max-w-xl mx-auto">
-               Premium transfers and sightseeing packages for a seamless journey.
+      {/* 1. HERO SECTION */}
+      <div className="bg-nature-900 text-white py-24 px-4 text-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/40 z-0"></div>
+        <div className="relative z-10 max-w-4xl mx-auto">
+            <h1 className="text-4xl md:text-5xl font-serif font-bold mb-6">Premium Cab Services</h1>
+            <p className="text-lg md:text-xl text-gray-200 max-w-2xl mx-auto leading-relaxed">
+                Comfortable, safe, and reliable transport for your Gokarna adventures and airport transfers.
             </p>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 -mt-10 relative z-20">
-         
-         {/* 2. FLEET HIGHLIGHTS */}
-         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
-                 <div className="bg-nature-50 p-2 rounded-lg text-nature-700"><ShieldCheck size={20}/></div>
-                 <div className="text-sm">
-                     <p className="font-bold text-gray-900">Verified Drivers</p>
-                     <p className="text-gray-500 text-xs">Local experts, safe driving.</p>
-                 </div>
-             </div>
-             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
-                 <div className="bg-nature-50 p-2 rounded-lg text-nature-700"><Car size={20}/></div>
-                 <div className="text-sm">
-                     <p className="font-bold text-gray-900">Premium Fleet</p>
-                     <p className="text-gray-500 text-xs">Sedans, SUVs & Travellers.</p>
-                 </div>
-             </div>
-             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
-                 <div className="bg-nature-50 p-2 rounded-lg text-nature-700"><Briefcase size={20}/></div>
-                 <div className="text-sm">
-                     <p className="font-bold text-gray-900">Fixed Pricing</p>
-                     <p className="text-gray-500 text-xs">No hidden charges.</p>
-                 </div>
-             </div>
-         </div>
+      <div className="max-w-6xl mx-auto px-4 -mt-10 relative z-10 space-y-16">
+          
+          {/* 2. FLEET HIGHLIGHTS (Static Features) */}
+          <div className="bg-white p-8 rounded-xl shadow-lg grid grid-cols-1 md:grid-cols-3 gap-8 text-center border-b-4 border-nature-600">
+              <div className="flex flex-col items-center">
+                  <div className="bg-nature-100 p-4 rounded-full text-nature-700 mb-4"><ShieldCheck size={32}/></div>
+                  <h3 className="font-bold text-lg mb-2">Verified Drivers</h3>
+                  <p className="text-gray-500 text-sm">Experienced, licensed, and background-checked chauffeurs.</p>
+              </div>
+              <div className="flex flex-col items-center">
+                  <div className="bg-nature-100 p-4 rounded-full text-nature-700 mb-4"><Car size={32}/></div>
+                  <h3 className="font-bold text-lg mb-2">Premium Fleet</h3>
+                  <p className="text-gray-500 text-sm">Clean, well-maintained vehicles equipped with AC and music.</p>
+              </div>
+              <div className="flex flex-col items-center">
+                  <div className="bg-nature-100 p-4 rounded-full text-nature-700 mb-4"><Navigation size={32}/></div>
+                  <h3 className="font-bold text-lg mb-2">Flexible Packages</h3>
+                  <p className="text-gray-500 text-sm">Custom sightseeing tours and airport pickup/drop services.</p>
+              </div>
+          </div>
 
-         {/* 3. HORIZONTAL ROUTE LIST */}
-         <div className="space-y-6">
-             <div className="flex flex-col md:flex-row justify-between items-end md:items-center px-2 mb-2 gap-4">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    <MapPin className="text-nature-600" size={20}/> Popular Routes
-                </h2>
-                
-                {/* Custom Request Section with Default Driver Number */}
-                <div className="flex flex-col items-end">
-                    {defaultDriver && (
-                        <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1 mr-1">
-                            Travel Manager: {defaultDriver.name}
-                        </p>
-                    )}
-                    <div className="flex gap-2">
-                        {defaultDriver && (
-                            <a 
-                                href={`tel:${defaultDriver.phone}`} 
-                                className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-sm transition-colors text-sm"
-                                title={`Call ${defaultDriver.phone}`}
-                            >
-                                <Phone size={16}/> Call
-                            </a>
-                        )}
-                        <button 
-                            onClick={handleGeneralInquiry}
-                            className="bg-nature-700 hover:bg-nature-800 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-md transition-colors text-sm"
-                        >
-                            <MessageCircle size={16} /> Custom Request
-                        </button>
-                    </div>
-                </div>
-             </div>
+          {/* 3. ✅ NEW: OUR PREMIUM FLEET SECTION */}
+          {vehicles.length > 0 && (
+              <div className="animate-fade-in">
+                  <div className="text-center mb-10">
+                      <span className="text-nature-600 font-bold uppercase tracking-wider text-sm">Comfort & Style</span>
+                      <h2 className="text-3xl font-bold text-gray-800 mt-2">Our Premium Fleet</h2>
+                      <p className="text-gray-500 mt-2">Choose the perfect vehicle for your group size and comfort preference</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                      {vehicles.map(vehicle => {
+                          // Determine active image: explicit state -> first image -> placeholder
+                          const activeImg = activeImages[vehicle.id] || (vehicle.images && vehicle.images.length > 0 ? vehicle.images[0] : 'https://via.placeholder.com/400x300?text=Vehicle');
+                          
+                          return (
+                              <div key={vehicle.id} className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col group">
+                                  {/* Main Image Area */}
+                                  <div className="relative h-56 bg-gray-200 overflow-hidden">
+                                      <img src={activeImg} alt={vehicle.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
+                                      <div className="absolute top-3 right-3 bg-black/70 text-white text-xs font-bold px-3 py-1 rounded-full backdrop-blur-sm shadow-sm">
+                                          {vehicle.vehicleType}
+                                      </div>
+                                  </div>
+                                  
+                                  {/* Thumbnail Gallery (Only if > 1 image) */}
+                                  {vehicle.images && vehicle.images.length > 1 && (
+                                      <div className="flex gap-2 p-3 bg-gray-50 overflow-x-auto border-b border-gray-100 no-scrollbar">
+                                          {vehicle.images.map((img, idx) => (
+                                              <button 
+                                                key={idx} 
+                                                onClick={() => handleImageClick(vehicle.id, img)}
+                                                className={`w-12 h-12 shrink-0 rounded-md border-2 overflow-hidden transition-all ${activeImg === img ? 'border-nature-600 scale-105 shadow-sm' : 'border-transparent opacity-70 hover:opacity-100'}`}
+                                              >
+                                                  <img src={img} className="w-full h-full object-cover" loading="lazy" />
+                                              </button>
+                                          ))}
+                                      </div>
+                                  )}
 
-             {loading ? (
-                 <div className="text-center py-12 text-gray-400">Loading routes...</div>
-             ) : (
-                 <div className="space-y-4">
+                                  <div className="p-6 flex-grow flex flex-col">
+                                      <div className="flex justify-between items-start mb-3">
+                                          <h3 className="text-xl font-bold text-gray-800">{vehicle.name}</h3>
+                                          {vehicle.baseRate && vehicle.baseRate > 0 && (
+                                              <div className="text-right">
+                                                  <span className="block text-lg font-bold text-nature-700">₹{vehicle.baseRate}</span>
+                                                  <span className="text-xs text-gray-400 font-medium uppercase">Per KM</span>
+                                              </div>
+                                          )}
+                                      </div>
+                                      
+                                      <div className="flex items-center gap-4 text-sm text-gray-500 mb-5 pb-5 border-b border-gray-100">
+                                          <span className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded"><Users size={14} className="text-nature-600"/> {vehicle.capacity} Seats</span>
+                                          <span className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded"><Fuel size={14} className="text-nature-600"/> AC Cab</span>
+                                      </div>
+
+                                      {/* Features Tags */}
+                                      <div className="flex flex-wrap gap-2 mb-6">
+                                          {vehicle.features.map((f, i) => (
+                                              <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full border border-gray-200">{f}</span>
+                                          ))}
+                                      </div>
+
+                                      <button 
+                                          onClick={() => handleBookVehicle(vehicle)}
+                                          className="mt-auto w-full bg-nature-600 hover:bg-nature-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all hover:translate-y-[-2px] shadow-sm"
+                                      >
+                                          <MessageCircle size={18} /> Check Availability
+                                      </button>
+                                  </div>
+                              </div>
+                          );
+                      })}
+                  </div>
+              </div>
+          )}
+
+          {/* 4. POPULAR ROUTES (Existing Functionality Preserved) */}
+          {locations.length > 0 && (
+             <div>
+                 <div className="text-center mb-10">
+                    <span className="text-nature-600 font-bold uppercase tracking-wider text-sm">Destinations</span>
+                    <h2 className="text-3xl font-bold text-gray-800 mt-2">Popular Routes</h2>
+                    <p className="text-gray-500 mt-2">Fixed price drops and sightseeing packages</p>
+                 </div>
+                 
+                 <div className="grid gap-6">
                      {locations.map(loc => (
-                         <div key={loc.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col md:flex-row group hover:shadow-md transition-all duration-300">
-                             
-                             {/* Image Section */}
-                             <div className="md:w-48 h-48 md:h-auto relative shrink-0 overflow-hidden">
-                                 <img 
-                                    src={loc.imageUrl} 
-                                    alt={loc.name} 
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                 />
+                         <div key={loc.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col md:flex-row hover:shadow-md transition-shadow">
+                             <div className="md:w-1/3 h-48 md:h-auto relative">
+                                 <img src={loc.imageUrl} alt={loc.name} className="w-full h-full object-cover" loading="lazy" />
+                                 <div className="absolute top-0 left-0 bg-nature-600 text-white text-xs font-bold px-3 py-1 rounded-br-lg">
+                                     POPULAR
+                                 </div>
                              </div>
                              
-                             {/* Content Section */}
-                             <div className="p-6 flex-grow flex flex-col justify-center">
-                                 <h3 className="font-serif font-bold text-xl text-nature-900 mb-2">{loc.name}</h3>
-                                 <p className="text-gray-600 text-sm mb-4 leading-relaxed">
-                                    {loc.description || "Comfortable AC ride with professional driver. Includes fuel and toll charges."}
-                                 </p>
-                                 
-                                 {/* Amenities Icons */}
-                                 <div className="flex gap-4 text-xs text-gray-400 mb-4">
-                                     <span className="flex items-center gap-1"><Wind size={14}/> AC</span>
-                                     <span className="flex items-center gap-1"><Music size={14}/> Music</span>
-                                     <span className="flex items-center gap-1"><ShieldCheck size={14}/> Sanitized</span>
+                             <div className="p-6 md:w-1/3 flex-grow flex flex-col justify-center">
+                                 <h3 className="text-xl font-bold text-gray-800 mb-2">{loc.name}</h3>
+                                 <p className="text-gray-600 text-sm mb-4 line-clamp-2">{loc.description}</p>
+                                 <div className="flex items-center gap-2 text-sm text-gray-500">
+                                     <Car size={16} className="text-nature-600" />
+                                     <span>Managed by {getDriverForLocation(loc)?.name || 'Travel Desk'}</span>
                                  </div>
                              </div>
 
-                             {/* Price & Action Section */}
                              <div className="bg-gray-50 p-6 md:w-48 flex flex-col justify-center items-center border-l border-gray-100 shrink-0">
                                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Total Fare</p>
-                                 <p className="text-2xl font-bold text-nature-700 mb-4">₹{loc.price.toLocaleString()}</p>
+                                 <p className="text-2xl font-bold text-nature-700 mb-4">₹{loc.price?.toLocaleString()}</p>
                                  
                                  <button 
                                     onClick={() => handleBookRide(loc)}
@@ -183,15 +219,18 @@ const Cabs = () => {
                              </div>
                          </div>
                      ))}
-                     
-                     {locations.length === 0 && (
-                         <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
-                             <p className="text-gray-500">No specific routes listed.</p>
-                         </div>
-                     )}
                  </div>
-             )}
-         </div>
+             </div>
+          )}
+
+          {/* Empty State Fallback */}
+          {locations.length === 0 && vehicles.length === 0 && (
+             <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
+                 <Car size={48} className="mx-auto text-gray-300 mb-4" />
+                 <p className="text-gray-500 text-lg">Transport options are being updated.</p>
+                 <p className="text-gray-400 text-sm">Please contact the front desk directly.</p>
+             </div>
+          )}
 
       </div>
     </div>
