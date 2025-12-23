@@ -1,4 +1,3 @@
-// server.js
 import express from 'express';
 import path from 'path';
 import mysql from 'mysql2/promise';
@@ -146,36 +145,31 @@ const fixDatabaseSchema = async () => {
             device_type VARCHAR(50)
         )`);
 
-            
+        // Auto-fix columns for logs
+        try {
+            await connection.query("ALTER TABLE visit_logs ADD COLUMN city VARCHAR(100)");
+            await connection.query("ALTER TABLE visit_logs ADD COLUMN country VARCHAR(100)");
+        } catch (e) {}
 
-        // 9. CAB VEHICLES (New Table)
+        // 9. ✅ NEW: CAB VEHICLES
         await connection.query(`CREATE TABLE IF NOT EXISTS cab_vehicles (
             id VARCHAR(255) PRIMARY KEY,
             name VARCHAR(255),
             vehicle_type VARCHAR(100),
             capacity INT,
-            images TEXT,       -- Stores JSON array of URLs
-            features TEXT,     -- Stores JSON array of strings
+            images TEXT,
+            features TEXT,
             base_rate DECIMAL(10,2),
             active BOOLEAN DEFAULT 1
         )`);
 
-        // 10. DRIVER LINKING (Safe Column Addition)
-        // We check if the column exists first to avoid errors on restart
+        // 10. ✅ NEW: DRIVER LINKING
         try {
             await connection.query("SELECT assigned_vehicle_id FROM drivers LIMIT 1");
         } catch (e) {
-            // Column doesn't exist, so add it
             await connection.query("ALTER TABLE drivers ADD COLUMN assigned_vehicle_id VARCHAR(255) NULL");
             console.log("✅ Added assigned_vehicle_id column to drivers table");
         }
-
-
-        // Auto-fix columns
-        try {
-            await connection.query("ALTER TABLE visit_logs ADD COLUMN city VARCHAR(100)");
-            await connection.query("ALTER TABLE visit_logs ADD COLUMN country VARCHAR(100)");
-        } catch (e) {}
 
         connection.release();
         console.log("✅ All Database Tables Verified/Created.");
@@ -205,7 +199,23 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// --- GENERIC CRUD HANDLERS ---
+// --- API ROUTES ---
+
+// ✅ NEW: VEHICLES
+app.get('/api/vehicles', async(req,res)=>{ try{const[r]=await pool.query('SELECT * FROM cab_vehicles'); res.json(r.map(v=>({id:v.id, name:v.name, vehicleType:v.vehicle_type, capacity:v.capacity, images:parseJSON(v.images), features:parseJSON(v.features), baseRate:v.base_rate, active:!!v.active})));}catch(e){res.json([]);} });
+app.post('/api/vehicles', async(req,res)=>{ 
+    try{ 
+        const {id,name,vehicleType,capacity,baseRate,active}=req.body; 
+        const images = JSON.stringify(req.body.images || []); 
+        const features = JSON.stringify(req.body.features || []); 
+        await pool.query(
+            "INSERT INTO cab_vehicles (id,name,vehicle_type,capacity,images,features,base_rate,active) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name), vehicle_type=VALUES(vehicle_type), capacity=VALUES(capacity), images=VALUES(images), features=VALUES(features), base_rate=VALUES(base_rate), active=VALUES(active)",
+            [id,name,vehicleType,capacity,images,features,baseRate,active]
+        ); 
+        res.json({success:true}); 
+    }catch(e){res.status(500).json({error:e.message})} 
+});
+app.delete('/api/vehicles/:id', async (req, res) => { try { await pool.query('DELETE FROM cab_vehicles WHERE id = ?', [req.params.id]); res.json({success:true}); } catch(e){res.status(500).json({error:e.message})} });
 
 // REVIEWS
 app.get('/api/reviews', async (req, res) => {
@@ -292,59 +302,36 @@ app.get('/api/settings', async (req, res) => { try { const [rows] = await pool.q
 app.post('/api/settings', async (req, res) => { try { await pool.query("INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [JSON.stringify(req.body)]); res.json({ success: true }); } catch(e) { res.status(500).json({error: e.message}); } });
 app.get('/api/weather', async (req, res) => { try { const [settingsRows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'"); if (settingsRows.length === 0) return res.status(400).json({ error: "No settings" }); const settings = parseJSON(settingsRows[0].value); const apiKey = settings.weatherApiKey; if (!apiKey) return res.status(400).json({ error: "No API Key" }); const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${req.query.location || 'Gokarna'}&appid=${apiKey}&units=metric`; const weatherResponse = await axios.get(weatherUrl); res.json({ temp: weatherResponse.data.main.temp, feelsLike: weatherResponse.data.main.feels_like, humidity: weatherResponse.data.main.humidity, windSpeed: weatherResponse.data.wind.speed, description: weatherResponse.data.weather[0].description, icon: weatherResponse.data.weather[0].icon, }); } catch (err) { res.status(500).json({ error: "Weather error" }); } });
 
-// ANALYTICS (FIXED: Captures Real IP from Load Balancer)
+// ANALYTICS
 app.post('/api/analytics/track-hit', async (req, res) => { 
     try { 
-        // 1. Update Hit Counter
         const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'"); 
         let settings = rows.length > 0 ? parseJSON(rows[0].value) : {}; 
         settings.websiteHits = (settings.websiteHits || 0) + 1; 
         await pool.query("INSERT INTO site_settings (key_name, value) VALUES ('general_settings', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [JSON.stringify(settings)]); 
 
-        // 2. Get User Details
         const userAgent = req.headers['user-agent'] || ''; 
         const isMobile = /mobile/i.test(userAgent); 
-        
-        // --- FIX FOR REAL IP ADDRESS ---
         let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
-        
-        // x-forwarded-for can be a list (e.g. "client, proxy1, proxy2")
-        if (ip.includes(',')) {
-            ip = ip.split(',')[0].trim();
-        }
-
-        // Normalize local IPs
+        if (ip.includes(',')) { ip = ip.split(',')[0].trim(); }
         if (ip === '::1' || ip === '127.0.0.1') ip = '';
 
-        // 3. Get Location from External API (Free Service)
         let city = 'Unknown';
         let country = 'Unknown';
         
-        // Only fetch if valid public IP (basic length check)
         if (ip && ip.length > 7) { 
             try {
-                // Using ip-api.com (free, no key needed for non-commercial)
                 const geoRes = await axios.get(`http://ip-api.com/json/${ip}`);
                 if (geoRes.data && geoRes.data.status === 'success') {
                     city = geoRes.data.city || 'Unknown';
                     country = geoRes.data.country || 'Unknown';
                 }
-            } catch (geoError) {
-                console.error("GeoIP Fetch Error:", geoError.message);
-            }
+            } catch (geoError) { console.error("GeoIP Fetch Error:", geoError.message); }
         }
 
-        // 4. Save to Database (including City & Country)
-        await pool.query(
-            'INSERT INTO visit_logs (ip_address, city, country, device_type) VALUES (?, ?, ?, ?)', 
-            [ip, city, country, isMobile ? 'Mobile' : 'Desktop']
-        ); 
-
+        await pool.query('INSERT INTO visit_logs (ip_address, city, country, device_type) VALUES (?, ?, ?, ?)', [ip, city, country, isMobile ? 'Mobile' : 'Desktop']); 
         res.json({ success: true, newHits: settings.websiteHits }); 
-    } catch (err) { 
-        console.error("Track Hit Error:", err);
-        res.json({ success: false }); 
-    } 
+    } catch (err) { console.error("Track Hit Error:", err); res.json({ success: false }); } 
 });
 
 app.get('/api/analytics/traffic', async (req, res) => { try { const [rows] = await pool.query(`SELECT DATE_FORMAT(visit_date, '%b %y') as month, COUNT(*) as count FROM visit_logs WHERE visit_date >= DATE_SUB(NOW(), INTERVAL 6 MONTH) GROUP BY DATE_FORMAT(visit_date, '%Y-%m'), month ORDER BY DATE_FORMAT(visit_date, '%Y-%m') ASC`); res.json(rows); } catch (e) { res.json([]); } });
@@ -355,64 +342,5 @@ app.use('/api/*', (req, res) => res.status(404).json({ error: `API endpoint not 
 const distPath = path.join(__dirname, 'dist');
 if (fs.existsSync(distPath)) { app.use(express.static(distPath)); app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html'))); } 
 else { app.get('*', (req, res) => res.send('<h1>Backend Running</h1><p>Frontend not built.</p>')); }
-
-
-// ... existing imports and setup ...
-
-// --- DATABASE STARTUP FIXER ---
-const fixDatabaseSchema = async () => {
-    try {
-        const connection = await pool.getConnection();
-        console.log('🔧 Running Database Startup Checks...');
-
-        // ... (keep existing tables 1-8) ...
-
-        // 9. ✅ NEW: CAB VEHICLES
-        await connection.query(`CREATE TABLE IF NOT EXISTS cab_vehicles (
-            id VARCHAR(255) PRIMARY KEY,
-            name VARCHAR(255),
-            vehicle_type VARCHAR(100),
-            capacity INT,
-            images TEXT,
-            features TEXT,
-            base_rate DECIMAL(10,2),
-            active BOOLEAN DEFAULT 1
-        )`);
-
-        // 10. ✅ NEW: DRIVER LINKING
-        try {
-            await connection.query("SELECT assigned_vehicle_id FROM drivers LIMIT 1");
-        } catch (e) {
-            await connection.query("ALTER TABLE drivers ADD COLUMN assigned_vehicle_id VARCHAR(255) NULL");
-            console.log("✅ Added assigned_vehicle_id column to drivers table");
-        }
-
-        connection.release();
-        console.log("✅ All Database Tables Verified/Created.");
-    } catch (err) {
-        console.error("❌ Startup DB Check Failed:", err.message);
-    }
-};
-// ...
-
-// --- NEW ROUTES: VEHICLES ---
-app.get('/api/vehicles', async(req,res)=>{ try{const[r]=await pool.query('SELECT * FROM cab_vehicles'); res.json(r.map(v=>({id:v.id, name:v.name, vehicleType:v.vehicle_type, capacity:v.capacity, images:parseJSON(v.images), features:parseJSON(v.features), baseRate:v.base_rate, active:!!v.active})));}catch(e){res.json([]);} });
-
-app.post('/api/vehicles', async(req,res)=>{ 
-    try{ 
-        const {id,name,vehicleType,capacity,baseRate,active}=req.body; 
-        const images = JSON.stringify(req.body.images || []); 
-        const features = JSON.stringify(req.body.features || []); 
-        await pool.query(
-            "INSERT INTO cab_vehicles (id,name,vehicle_type,capacity,images,features,base_rate,active) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name), vehicle_type=VALUES(vehicle_type), capacity=VALUES(capacity), images=VALUES(images), features=VALUES(features), base_rate=VALUES(base_rate), active=VALUES(active)",
-            [id,name,vehicleType,capacity,images,features,baseRate,active]
-        ); 
-        res.json({success:true}); 
-    }catch(e){res.status(500).json({error:e.message})} 
-});
-
-app.delete('/api/vehicles/:id', async (req, res) => { try { await pool.query('DELETE FROM cab_vehicles WHERE id = ?', [req.params.id]); res.json({success:true}); } catch(e){res.status(500).json({error:e.message})} });
-
-// ... existing routes ...
 
 app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
