@@ -43,34 +43,41 @@ const Cabs = () => {
       return defaultDriver;
   };
 
+  // ✅ NEW HELPER: Get Vehicle details for a specific Location
+  const getVehicleForLocation = (loc: CabLocation) => {
+      const driver = getDriverForLocation(loc);
+      if (!driver || !driver.assignedVehicleId) return null;
+      return vehicles.find(v => v.id === driver.assignedVehicleId);
+  };
+
   // Handle Image Swap
   const handleImageClick = (vehicleId: string, imgUrl: string) => {
       setActiveImages(prev => ({...prev, [vehicleId]: imgUrl}));
   };
 
-  // ✅ BUG FIX: Find the specific driver assigned to this vehicle
+  // Book Specific Vehicle
   const handleBookVehicle = (vehicle: CabVehicle) => {
-      // 1. Find the driver who has this vehicle assigned
       const linkedDriver = drivers.find(d => d.assignedVehicleId === vehicle.id);
-      
-      // 2. Use that driver's number, otherwise fallback to Admin's number
-      // We explicitly clean the number to remove spaces/dashes for the WhatsApp URL
       const rawNumber = linkedDriver?.whatsapp || linkedDriver?.phone || settings.whatsappNumber;
       const cleanNumber = rawNumber?.replace(/[^0-9]/g, '');
-
       const text = `Hello, I am interested in booking the *${vehicle.name}* (${vehicle.vehicleType}). Please let me know availability.`;
-      
       window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   // Book Location/Route
   const handleBookRide = (loc: CabLocation) => {
       const driver = getDriverForLocation(loc);
-      // Clean the number for route booking as well
+      const vehicle = getVehicleForLocation(loc);
+      
       const rawNumber = driver?.whatsapp || settings.whatsappNumber;
       const cleanNumber = rawNumber?.replace(/[^0-9]/g, '');
 
-      const text = `Hello, I would like to book the cab for *${loc.name}*. Price mentioned is ₹${loc.price}.`;
+      // Enhanced message including vehicle details if available
+      let text = `Hello, I would like to book the cab for *${loc.name}*. Price mentioned is ₹${loc.price}.`;
+      if (vehicle) {
+          text += ` I see it is managed by ${driver?.name} driving a *${vehicle.name}* (${vehicle.capacity} Seater).`;
+      }
+
       window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -96,7 +103,7 @@ const Cabs = () => {
 
       <div className="max-w-6xl mx-auto px-4 -mt-10 relative z-10 space-y-16">
           
-          {/* 2. FLEET HIGHLIGHTS (Static Features) */}
+          {/* 2. FLEET HIGHLIGHTS */}
           <div className="bg-white p-8 rounded-xl shadow-lg grid grid-cols-1 md:grid-cols-3 gap-8 text-center border-b-4 border-nature-600">
               <div className="flex flex-col items-center">
                   <div className="bg-nature-100 p-4 rounded-full text-nature-700 mb-4"><ShieldCheck size={32}/></div>
@@ -127,12 +134,10 @@ const Cabs = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                       {vehicles.map(vehicle => {
                           const activeImg = activeImages[vehicle.id] || (vehicle.images && vehicle.images.length > 0 ? vehicle.images[0] : 'https://via.placeholder.com/400x300?text=Vehicle');
-                          // ✅ Find driver for UI display (Optional nice-to-have)
                           const assignedDriver = drivers.find(d => d.assignedVehicleId === vehicle.id);
 
                           return (
                               <div key={vehicle.id} className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col group">
-                                  {/* Main Image Area */}
                                   <div className="relative h-56 bg-gray-200 overflow-hidden">
                                       <img src={activeImg} alt={vehicle.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
                                       <div className="absolute top-3 right-3 bg-black/70 text-white text-xs font-bold px-3 py-1 rounded-full backdrop-blur-sm shadow-sm">
@@ -140,7 +145,6 @@ const Cabs = () => {
                                       </div>
                                   </div>
                                   
-                                  {/* Thumbnail Gallery */}
                                   {vehicle.images && vehicle.images.length > 1 && (
                                       <div className="flex gap-2 p-3 bg-gray-50 overflow-x-auto border-b border-gray-100 no-scrollbar">
                                           {vehicle.images.map((img, idx) => (
@@ -171,14 +175,12 @@ const Cabs = () => {
                                           <span className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded"><Fuel size={14} className="text-nature-600"/> AC Cab</span>
                                       </div>
 
-                                      {/* Features Tags */}
                                       <div className="flex flex-wrap gap-2 mb-6">
                                           {vehicle.features.map((f, i) => (
                                               <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full border border-gray-200">{f}</span>
                                           ))}
                                       </div>
                                       
-                                      {/* Driven By Badge (Optional Visual Confirmation) */}
                                       {assignedDriver && (
                                           <div className="mb-4 text-xs text-gray-400 flex items-center gap-1">
                                               <ShieldCheck size={12} className="text-green-500"/>
@@ -200,7 +202,7 @@ const Cabs = () => {
               </div>
           )}
 
-          {/* 4. POPULAR ROUTES */}
+          {/* 4. POPULAR ROUTES (Updated Logic) */}
           {locations.length > 0 && (
              <div>
                  <div className="text-center mb-10">
@@ -210,37 +212,60 @@ const Cabs = () => {
                  </div>
                  
                  <div className="grid gap-6">
-                     {locations.map(loc => (
-                         <div key={loc.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col md:flex-row hover:shadow-md transition-shadow">
-                             <div className="md:w-1/3 h-48 md:h-auto relative">
-                                 <img src={loc.imageUrl} alt={loc.name} className="w-full h-full object-cover" loading="lazy" />
-                                 <div className="absolute top-0 left-0 bg-nature-600 text-white text-xs font-bold px-3 py-1 rounded-br-lg">
-                                     POPULAR
-                                 </div>
-                             </div>
-                             
-                             <div className="p-6 md:w-1/3 flex-grow flex flex-col justify-center">
-                                 <h3 className="text-xl font-bold text-gray-800 mb-2">{loc.name}</h3>
-                                 <p className="text-gray-600 text-sm mb-4 line-clamp-2">{loc.description}</p>
-                                 <div className="flex items-center gap-2 text-sm text-gray-500">
-                                     <Car size={16} className="text-nature-600" />
-                                     <span>Managed by {getDriverForLocation(loc)?.name || 'Travel Desk'}</span>
-                                 </div>
-                             </div>
+                     {locations.map(loc => {
+                         const driver = getDriverForLocation(loc);
+                         // ✅ NEW: Auto-fetch vehicle based on driver link
+                         const vehicle = getVehicleForLocation(loc);
 
-                             <div className="bg-gray-50 p-6 md:w-48 flex flex-col justify-center items-center border-l border-gray-100 shrink-0">
-                                 <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Total Fare</p>
-                                 <p className="text-2xl font-bold text-nature-700 mb-4">₹{loc.price?.toLocaleString()}</p>
+                         return (
+                             <div key={loc.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col md:flex-row hover:shadow-md transition-shadow">
+                                 <div className="md:w-1/3 h-48 md:h-auto relative">
+                                     <img src={loc.imageUrl} alt={loc.name} className="w-full h-full object-cover" loading="lazy" />
+                                     <div className="absolute top-0 left-0 bg-nature-600 text-white text-xs font-bold px-3 py-1 rounded-br-lg">
+                                         POPULAR
+                                     </div>
+                                 </div>
                                  
-                                 <button 
-                                    onClick={() => handleBookRide(loc)}
-                                    className="w-full bg-nature-800 hover:bg-nature-900 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm"
-                                 >
-                                     <MessageCircle size={16} /> Book Now
-                                 </button>
+                                 <div className="p-6 md:w-1/3 flex-grow flex flex-col justify-center">
+                                     <h3 className="text-xl font-bold text-gray-800 mb-2">{loc.name}</h3>
+                                     <p className="text-gray-600 text-sm mb-4 line-clamp-2">{loc.description}</p>
+                                     
+                                     <div className="space-y-2">
+                                         <div className="flex items-center gap-2 text-sm text-gray-500">
+                                             <ShieldCheck size={16} className="text-nature-600" />
+                                             <span>Managed by <b>{driver?.name || 'Travel Desk'}</b></span>
+                                         </div>
+                                         
+                                         {/* ✅ NEW: Display Vehicle Info automatically if linked */}
+                                         {vehicle ? (
+                                             <div className="flex items-center gap-2 text-sm text-gray-500 bg-nature-50 p-2 rounded border border-nature-100">
+                                                 <Car size={16} className="text-nature-700" />
+                                                 <span>{vehicle.name} ({vehicle.vehicleType}) • <b>{vehicle.capacity} Seats</b></span>
+                                             </div>
+                                         ) : (
+                                             // Fallback if no vehicle linked
+                                             <div className="flex items-center gap-2 text-sm text-gray-400 italic">
+                                                 <Car size={16} />
+                                                 <span>Vehicle assigned on booking</span>
+                                             </div>
+                                         )}
+                                     </div>
+                                 </div>
+
+                                 <div className="bg-gray-50 p-6 md:w-48 flex flex-col justify-center items-center border-l border-gray-100 shrink-0">
+                                     <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Total Fare</p>
+                                     <p className="text-2xl font-bold text-nature-700 mb-4">₹{loc.price?.toLocaleString()}</p>
+                                     
+                                     <button 
+                                        onClick={() => handleBookRide(loc)}
+                                        className="w-full bg-nature-800 hover:bg-nature-900 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm"
+                                     >
+                                         <MessageCircle size={16} /> Book Now
+                                     </button>
+                                 </div>
                              </div>
-                         </div>
-                     ))}
+                         );
+                     })}
                  </div>
              </div>
           )}
