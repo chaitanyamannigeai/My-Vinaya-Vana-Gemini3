@@ -142,9 +142,9 @@ const Cabs = () => {
                           {vehicles.map(v => {
                              const activeImg = activeImages[v.id] || (v.images && v.images.length > 0 ? v.images[0] : 'https://via.placeholder.com/400x300?text=Vehicle');
                              return (
-                                 <div key={v.id} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-gray-50">
+                                 <div key={v.id} className="border rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-gray-50 group">
                                      <div className="h-40 overflow-hidden relative">
-                                         <img src={activeImg} className="w-full h-full object-cover" />
+                                         <img src={activeImg} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                                          <div className="absolute bottom-0 left-0 bg-black/60 text-white text-xs px-2 py-1">{v.vehicleType}</div>
                                      </div>
                                      {/* Mini Gallery */}
@@ -173,7 +173,7 @@ const Cabs = () => {
               </div>
           )}
 
-          {/* 3. SIGHTSEEING PACKAGES (RICH CARD LAYOUT) */}
+          {/* 3. SIGHTSEEING PACKAGES (3D HOVER ADDED) */}
           {Object.keys(sightseeing).length > 0 && (
               <div className="animate-fade-in">
                   <div className="flex items-center gap-3 mb-8">
@@ -190,10 +190,10 @@ const Cabs = () => {
                           const mainDesc = variants[0].description;
                           
                           return (
-                              <div key={name} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 flex flex-col md:flex-row">
+                              <div key={name} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 flex flex-col md:flex-row group hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                                   {/* Image Section */}
-                                  <div className="md:w-1/3 h-56 md:h-auto relative">
-                                      <img src={variants[0].imageUrl} className="w-full h-full object-cover" />
+                                  <div className="md:w-1/3 h-56 md:h-auto relative overflow-hidden">
+                                      <img src={variants[0].imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-6">
                                           <h3 className="text-white font-bold text-2xl">{name}</h3>
                                       </div>
@@ -215,15 +215,15 @@ const Cabs = () => {
                                               {variants.map(v => {
                                                   const vehicle = getVehicleForLocation(v);
                                                   return (
-                                                      <div key={v.id} onClick={() => handleBookRide(v, vehicle?.name)} className="border border-gray-200 rounded-lg p-3 text-center hover:border-nature-500 hover:bg-nature-50 cursor-pointer transition-all group relative">
-                                                          <div className="text-xs font-bold text-gray-500 group-hover:text-nature-700 mb-1">
+                                                      <div key={v.id} onClick={() => handleBookRide(v, vehicle?.name)} className="border border-gray-200 rounded-lg p-3 text-center hover:border-nature-500 hover:bg-nature-50 cursor-pointer transition-all group/btn relative">
+                                                          <div className="text-xs font-bold text-gray-500 group-hover/btn:text-nature-700 mb-1">
                                                               {vehicle ? vehicle.vehicleType : 'Standard'}
                                                           </div>
                                                           <div className="text-lg font-bold text-gray-800">₹{v.price}</div>
                                                           <div className="text-[10px] text-gray-400">
                                                               {vehicle ? vehicle.name : 'View'}
                                                           </div>
-                                                          <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-nature-600">
+                                                          <div className="absolute bottom-1 right-1 opacity-0 group-hover/btn:opacity-100 transition-opacity text-nature-600">
                                                               <MessageCircle size={14} />
                                                           </div>
                                                       </div>
@@ -239,7 +239,7 @@ const Cabs = () => {
               </div>
           )}
 
-          {/* 4. AIRPORT & TRANSFERS (✅ UPDATED: NOW USES RICH CARD LAYOUT) */}
+          {/* 4. AIRPORT & TRANSFERS (3D HOVER ADDED) */}
           {Object.keys(transfers).length > 0 && (
               <div className="animate-fade-in">
                   <div className="flex items-center gap-3 mb-8">
@@ -256,10 +256,10 @@ const Cabs = () => {
                           const mainDesc = variants[0].description;
                           
                           return (
-                              <div key={name} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 flex flex-col md:flex-row">
+                              <div key={name} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 flex flex-col md:flex-row group hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                                   {/* Image Section */}
-                                  <div className="md:w-1/3 h-56 md:h-auto relative">
-                                      <img src={variants[0].imageUrl} className="w-full h-full object-cover" />
+                                  <div className="md:w-1/3 h-56 md:h-auto relative overflow-hidden">
+                                      <img src={variants[0].imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-6">
                                           <h3 className="text-white font-bold text-2xl">{name}</h3>
                                       </div>
@@ -281,15 +281,15 @@ const Cabs = () => {
                                               {variants.map(v => {
                                                   const vehicle = getVehicleForLocation(v);
                                                   return (
-                                                      <div key={v.id} onClick={() => handleBookRide(v, vehicle?.name)} className="border border-gray-200 rounded-lg p-3 text-center hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all group relative">
-                                                          <div className="text-xs font-bold text-gray-500 group-hover:text-blue-700 mb-1">
+                                                      <div key={v.id} onClick={() => handleBookRide(v, vehicle?.name)} className="border border-gray-200 rounded-lg p-3 text-center hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all group/btn relative">
+                                                          <div className="text-xs font-bold text-gray-500 group-hover/btn:text-blue-700 mb-1">
                                                               {vehicle ? vehicle.vehicleType : 'Standard'}
                                                           </div>
                                                           <div className="text-lg font-bold text-gray-800">₹{v.price}</div>
                                                           <div className="text-[10px] text-gray-400">
                                                               {vehicle ? vehicle.name : 'View'}
                                                           </div>
-                                                          <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-blue-600">
+                                                          <div className="absolute bottom-1 right-1 opacity-0 group-hover/btn:opacity-100 transition-opacity text-blue-600">
                                                               <MessageCircle size={14} />
                                                           </div>
                                                       </div>
@@ -323,7 +323,7 @@ const Cabs = () => {
                           const startPrice = variants[0].price;
                           
                           return (
-                              <div key={name} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all">
+                              <div key={name} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
                                   <h3 className="font-bold text-gray-800 text-lg mb-1">{name}</h3>
                                   <p className="text-xs text-gray-400 mb-4">{variants[0].description || 'Local drop service'}</p>
                                   <div className="flex justify-between items-end">
@@ -331,7 +331,7 @@ const Cabs = () => {
                                           <p className="text-xs text-gray-400 uppercase">Starts From</p>
                                           <p className="text-2xl font-bold text-nature-700">₹{startPrice}</p>
                                       </div>
-                                      <button onClick={() => handleBookRide(variants[0])} className="bg-nature-100 text-nature-700 p-2 rounded-full hover:bg-nature-200">
+                                      <button onClick={() => handleBookRide(variants[0])} className="bg-nature-100 text-nature-700 p-2 rounded-full hover:bg-nature-200 transition-colors">
                                           <MessageCircle size={20}/>
                                       </button>
                                   </div>
