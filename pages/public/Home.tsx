@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
-import { ArrowRight, Coffee, Wifi, Wind, Palmtree, Star, Play, Quote, Sun, Cloud, CloudRain, CloudFog, CloudLightning, CloudDrizzle, Snowflake, Droplets, Thermometer, Moon, Wind as WindIcon, MessageCircle, CalendarCheck } from 'lucide-react'; 
+import { ArrowRight, Coffee, Wifi, Palmtree, Star, Play, Quote, Sun, Cloud, CloudRain, CloudFog, CloudLightning, CloudDrizzle, Snowflake, Moon, Wind as WindIcon, MessageCircle, CalendarCheck } from 'lucide-react'; 
 import { Review, Room, SiteSettings, WeatherData } from '../../types'; 
 
 const { Link } = ReactRouterDOM as any;
@@ -51,10 +51,7 @@ const Home = () => {
     };
     fetchData();
 
-    // FIXED: Now that we removed the scroll lock on the div, 
-    // window.scrollY will correctly report the scroll position.
     const handleScroll = () => {
-        // Show bar after user scrolls past 600px (approx hero height)
         setShowStickyNav(window.scrollY > 600);
     };
     
@@ -62,7 +59,57 @@ const Home = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Extract YouTube Video ID robustly
+  // ✅ DYNAMIC SEO SCHEMA INJECTION
+  // This ensures that when you update your Phone/Address in Admin, 
+  // Google sees the new data automatically.
+  useEffect(() => {
+    if (settings && settings.whatsappNumber) {
+        const schemaData = {
+            "@context": "https://schema.org",
+            "@type": "LodgingBusiness",
+            "name": "Vinaya Vana Farmhouse",
+            "image": "https://vinayavana.com/social-preview.jpg",
+            "@id": "https://vinayavana.com",
+            "url": "https://vinayavana.com",
+            "telephone": `+91${settings.whatsappNumber}`, // ✅ DYNAMIC FROM DB
+            "priceRange": "₹₹",
+            "address": {
+                "@type": "PostalAddress",
+                "streetAddress": settings.address || "Gokarna", // ✅ DYNAMIC FROM DB
+                "addressLocality": "Gokarna",
+                "addressRegion": "Karnataka",
+                "postalCode": "581326",
+                "addressCountry": "IN"
+            },
+            "geo": {
+                "@type": "GeoCoordinates",
+                "latitude": 14.5165, 
+                "longitude": 74.3312
+            },
+            "description": "Premium farmhouse stay in Gokarna offering luxury cottages and authentic local experiences surrounded by coconut palms."
+        };
+
+        const script = document.createElement('script');
+        script.type = 'application/ld+json';
+        script.text = JSON.stringify(schemaData);
+        script.id = 'dynamic-schema'; // ID to prevent duplicates
+        
+        // Remove old script if exists (cleanup)
+        const oldScript = document.getElementById('dynamic-schema');
+        if (oldScript) {
+            oldScript.remove();
+        }
+        
+        document.head.appendChild(script);
+
+        return () => {
+            if (document.head.contains(script)) {
+                document.head.removeChild(script);
+            }
+        };
+    }
+  }, [settings]);
+
   const getYoutubeEmbedUrl = (url: string) => {
     if (!url) return null;
     const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
@@ -92,12 +139,9 @@ const Home = () => {
     return <Sun size={24} className="text-yellow-400" />; 
   }
 
-  // ✅ FIXED: Changed 'contactPhone' to 'whatsappNumber' to match Admin settings
   const whatsappLink = `https://wa.me/${settings.whatsappNumber || '919999999999'}?text=Hi, I am interested in booking a stay at Vinaya Vana.`;
 
   return (
-    // ⚠️ CRITICAL CHANGE: Removed 'h-screen' and 'overflow-y-auto'.
-    // This allows the WINDOW to handle scrolling, which fixes the sticky bar detection.
     <div className="flex flex-col min-h-screen pb-20 md:pb-0"> 
       
       {/* Dynamic Hero Section */}
@@ -114,10 +158,12 @@ const Home = () => {
             <Palmtree className="text-green-300 mr-2" />
             <span className="text-green-100 font-medium tracking-wide uppercase text-sm">Pure Nature Living</span>
           </div>
-        {/* ✅ UPDATED H1: Includes Brand Name for better SEO ranking */}
+          
+          {/* ✅ UPDATED H1: Includes Brand Name for better SEO ranking */}
           <h1 className="text-4xl md:text-6xl font-serif font-bold text-white mb-6 shadow-sm leading-tight">
             Vinaya Vana: <br className="hidden md:block" /> Serenity Among the Palms
           </h1>
+
           <p className="text-xl md:text-2xl text-nature-50 mb-10 font-light leading-relaxed">
             Experience tranquility in our beautiful bungalow surrounded by 1 acre of lush coconut and betelnut trees.
           </p>
@@ -306,14 +352,12 @@ const Home = () => {
       )}
 
       {/* NEW: Sticky Mobile/Desktop Booking Bar */}
-      {/* Moves up when scrolling past Hero */}
       <div 
         className={`fixed bottom-0 left-0 right-0 z-50 p-4 bg-white/95 backdrop-blur-md border-t border-nature-100 shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] transition-transform duration-500 ease-in-out ${
             showStickyNav ? 'translate-y-0' : 'translate-y-[150%]'
         }`}
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-            {/* Left: Price/Title Info (Desktop only) */}
             <div className="hidden md:block">
                 <p className="font-serif font-bold text-nature-900 text-lg">Vinaya Vana</p>
                 {featuredRoom && (
@@ -323,7 +367,6 @@ const Home = () => {
                 )}
             </div>
             
-            {/* Right: Actions (Full width on mobile) */}
             <div className="flex gap-3 w-full md:w-auto">
                  <a 
                   href={whatsappLink}
