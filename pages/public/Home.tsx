@@ -114,9 +114,10 @@ const Home = () => {
             <Palmtree className="text-green-300 mr-2" />
             <span className="text-green-100 font-medium tracking-wide uppercase text-sm">Pure Nature Living</span>
           </div>
+        {/* ✅ UPDATED H1: Includes Brand Name for better SEO ranking */}
           <h1 className="text-4xl md:text-6xl font-serif font-bold text-white mb-6 shadow-sm leading-tight">
-  Vinaya Vana: <br className="hidden md:block" /> Serenity Among the Palms
-</h1>
+            Vinaya Vana: <br className="hidden md:block" /> Serenity Among the Palms
+          </h1>
           <p className="text-xl md:text-2xl text-nature-50 mb-10 font-light leading-relaxed">
             Experience tranquility in our beautiful bungalow surrounded by 1 acre of lush coconut and betelnut trees.
           </p>
