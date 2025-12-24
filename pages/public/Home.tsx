@@ -86,11 +86,11 @@ const Home = () => {
                 "image": "https://vinayavana.com/social-preview.jpg",
                 "@id": "https://vinayavana.com",
                 "url": "https://vinayavana.com",
-                "telephone": `+91${settings.whatsappNumber}`, // Pulls from DB
+                "telephone": `+91${settings.whatsappNumber}`, // ✅ DYNAMIC FROM DB
                 "priceRange": "₹₹",
                 "address": {
                     "@type": "PostalAddress",
-                    "streetAddress": settings.address || "Gokarna", // Pulls from DB
+                    "streetAddress": settings.address || "Gokarna", // ✅ DYNAMIC FROM DB
                     "addressLocality": "Gokarna",
                     "addressRegion": "Karnataka",
                     "postalCode": "581326",
