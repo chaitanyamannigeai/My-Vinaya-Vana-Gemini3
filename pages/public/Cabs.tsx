@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { CabLocation, Driver, SiteSettings, CabVehicle } from '../../types';
-import { MapPin, Phone, MessageCircle, Navigation, Car, ShieldCheck, Music, Wind, Briefcase, Users, Fuel, Star } from 'lucide-react';
+import { MapPin, Phone, MessageCircle, Navigation, Car, ShieldCheck, Music, Wind, Briefcase, Users, Fuel, Star, Check } from 'lucide-react';
 
 const Cabs = () => {
   const [locations, setLocations] = useState<CabLocation[]>([]);
@@ -12,6 +12,9 @@ const Cabs = () => {
 
   // Track active image for each vehicle card (for mini-gallery)
   const [activeImages, setActiveImages] = useState<Record<string, string>>({});
+
+  // ✅ NEW: Track selected variant for grouped routes (RouteName -> LocationID)
+  const [activeVariants, setActiveVariants] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -35,7 +38,24 @@ const Cabs = () => {
     fetchData();
   }, []);
 
-  // Helper: Find designated "Travel Desk" driver or default
+  // ✅ NEW: Group locations by name to create "Smart Cards"
+  const groupedLocations = useMemo(() => {
+      const groups: Record<string, CabLocation[]> = {};
+      locations.forEach(loc => {
+          const trimmedName = loc.name.trim();
+          if (!groups[trimmedName]) groups[trimmedName] = [];
+          groups[trimmedName].push(loc);
+      });
+      
+      // Sort each group by price (Low to High)
+      Object.keys(groups).forEach(key => {
+          groups[key].sort((a, b) => (a.price || 0) - (b.price || 0));
+      });
+      
+      return groups;
+  }, [locations]);
+
+  // Helpers
   const defaultDriver = drivers.find(d => d.isDefault) || drivers[0];
 
   const getDriverForLocation = (loc: CabLocation) => {
@@ -43,19 +63,16 @@ const Cabs = () => {
       return defaultDriver;
   };
 
-  // ✅ NEW HELPER: Get Vehicle details for a specific Location
   const getVehicleForLocation = (loc: CabLocation) => {
       const driver = getDriverForLocation(loc);
       if (!driver || !driver.assignedVehicleId) return null;
       return vehicles.find(v => v.id === driver.assignedVehicleId);
   };
 
-  // Handle Image Swap
   const handleImageClick = (vehicleId: string, imgUrl: string) => {
       setActiveImages(prev => ({...prev, [vehicleId]: imgUrl}));
   };
 
-  // Book Specific Vehicle
   const handleBookVehicle = (vehicle: CabVehicle) => {
       const linkedDriver = drivers.find(d => d.assignedVehicleId === vehicle.id);
       const rawNumber = linkedDriver?.whatsapp || linkedDriver?.phone || settings.whatsappNumber;
@@ -64,20 +81,16 @@ const Cabs = () => {
       window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
-  // Book Location/Route
   const handleBookRide = (loc: CabLocation) => {
       const driver = getDriverForLocation(loc);
       const vehicle = getVehicleForLocation(loc);
-      
       const rawNumber = driver?.whatsapp || settings.whatsappNumber;
       const cleanNumber = rawNumber?.replace(/[^0-9]/g, '');
 
-      // Enhanced message including vehicle details if available
       let text = `Hello, I would like to book the cab for *${loc.name}*. Price mentioned is ₹${loc.price}.`;
       if (vehicle) {
           text += ` I see it is managed by ${driver?.name} driving a *${vehicle.name}* (${vehicle.capacity} Seater).`;
       }
-
       window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -202,8 +215,8 @@ const Cabs = () => {
               </div>
           )}
 
-          {/* 4. POPULAR ROUTES (Updated Logic) */}
-          {locations.length > 0 && (
+          {/* 4. POPULAR ROUTES (✅ NEW: Smart Grouping Logic) */}
+          {Object.keys(groupedLocations).length > 0 && (
              <div>
                  <div className="text-center mb-10">
                     <span className="text-nature-600 font-bold uppercase tracking-wider text-sm">Destinations</span>
@@ -212,38 +225,66 @@ const Cabs = () => {
                  </div>
                  
                  <div className="grid gap-6">
-                     {locations.map(loc => {
-                         const driver = getDriverForLocation(loc);
-                         // ✅ NEW: Auto-fetch vehicle based on driver link
-                         const vehicle = getVehicleForLocation(loc);
+                     {Object.keys(groupedLocations).map(groupName => {
+                         const variants = groupedLocations[groupName];
+                         // Determine which specific location/variant to show
+                         const activeId = activeVariants[groupName] || variants[0].id;
+                         const activeLoc = variants.find(l => l.id === activeId) || variants[0];
+                         
+                         const driver = getDriverForLocation(activeLoc);
+                         const vehicle = getVehicleForLocation(activeLoc);
 
                          return (
-                             <div key={loc.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col md:flex-row hover:shadow-md transition-shadow">
+                             <div key={groupName} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col md:flex-row hover:shadow-md transition-shadow">
                                  <div className="md:w-1/3 h-48 md:h-auto relative">
-                                     <img src={loc.imageUrl} alt={loc.name} className="w-full h-full object-cover" loading="lazy" />
+                                     <img src={activeLoc.imageUrl} alt={activeLoc.name} className="w-full h-full object-cover" loading="lazy" />
                                      <div className="absolute top-0 left-0 bg-nature-600 text-white text-xs font-bold px-3 py-1 rounded-br-lg">
                                          POPULAR
                                      </div>
                                  </div>
                                  
                                  <div className="p-6 md:w-1/3 flex-grow flex flex-col justify-center">
-                                     <h3 className="text-xl font-bold text-gray-800 mb-2">{loc.name}</h3>
-                                     <p className="text-gray-600 text-sm mb-4 line-clamp-2">{loc.description}</p>
+                                     <h3 className="text-xl font-bold text-gray-800 mb-2">{activeLoc.name}</h3>
+                                     <p className="text-gray-600 text-sm mb-4 line-clamp-2">{activeLoc.description}</p>
                                      
+                                     {/* ✅ NEW: Vehicle Variant Selector */}
+                                     {variants.length > 1 && (
+                                         <div className="mb-4">
+                                             <label className="text-xs font-bold text-nature-700 uppercase tracking-wide mb-2 block">Select Vehicle Type:</label>
+                                             <div className="flex flex-wrap gap-2">
+                                                 {variants.map(v => {
+                                                     const vInfo = getVehicleForLocation(v);
+                                                     // Fallback label if no vehicle linked: "Option 1", "Option 2"
+                                                     const label = vInfo ? `${vInfo.vehicleType}` : `Option ${variants.indexOf(v) + 1}`;
+                                                     const isActive = v.id === activeLoc.id;
+                                                     
+                                                     return (
+                                                         <button
+                                                            key={v.id}
+                                                            onClick={() => setActiveVariants(prev => ({...prev, [groupName]: v.id}))}
+                                                            className={`text-xs px-3 py-1.5 rounded-full border transition-all flex items-center gap-1 ${isActive ? 'bg-nature-700 text-white border-nature-700 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-nature-300'}`}
+                                                         >
+                                                             {isActive && <Check size={12}/>}
+                                                             {label}
+                                                         </button>
+                                                     );
+                                                 })}
+                                             </div>
+                                         </div>
+                                     )}
+
                                      <div className="space-y-2">
                                          <div className="flex items-center gap-2 text-sm text-gray-500">
                                              <ShieldCheck size={16} className="text-nature-600" />
                                              <span>Managed by <b>{driver?.name || 'Travel Desk'}</b></span>
                                          </div>
                                          
-                                         {/* ✅ NEW: Display Vehicle Info automatically if linked */}
                                          {vehicle ? (
                                              <div className="flex items-center gap-2 text-sm text-gray-500 bg-nature-50 p-2 rounded border border-nature-100">
                                                  <Car size={16} className="text-nature-700" />
                                                  <span>{vehicle.name} ({vehicle.vehicleType}) • <b>{vehicle.capacity} Seats</b></span>
                                              </div>
                                          ) : (
-                                             // Fallback if no vehicle linked
                                              <div className="flex items-center gap-2 text-sm text-gray-400 italic">
                                                  <Car size={16} />
                                                  <span>Vehicle assigned on booking</span>
@@ -254,10 +295,11 @@ const Cabs = () => {
 
                                  <div className="bg-gray-50 p-6 md:w-48 flex flex-col justify-center items-center border-l border-gray-100 shrink-0">
                                      <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Total Fare</p>
-                                     <p className="text-2xl font-bold text-nature-700 mb-4">₹{loc.price?.toLocaleString()}</p>
+                                     {/* Price updates automatically based on activeLoc */}
+                                     <p className="text-2xl font-bold text-nature-700 mb-4 animate-fade-in">₹{activeLoc.price?.toLocaleString()}</p>
                                      
                                      <button 
-                                        onClick={() => handleBookRide(loc)}
+                                        onClick={() => handleBookRide(activeLoc)}
                                         className="w-full bg-nature-800 hover:bg-nature-900 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm"
                                      >
                                          <MessageCircle size={16} /> Book Now
