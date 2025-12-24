@@ -173,7 +173,7 @@ const Cabs = () => {
               </div>
           )}
 
-          {/* 3. SIGHTSEEING PACKAGES */}
+          {/* 3. SIGHTSEEING PACKAGES (RICH CARD LAYOUT) */}
           {Object.keys(sightseeing).length > 0 && (
               <div className="animate-fade-in">
                   <div className="flex items-center gap-3 mb-8">
@@ -187,7 +187,7 @@ const Cabs = () => {
                   <div className="grid gap-8">
                       {Object.keys(sightseeing).map(name => {
                           const variants = sightseeing[name];
-                          const mainDesc = variants[0].description; // Use description from first variant
+                          const mainDesc = variants[0].description;
                           
                           return (
                               <div key={name} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 flex flex-col md:flex-row">
@@ -215,13 +215,16 @@ const Cabs = () => {
                                               {variants.map(v => {
                                                   const vehicle = getVehicleForLocation(v);
                                                   return (
-                                                      <div key={v.id} onClick={() => handleBookRide(v, vehicle?.name)} className="border border-gray-200 rounded-lg p-3 text-center hover:border-nature-500 hover:bg-nature-50 cursor-pointer transition-all group">
+                                                      <div key={v.id} onClick={() => handleBookRide(v, vehicle?.name)} className="border border-gray-200 rounded-lg p-3 text-center hover:border-nature-500 hover:bg-nature-50 cursor-pointer transition-all group relative">
                                                           <div className="text-xs font-bold text-gray-500 group-hover:text-nature-700 mb-1">
                                                               {vehicle ? vehicle.vehicleType : 'Standard'}
                                                           </div>
                                                           <div className="text-lg font-bold text-gray-800">₹{v.price}</div>
                                                           <div className="text-[10px] text-gray-400">
                                                               {vehicle ? vehicle.name : 'View'}
+                                                          </div>
+                                                          <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-nature-600">
+                                                              <MessageCircle size={14} />
                                                           </div>
                                                       </div>
                                                   )
@@ -236,10 +239,10 @@ const Cabs = () => {
               </div>
           )}
 
-          {/* 4. AIRPORT & TRANSFERS TABLE */}
+          {/* 4. AIRPORT & TRANSFERS (✅ UPDATED: NOW USES RICH CARD LAYOUT) */}
           {Object.keys(transfers).length > 0 && (
               <div className="animate-fade-in">
-                  <div className="flex items-center gap-3 mb-6">
+                  <div className="flex items-center gap-3 mb-8">
                       <div className="bg-blue-100 p-3 rounded-full text-blue-700"><Plane size={24}/></div>
                       <div>
                           <h2 className="text-3xl font-bold text-gray-800">Airport & Station Transfers</h2>
@@ -247,49 +250,57 @@ const Cabs = () => {
                       </div>
                   </div>
 
-                  <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
-                      <div className="overflow-x-auto">
-                          <table className="w-full text-left border-collapse">
-                              <thead>
-                                  <tr className="bg-gray-50 border-b border-gray-200">
-                                      <th className="p-4 font-bold text-gray-600 text-sm uppercase">Destination / Route</th>
-                                      <th className="p-4 font-bold text-gray-600 text-sm uppercase">Vehicle Options & Rates</th>
-                                      <th className="p-4 font-bold text-gray-600 text-sm uppercase text-right">Action</th>
-                                  </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gray-100">
-                                  {Object.keys(transfers).map(name => {
-                                      const variants = transfers[name];
-                                      return (
-                                          <tr key={name} className="hover:bg-gray-50 transition-colors">
-                                              <td className="p-4">
-                                                  <div className="font-bold text-gray-800">{name}</div>
-                                                  <div className="text-xs text-gray-400 mt-1">{variants[0].description}</div>
-                                              </td>
-                                              <td className="p-4">
-                                                  <div className="flex flex-wrap gap-2">
-                                                      {variants.map(v => {
-                                                          const vehicle = getVehicleForLocation(v);
-                                                          return (
-                                                              <span key={v.id} className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-gray-200 bg-white text-sm">
-                                                                  <span className="font-bold text-gray-500 text-xs">{vehicle ? vehicle.vehicleType : 'Cab'}</span>
-                                                                  <span className="font-bold text-nature-700">₹{v.price}</span>
-                                                              </span>
-                                                          )
-                                                      })}
-                                                  </div>
-                                              </td>
-                                              <td className="p-4 text-right">
-                                                  <button onClick={() => handleBookRide(variants[0])} className="text-nature-600 hover:text-nature-800 font-bold text-sm flex items-center justify-end gap-1">
-                                                      Book <MessageCircle size={16}/>
-                                                  </button>
-                                              </td>
-                                          </tr>
-                                      )
-                                  })}
-                              </tbody>
-                          </table>
-                      </div>
+                  <div className="grid gap-8">
+                      {Object.keys(transfers).map(name => {
+                          const variants = transfers[name];
+                          const mainDesc = variants[0].description;
+                          
+                          return (
+                              <div key={name} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 flex flex-col md:flex-row">
+                                  {/* Image Section */}
+                                  <div className="md:w-1/3 h-56 md:h-auto relative">
+                                      <img src={variants[0].imageUrl} className="w-full h-full object-cover" />
+                                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-6">
+                                          <h3 className="text-white font-bold text-2xl">{name}</h3>
+                                      </div>
+                                  </div>
+
+                                  {/* Info Section */}
+                                  <div className="p-6 md:w-2/3 flex flex-col">
+                                      <div className="mb-6">
+                                          <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-2">Service Details</h4>
+                                          <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">
+                                              {mainDesc || 'One-way drop or pickup. Tolls and parking included.'}
+                                          </p>
+                                      </div>
+
+                                      {/* Pricing Grid */}
+                                      <div className="mt-auto">
+                                          <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-3">Vehicle Options & Rates</h4>
+                                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                              {variants.map(v => {
+                                                  const vehicle = getVehicleForLocation(v);
+                                                  return (
+                                                      <div key={v.id} onClick={() => handleBookRide(v, vehicle?.name)} className="border border-gray-200 rounded-lg p-3 text-center hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all group relative">
+                                                          <div className="text-xs font-bold text-gray-500 group-hover:text-blue-700 mb-1">
+                                                              {vehicle ? vehicle.vehicleType : 'Standard'}
+                                                          </div>
+                                                          <div className="text-lg font-bold text-gray-800">₹{v.price}</div>
+                                                          <div className="text-[10px] text-gray-400">
+                                                              {vehicle ? vehicle.name : 'View'}
+                                                          </div>
+                                                          <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-blue-600">
+                                                              <MessageCircle size={14} />
+                                                          </div>
+                                                      </div>
+                                                  )
+                                              })}
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                          )
+                      })}
                   </div>
               </div>
           )}
