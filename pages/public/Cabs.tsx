@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { CabLocation, Driver, SiteSettings, CabVehicle } from '../../types';
-import { MapPin, Phone, MessageCircle, Navigation, Car, ShieldCheck, Music, Wind, Briefcase, Users, Fuel, Star, Check } from 'lucide-react';
+import { MapPin, Phone, MessageCircle, Navigation, Car, ShieldCheck, Music, Wind, Briefcase, Users, Fuel, Star, Check, Plane, Train, Map } from 'lucide-react';
 
 const Cabs = () => {
   const [locations, setLocations] = useState<CabLocation[]>([]);
@@ -12,9 +12,6 @@ const Cabs = () => {
 
   // Track active image for each vehicle card (for mini-gallery)
   const [activeImages, setActiveImages] = useState<Record<string, string>>({});
-
-  // ✅ NEW: Track selected variant for grouped routes (RouteName -> LocationID)
-  const [activeVariants, setActiveVariants] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -38,26 +35,44 @@ const Cabs = () => {
     fetchData();
   }, []);
 
-  // ✅ NEW: Group locations by name to create "Smart Cards"
-  const groupedLocations = useMemo(() => {
+  // --- SMART GROUPING & CATEGORIZATION ---
+  const { sightseeing, transfers, localDrops } = useMemo(() => {
       const groups: Record<string, CabLocation[]> = {};
+      
+      // 1. Group by Name
       locations.forEach(loc => {
           const trimmedName = loc.name.trim();
           if (!groups[trimmedName]) groups[trimmedName] = [];
           groups[trimmedName].push(loc);
       });
-      
-      // Sort each group by price (Low to High)
+
+      // 2. Sort variants by price
       Object.keys(groups).forEach(key => {
           groups[key].sort((a, b) => (a.price || 0) - (b.price || 0));
       });
-      
-      return groups;
+
+      const sightseeing: Record<string, CabLocation[]> = {};
+      const transfers: Record<string, CabLocation[]> = {};
+      const localDrops: Record<string, CabLocation[]> = {};
+
+      // 3. Categorize based on keywords
+      Object.keys(groups).forEach(name => {
+          const lowerName = name.toLowerCase();
+          if (lowerName.includes('sightseeing') || lowerName.includes('tour') || lowerName.includes('package')) {
+              sightseeing[name] = groups[name];
+          } else if (lowerName.includes('airport') || lowerName.includes('station') || lowerName.includes('railway') || lowerName.includes('drop')) {
+              transfers[name] = groups[name];
+          } else {
+              localDrops[name] = groups[name];
+          }
+      });
+
+      return { sightseeing, transfers, localDrops };
   }, [locations]);
 
   // Helpers
   const defaultDriver = drivers.find(d => d.isDefault) || drivers[0];
-
+  
   const getDriverForLocation = (loc: CabLocation) => {
       if (loc.driverId) return drivers.find(d => d.id === loc.driverId);
       return defaultDriver;
@@ -69,10 +84,6 @@ const Cabs = () => {
       return vehicles.find(v => v.id === driver.assignedVehicleId);
   };
 
-  const handleImageClick = (vehicleId: string, imgUrl: string) => {
-      setActiveImages(prev => ({...prev, [vehicleId]: imgUrl}));
-  };
-
   const handleBookVehicle = (vehicle: CabVehicle) => {
       const linkedDriver = drivers.find(d => d.assignedVehicleId === vehicle.id);
       const rawNumber = linkedDriver?.whatsapp || linkedDriver?.phone || settings.whatsappNumber;
@@ -81,17 +92,21 @@ const Cabs = () => {
       window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
-  const handleBookRide = (loc: CabLocation) => {
+  const handleBookRide = (loc: CabLocation, vehicleName?: string) => {
       const driver = getDriverForLocation(loc);
       const vehicle = getVehicleForLocation(loc);
       const rawNumber = driver?.whatsapp || settings.whatsappNumber;
       const cleanNumber = rawNumber?.replace(/[^0-9]/g, '');
 
-      let text = `Hello, I would like to book the cab for *${loc.name}*. Price mentioned is ₹${loc.price}.`;
-      if (vehicle) {
-          text += ` I see it is managed by ${driver?.name} driving a *${vehicle.name}* (${vehicle.capacity} Seater).`;
-      }
+      let text = `Hello, I would like to book the *${loc.name}*. Price mentioned is ₹${loc.price}.`;
+      if (vehicleName) text += ` Preferred Vehicle: ${vehicleName}.`;
+      else if (vehicle) text += ` Vehicle: ${vehicle.name} (${vehicle.capacity} Seater).`;
+
       window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleImageClick = (vehicleId: string, imgUrl: string) => {
+      setActiveImages(prev => ({...prev, [vehicleId]: imgUrl}));
   };
 
   if (loading) return (
@@ -105,222 +120,224 @@ const Cabs = () => {
       
       {/* 1. HERO SECTION */}
       <div className="bg-nature-900 text-white py-24 px-4 text-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-black/40 z-0"></div>
+        <div className="absolute inset-0 bg-black/50 z-0"></div>
         <div className="relative z-10 max-w-4xl mx-auto">
-            <h1 className="text-4xl md:text-5xl font-serif font-bold mb-6">Premium Cab Services</h1>
+            <h1 className="text-3xl md:text-5xl font-serif font-bold mb-6">Explore Gokarna & Beyond</h1>
             <p className="text-lg md:text-xl text-gray-200 max-w-2xl mx-auto leading-relaxed">
-                Comfortable, safe, and reliable transport for your Gokarna adventures and airport transfers.
+                From local sightseeing to airport transfers, travel in comfort with our premium fleet.
             </p>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 -mt-10 relative z-10 space-y-16">
+      <div className="max-w-6xl mx-auto px-4 -mt-10 relative z-10 space-y-20">
           
-          {/* 2. FLEET HIGHLIGHTS */}
-          <div className="bg-white p-8 rounded-xl shadow-lg grid grid-cols-1 md:grid-cols-3 gap-8 text-center border-b-4 border-nature-600">
-              <div className="flex flex-col items-center">
-                  <div className="bg-nature-100 p-4 rounded-full text-nature-700 mb-4"><ShieldCheck size={32}/></div>
-                  <h3 className="font-bold text-lg mb-2">Verified Drivers</h3>
-                  <p className="text-gray-500 text-sm">Experienced, licensed, and background-checked chauffeurs.</p>
-              </div>
-              <div className="flex flex-col items-center">
-                  <div className="bg-nature-100 p-4 rounded-full text-nature-700 mb-4"><Car size={32}/></div>
-                  <h3 className="font-bold text-lg mb-2">Premium Fleet</h3>
-                  <p className="text-gray-500 text-sm">Clean, well-maintained vehicles equipped with AC and music.</p>
-              </div>
-              <div className="flex flex-col items-center">
-                  <div className="bg-nature-100 p-4 rounded-full text-nature-700 mb-4"><Navigation size={32}/></div>
-                  <h3 className="font-bold text-lg mb-2">Flexible Packages</h3>
-                  <p className="text-gray-500 text-sm">Custom sightseeing tours and airport pickup/drop services.</p>
-              </div>
-          </div>
-
-          {/* 3. OUR PREMIUM FLEET SECTION */}
+          {/* 2. FLEET SHOWCASE */}
           {vehicles.length > 0 && (
               <div className="animate-fade-in">
-                  <div className="text-center mb-10">
-                      <span className="text-nature-600 font-bold uppercase tracking-wider text-sm">Comfort & Style</span>
-                      <h2 className="text-3xl font-bold text-gray-800 mt-2">Our Premium Fleet</h2>
-                      <p className="text-gray-500 mt-2">Choose the perfect vehicle for your group size and comfort preference</p>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                      {vehicles.map(vehicle => {
-                          const activeImg = activeImages[vehicle.id] || (vehicle.images && vehicle.images.length > 0 ? vehicle.images[0] : 'https://via.placeholder.com/400x300?text=Vehicle');
-                          const assignedDriver = drivers.find(d => d.assignedVehicleId === vehicle.id);
-
-                          return (
-                              <div key={vehicle.id} className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col group">
-                                  <div className="relative h-56 bg-gray-200 overflow-hidden">
-                                      <img src={activeImg} alt={vehicle.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
-                                      <div className="absolute top-3 right-3 bg-black/70 text-white text-xs font-bold px-3 py-1 rounded-full backdrop-blur-sm shadow-sm">
-                                          {vehicle.vehicleType}
-                                      </div>
-                                  </div>
-                                  
-                                  {vehicle.images && vehicle.images.length > 1 && (
-                                      <div className="flex gap-2 p-3 bg-gray-50 overflow-x-auto border-b border-gray-100 no-scrollbar">
-                                          {vehicle.images.map((img, idx) => (
-                                              <button 
-                                                key={idx} 
-                                                onClick={() => handleImageClick(vehicle.id, img)}
-                                                className={`w-12 h-12 shrink-0 rounded-md border-2 overflow-hidden transition-all ${activeImg === img ? 'border-nature-600 scale-105 shadow-sm' : 'border-transparent opacity-70 hover:opacity-100'}`}
-                                              >
-                                                  <img src={img} className="w-full h-full object-cover" loading="lazy" />
-                                              </button>
-                                          ))}
-                                      </div>
-                                  )}
-
-                                  <div className="p-6 flex-grow flex flex-col">
-                                      <div className="flex justify-between items-start mb-3">
-                                          <h3 className="text-xl font-bold text-gray-800">{vehicle.name}</h3>
-                                          {vehicle.baseRate && vehicle.baseRate > 0 && (
-                                              <div className="text-right">
-                                                  <span className="block text-lg font-bold text-nature-700">₹{vehicle.baseRate}</span>
-                                                  <span className="text-xs text-gray-400 font-medium uppercase">Per KM</span>
-                                              </div>
-                                          )}
-                                      </div>
-                                      
-                                      <div className="flex items-center gap-4 text-sm text-gray-500 mb-5 pb-5 border-b border-gray-100">
-                                          <span className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded"><Users size={14} className="text-nature-600"/> {vehicle.capacity} Seats</span>
-                                          <span className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded"><Fuel size={14} className="text-nature-600"/> AC Cab</span>
-                                      </div>
-
-                                      <div className="flex flex-wrap gap-2 mb-6">
-                                          {vehicle.features.map((f, i) => (
-                                              <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full border border-gray-200">{f}</span>
-                                          ))}
-                                      </div>
-                                      
-                                      {assignedDriver && (
-                                          <div className="mb-4 text-xs text-gray-400 flex items-center gap-1">
-                                              <ShieldCheck size={12} className="text-green-500"/>
-                                              Driven by {assignedDriver.name}
+                  <div className="bg-white p-6 rounded-xl shadow-lg border-b-4 border-nature-600 mb-12">
+                      <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                          <Car className="text-nature-600" /> Our Premium Fleet
+                      </h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {vehicles.map(v => {
+                             const activeImg = activeImages[v.id] || (v.images && v.images.length > 0 ? v.images[0] : 'https://via.placeholder.com/400x300?text=Vehicle');
+                             return (
+                                 <div key={v.id} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-gray-50">
+                                     <div className="h-40 overflow-hidden relative">
+                                         <img src={activeImg} className="w-full h-full object-cover" />
+                                         <div className="absolute bottom-0 left-0 bg-black/60 text-white text-xs px-2 py-1">{v.vehicleType}</div>
+                                     </div>
+                                     {/* Mini Gallery */}
+                                     {v.images && v.images.length > 1 && (
+                                          <div className="flex gap-1 p-1 bg-white overflow-x-auto">
+                                              {v.images.map((img, i) => (
+                                                  <img key={i} src={img} className={`w-8 h-8 rounded cursor-pointer border ${activeImg === img ? 'border-nature-600' : 'border-gray-200'}`} onClick={() => handleImageClick(v.id, img)} />
+                                              ))}
                                           </div>
                                       )}
+                                     <div className="p-3">
+                                         <div className="flex justify-between items-center mb-1">
+                                             <h3 className="font-bold text-gray-800">{v.name}</h3>
+                                             <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded">{v.capacity} Seater</span>
+                                         </div>
+                                         <div className="text-xs text-gray-500 flex flex-wrap gap-1 mb-3">
+                                             {v.features.slice(0, 3).map((f, i) => <span key={i} className="bg-white border px-1 rounded">{f}</span>)}
+                                         </div>
+                                         <button onClick={() => handleBookVehicle(v)} className="w-full bg-nature-700 text-white text-xs font-bold py-2 rounded hover:bg-nature-800 flex items-center justify-center gap-1">Check Availability</button>
+                                     </div>
+                                 </div>
+                             )
+                          })}
+                      </div>
+                  </div>
+              </div>
+          )}
 
-                                      <button 
-                                          onClick={() => handleBookVehicle(vehicle)}
-                                          className="mt-auto w-full bg-nature-600 hover:bg-nature-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all hover:translate-y-[-2px] shadow-sm"
-                                      >
-                                          <MessageCircle size={18} /> Check Availability
-                                      </button>
+          {/* 3. SIGHTSEEING PACKAGES */}
+          {Object.keys(sightseeing).length > 0 && (
+              <div className="animate-fade-in">
+                  <div className="flex items-center gap-3 mb-8">
+                      <div className="bg-nature-100 p-3 rounded-full text-nature-700"><Map size={24}/></div>
+                      <div>
+                          <h2 className="text-3xl font-bold text-gray-800">Sightseeing Packages</h2>
+                          <p className="text-gray-500 text-sm">Explore the best of the coast with our curated day trips</p>
+                      </div>
+                  </div>
+
+                  <div className="grid gap-8">
+                      {Object.keys(sightseeing).map(name => {
+                          const variants = sightseeing[name];
+                          const mainDesc = variants[0].description; // Use description from first variant
+                          
+                          return (
+                              <div key={name} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 flex flex-col md:flex-row">
+                                  {/* Image Section */}
+                                  <div className="md:w-1/3 h-56 md:h-auto relative">
+                                      <img src={variants[0].imageUrl} className="w-full h-full object-cover" />
+                                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-6">
+                                          <h3 className="text-white font-bold text-2xl">{name}</h3>
+                                      </div>
+                                  </div>
+
+                                  {/* Info Section */}
+                                  <div className="p-6 md:w-2/3 flex flex-col">
+                                      <div className="mb-6">
+                                          <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-2">Places Covered</h4>
+                                          <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">
+                                              {mainDesc || 'Contact us for a detailed itinerary of this package.'}
+                                          </p>
+                                      </div>
+
+                                      {/* Pricing Grid */}
+                                      <div className="mt-auto">
+                                          <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-3">Tariff Chart</h4>
+                                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                              {variants.map(v => {
+                                                  const vehicle = getVehicleForLocation(v);
+                                                  return (
+                                                      <div key={v.id} onClick={() => handleBookRide(v, vehicle?.name)} className="border border-gray-200 rounded-lg p-3 text-center hover:border-nature-500 hover:bg-nature-50 cursor-pointer transition-all group">
+                                                          <div className="text-xs font-bold text-gray-500 group-hover:text-nature-700 mb-1">
+                                                              {vehicle ? vehicle.vehicleType : 'Standard'}
+                                                          </div>
+                                                          <div className="text-lg font-bold text-gray-800">₹{v.price}</div>
+                                                          <div className="text-[10px] text-gray-400">
+                                                              {vehicle ? vehicle.name : 'View'}
+                                                          </div>
+                                                      </div>
+                                                  )
+                                              })}
+                                          </div>
+                                      </div>
                                   </div>
                               </div>
-                          );
+                          )
                       })}
                   </div>
               </div>
           )}
 
-          {/* 4. POPULAR ROUTES (✅ NEW: Smart Grouping Logic) */}
-          {Object.keys(groupedLocations).length > 0 && (
-             <div>
-                 <div className="text-center mb-10">
-                    <span className="text-nature-600 font-bold uppercase tracking-wider text-sm">Destinations</span>
-                    <h2 className="text-3xl font-bold text-gray-800 mt-2">Popular Routes</h2>
-                    <p className="text-gray-500 mt-2">Fixed price drops and sightseeing packages</p>
-                 </div>
-                 
-                 <div className="grid gap-6">
-                     {Object.keys(groupedLocations).map(groupName => {
-                         const variants = groupedLocations[groupName];
-                         // Determine which specific location/variant to show
-                         const activeId = activeVariants[groupName] || variants[0].id;
-                         const activeLoc = variants.find(l => l.id === activeId) || variants[0];
-                         
-                         const driver = getDriverForLocation(activeLoc);
-                         const vehicle = getVehicleForLocation(activeLoc);
+          {/* 4. AIRPORT & TRANSFERS TABLE */}
+          {Object.keys(transfers).length > 0 && (
+              <div className="animate-fade-in">
+                  <div className="flex items-center gap-3 mb-6">
+                      <div className="bg-blue-100 p-3 rounded-full text-blue-700"><Plane size={24}/></div>
+                      <div>
+                          <h2 className="text-3xl font-bold text-gray-800">Airport & Station Transfers</h2>
+                          <p className="text-gray-500 text-sm">Reliable pick-up and drop services</p>
+                      </div>
+                  </div>
 
-                         return (
-                             <div key={groupName} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col md:flex-row hover:shadow-md transition-shadow">
-                                 <div className="md:w-1/3 h-48 md:h-auto relative">
-                                     <img src={activeLoc.imageUrl} alt={activeLoc.name} className="w-full h-full object-cover" loading="lazy" />
-                                     <div className="absolute top-0 left-0 bg-nature-600 text-white text-xs font-bold px-3 py-1 rounded-br-lg">
-                                         POPULAR
-                                     </div>
-                                 </div>
-                                 
-                                 <div className="p-6 md:w-1/3 flex-grow flex flex-col justify-center">
-                                     <h3 className="text-xl font-bold text-gray-800 mb-2">{activeLoc.name}</h3>
-                                     <p className="text-gray-600 text-sm mb-4 line-clamp-2">{activeLoc.description}</p>
-                                     
-                                     {/* ✅ NEW: Vehicle Variant Selector */}
-                                     {variants.length > 1 && (
-                                         <div className="mb-4">
-                                             <label className="text-xs font-bold text-nature-700 uppercase tracking-wide mb-2 block">Select Vehicle Type:</label>
-                                             <div className="flex flex-wrap gap-2">
-                                                 {variants.map(v => {
-                                                     const vInfo = getVehicleForLocation(v);
-                                                     // Fallback label if no vehicle linked: "Option 1", "Option 2"
-                                                     const label = vInfo ? `${vInfo.vehicleType}` : `Option ${variants.indexOf(v) + 1}`;
-                                                     const isActive = v.id === activeLoc.id;
-                                                     
-                                                     return (
-                                                         <button
-                                                            key={v.id}
-                                                            onClick={() => setActiveVariants(prev => ({...prev, [groupName]: v.id}))}
-                                                            className={`text-xs px-3 py-1.5 rounded-full border transition-all flex items-center gap-1 ${isActive ? 'bg-nature-700 text-white border-nature-700 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-nature-300'}`}
-                                                         >
-                                                             {isActive && <Check size={12}/>}
-                                                             {label}
-                                                         </button>
-                                                     );
-                                                 })}
-                                             </div>
-                                         </div>
-                                     )}
-
-                                     <div className="space-y-2">
-                                         <div className="flex items-center gap-2 text-sm text-gray-500">
-                                             <ShieldCheck size={16} className="text-nature-600" />
-                                             <span>Managed by <b>{driver?.name || 'Travel Desk'}</b></span>
-                                         </div>
-                                         
-                                         {vehicle ? (
-                                             <div className="flex items-center gap-2 text-sm text-gray-500 bg-nature-50 p-2 rounded border border-nature-100">
-                                                 <Car size={16} className="text-nature-700" />
-                                                 <span>{vehicle.name} ({vehicle.vehicleType}) • <b>{vehicle.capacity} Seats</b></span>
-                                             </div>
-                                         ) : (
-                                             <div className="flex items-center gap-2 text-sm text-gray-400 italic">
-                                                 <Car size={16} />
-                                                 <span>Vehicle assigned on booking</span>
-                                             </div>
-                                         )}
-                                     </div>
-                                 </div>
-
-                                 <div className="bg-gray-50 p-6 md:w-48 flex flex-col justify-center items-center border-l border-gray-100 shrink-0">
-                                     <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Total Fare</p>
-                                     {/* Price updates automatically based on activeLoc */}
-                                     <p className="text-2xl font-bold text-nature-700 mb-4 animate-fade-in">₹{activeLoc.price?.toLocaleString()}</p>
-                                     
-                                     <button 
-                                        onClick={() => handleBookRide(activeLoc)}
-                                        className="w-full bg-nature-800 hover:bg-nature-900 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm"
-                                     >
-                                         <MessageCircle size={16} /> Book Now
-                                     </button>
-                                 </div>
-                             </div>
-                         );
-                     })}
-                 </div>
-             </div>
+                  <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
+                      <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse">
+                              <thead>
+                                  <tr className="bg-gray-50 border-b border-gray-200">
+                                      <th className="p-4 font-bold text-gray-600 text-sm uppercase">Destination / Route</th>
+                                      <th className="p-4 font-bold text-gray-600 text-sm uppercase">Vehicle Options & Rates</th>
+                                      <th className="p-4 font-bold text-gray-600 text-sm uppercase text-right">Action</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100">
+                                  {Object.keys(transfers).map(name => {
+                                      const variants = transfers[name];
+                                      return (
+                                          <tr key={name} className="hover:bg-gray-50 transition-colors">
+                                              <td className="p-4">
+                                                  <div className="font-bold text-gray-800">{name}</div>
+                                                  <div className="text-xs text-gray-400 mt-1">{variants[0].description}</div>
+                                              </td>
+                                              <td className="p-4">
+                                                  <div className="flex flex-wrap gap-2">
+                                                      {variants.map(v => {
+                                                          const vehicle = getVehicleForLocation(v);
+                                                          return (
+                                                              <span key={v.id} className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-gray-200 bg-white text-sm">
+                                                                  <span className="font-bold text-gray-500 text-xs">{vehicle ? vehicle.vehicleType : 'Cab'}</span>
+                                                                  <span className="font-bold text-nature-700">₹{v.price}</span>
+                                                              </span>
+                                                          )
+                                                      })}
+                                                  </div>
+                                              </td>
+                                              <td className="p-4 text-right">
+                                                  <button onClick={() => handleBookRide(variants[0])} className="text-nature-600 hover:text-nature-800 font-bold text-sm flex items-center justify-end gap-1">
+                                                      Book <MessageCircle size={16}/>
+                                                  </button>
+                                              </td>
+                                          </tr>
+                                      )
+                                  })}
+                              </tbody>
+                          </table>
+                      </div>
+                  </div>
+              </div>
           )}
 
-          {/* Empty State Fallback */}
+          {/* 5. LOCAL DROPS (Standard Grid) */}
+          {Object.keys(localDrops).length > 0 && (
+              <div className="animate-fade-in">
+                  <div className="flex items-center gap-3 mb-6">
+                      <div className="bg-yellow-100 p-3 rounded-full text-yellow-700"><MapPin size={24}/></div>
+                      <div>
+                          <h2 className="text-3xl font-bold text-gray-800">Local Drops</h2>
+                          <p className="text-gray-500 text-sm">Quick rides to beaches and temples</p>
+                      </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {Object.keys(localDrops).map(name => {
+                          const variants = localDrops[name];
+                          // Simple drop logic: Show starting price
+                          const startPrice = variants[0].price;
+                          
+                          return (
+                              <div key={name} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all">
+                                  <h3 className="font-bold text-gray-800 text-lg mb-1">{name}</h3>
+                                  <p className="text-xs text-gray-400 mb-4">{variants[0].description || 'Local drop service'}</p>
+                                  <div className="flex justify-between items-end">
+                                      <div>
+                                          <p className="text-xs text-gray-400 uppercase">Starts From</p>
+                                          <p className="text-2xl font-bold text-nature-700">₹{startPrice}</p>
+                                      </div>
+                                      <button onClick={() => handleBookRide(variants[0])} className="bg-nature-100 text-nature-700 p-2 rounded-full hover:bg-nature-200">
+                                          <MessageCircle size={20}/>
+                                      </button>
+                                  </div>
+                              </div>
+                          )
+                      })}
+                  </div>
+              </div>
+          )}
+
+          {/* Empty State */}
           {locations.length === 0 && vehicles.length === 0 && (
              <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
                  <Car size={48} className="mx-auto text-gray-300 mb-4" />
                  <p className="text-gray-500 text-lg">Transport options are being updated.</p>
-                 <p className="text-gray-400 text-sm">Please contact the front desk directly.</p>
              </div>
           )}
-
       </div>
     </div>
   );
