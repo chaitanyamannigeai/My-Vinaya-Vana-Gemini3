@@ -59,56 +59,65 @@ const Home = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // ✅ DYNAMIC SEO SCHEMA INJECTION
-  // This ensures that when you update your Phone/Address in Admin, 
-  // Google sees the new data automatically.
+  // -------------------------------------------------------------------------
+  // 🚀 MODULAR SEO ENGINE
+  // This block dynamically updates Google SEO data based on your Admin Settings.
+  // -------------------------------------------------------------------------
   useEffect(() => {
-    if (settings && settings.whatsappNumber) {
-        const schemaData = {
-            "@context": "https://schema.org",
-            "@type": "LodgingBusiness",
-            "name": "Vinaya Vana Farmhouse",
-            "image": "https://vinayavana.com/social-preview.jpg",
-            "@id": "https://vinayavana.com",
-            "url": "https://vinayavana.com",
-            "telephone": `+91${settings.whatsappNumber}`, // ✅ DYNAMIC FROM DB
-            "priceRange": "₹₹",
-            "address": {
-                "@type": "PostalAddress",
-                "streetAddress": settings.address || "Gokarna", // ✅ DYNAMIC FROM DB
-                "addressLocality": "Gokarna",
-                "addressRegion": "Karnataka",
-                "postalCode": "581326",
-                "addressCountry": "IN"
-            },
-            "geo": {
-                "@type": "GeoCoordinates",
-                "latitude": 14.5165, 
-                "longitude": 74.3312
-            },
-            "description": "Premium farmhouse stay in Gokarna offering luxury cottages and authentic local experiences surrounded by coconut palms."
-        };
+    if (settings) {
+        // 1. Update Page Title
+        document.title = settings.siteTitle ? `${settings.siteTitle} | Serenity Among the Palms` : "Vinaya Vana | Luxury Farmhouse";
 
-        const script = document.createElement('script');
-        script.type = 'application/ld+json';
-        script.text = JSON.stringify(schemaData);
-        script.id = 'dynamic-schema'; // ID to prevent duplicates
-        
-        // Remove old script if exists (cleanup)
-        const oldScript = document.getElementById('dynamic-schema');
-        if (oldScript) {
-            oldScript.remove();
+        // 2. Update Meta Description
+        let metaDescription = document.querySelector('meta[name="description"]');
+        if (!metaDescription) {
+            metaDescription = document.createElement('meta');
+            metaDescription.setAttribute('name', 'description');
+            document.head.appendChild(metaDescription);
         }
-        
-        document.head.appendChild(script);
+        metaDescription.setAttribute('content', settings.siteDescription || "Experience tranquility in our beautiful bungalow surrounded by 1 acre of lush coconut trees.");
 
-        return () => {
-            if (document.head.contains(script)) {
-                document.head.removeChild(script);
-            }
-        };
+        // 3. Inject Structured Data (Schema)
+        if (settings.whatsappNumber) {
+            const schemaData = {
+                "@context": "https://schema.org",
+                "@type": "LodgingBusiness",
+                "name": settings.siteTitle || "Vinaya Vana Farmhouse",
+                "image": "https://vinayavana.com/social-preview.jpg",
+                "@id": "https://vinayavana.com",
+                "url": "https://vinayavana.com",
+                "telephone": `+91${settings.whatsappNumber}`, // Pulls from DB
+                "priceRange": "₹₹",
+                "address": {
+                    "@type": "PostalAddress",
+                    "streetAddress": settings.address || "Gokarna", // Pulls from DB
+                    "addressLocality": "Gokarna",
+                    "addressRegion": "Karnataka",
+                    "postalCode": "581326",
+                    "addressCountry": "IN"
+                },
+                "geo": {
+                    "@type": "GeoCoordinates",
+                    "latitude": 14.5165, 
+                    "longitude": 74.3312
+                },
+                "description": settings.siteDescription || "Premium farmhouse stay in Gokarna."
+            };
+
+            const script = document.createElement('script');
+            script.type = 'application/ld+json';
+            script.text = JSON.stringify(schemaData);
+            script.id = 'dynamic-schema';
+            
+            // Clean up old script to prevent duplicates
+            const oldScript = document.getElementById('dynamic-schema');
+            if (oldScript) oldScript.remove();
+            
+            document.head.appendChild(script);
+        }
     }
   }, [settings]);
+  // -------------------------------------------------------------------------
 
   const getYoutubeEmbedUrl = (url: string) => {
     if (!url) return null;
@@ -159,16 +168,16 @@ const Home = () => {
             <span className="text-green-100 font-medium tracking-wide uppercase text-sm">Pure Nature Living</span>
           </div>
           
-          {/* ✅ UPDATED H1: Includes Brand Name for better SEO ranking */}
+          {/* ✅ MODULAR H1: Uses site title from DB, but keeps the SEO structure */}
           <h1 className="text-4xl md:text-6xl font-serif font-bold text-white mb-6 shadow-sm leading-tight">
-            Vinaya Vana: <br className="hidden md:block" /> Serenity Among the Palms
+            {settings.siteTitle || "Vinaya Vana"}: <br className="hidden md:block" /> Serenity Among the Palms
           </h1>
 
           <p className="text-xl md:text-2xl text-nature-50 mb-10 font-light leading-relaxed">
-            Experience tranquility in our beautiful bungalow surrounded by 1 acre of lush coconut and betelnut trees.
+            {settings.siteDescription || "Experience tranquility in our beautiful bungalow surrounded by 1 acre of lush coconut and betelnut trees."}
           </p>
           
-          {/* CTA Buttons Wrapper */}
+          {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link 
               to="/accommodation" 
@@ -351,7 +360,7 @@ const Home = () => {
         </div>
       )}
 
-      {/* NEW: Sticky Mobile/Desktop Booking Bar */}
+      {/* Sticky Mobile/Desktop Booking Bar */}
       <div 
         className={`fixed bottom-0 left-0 right-0 z-50 p-4 bg-white/95 backdrop-blur-md border-t border-nature-100 shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] transition-transform duration-500 ease-in-out ${
             showStickyNav ? 'translate-y-0' : 'translate-y-[150%]'
@@ -359,7 +368,7 @@ const Home = () => {
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
             <div className="hidden md:block">
-                <p className="font-serif font-bold text-nature-900 text-lg">Vinaya Vana</p>
+                <p className="font-serif font-bold text-nature-900 text-lg">{settings.siteTitle || "Vinaya Vana"}</p>
                 {featuredRoom && (
                     <p className="text-sm text-gray-500">
                         Starts from <span className="font-bold text-nature-700">₹{featuredRoom.basePrice.toLocaleString()}</span> / night
