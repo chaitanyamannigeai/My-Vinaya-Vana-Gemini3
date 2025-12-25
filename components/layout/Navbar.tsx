@@ -32,8 +32,8 @@ const Navbar = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    // ✅ FORCE Dark Green Background: bg-nature-900
-    <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'bg-nature-900 shadow-lg py-2' : 'bg-nature-900/90 backdrop-blur-sm py-4'}`}>
+    // ✅ FIXED: Removed '/90' opacity. Using solid 'bg-nature-900' to fix invisible menu.
+    <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'bg-nature-900 shadow-lg py-2' : 'bg-nature-900 py-4'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center flex-shrink-0 gap-2">

@@ -61,14 +61,10 @@ const Home = () => {
 
   // -------------------------------------------------------------------------
   // 🚀 MODULAR SEO ENGINE
-  // This block dynamically updates Google SEO data based on your Admin Settings.
   // -------------------------------------------------------------------------
   useEffect(() => {
     if (settings) {
-        // 1. Update Page Title
         document.title = settings.siteTitle ? `${settings.siteTitle} | Serenity Among the Palms` : "Vinaya Vana | Luxury Farmhouse";
-
-        // 2. Update Meta Description
         let metaDescription = document.querySelector('meta[name="description"]');
         if (!metaDescription) {
             metaDescription = document.createElement('meta');
@@ -76,48 +72,8 @@ const Home = () => {
             document.head.appendChild(metaDescription);
         }
         metaDescription.setAttribute('content', settings.siteDescription || "Experience tranquility in our beautiful bungalow surrounded by 1 acre of lush coconut trees.");
-
-        // 3. Inject Structured Data (Schema)
-        if (settings.whatsappNumber) {
-            const schemaData = {
-                "@context": "https://schema.org",
-                "@type": "LodgingBusiness",
-                "name": settings.siteTitle || "Vinaya Vana Farmhouse",
-                "image": "https://vinayavana.com/social-preview.jpg",
-                "@id": "https://vinayavana.com",
-                "url": "https://vinayavana.com",
-                "telephone": `+91${settings.whatsappNumber}`, // ✅ DYNAMIC FROM DB
-                "priceRange": "₹₹",
-                "address": {
-                    "@type": "PostalAddress",
-                    "streetAddress": settings.address || "Gokarna", // ✅ DYNAMIC FROM DB
-                    "addressLocality": "Gokarna",
-                    "addressRegion": "Karnataka",
-                    "postalCode": "581326",
-                    "addressCountry": "IN"
-                },
-                "geo": {
-                    "@type": "GeoCoordinates",
-                    "latitude": 14.5165, 
-                    "longitude": 74.3312
-                },
-                "description": settings.siteDescription || "Premium farmhouse stay in Gokarna."
-            };
-
-            const script = document.createElement('script');
-            script.type = 'application/ld+json';
-            script.text = JSON.stringify(schemaData);
-            script.id = 'dynamic-schema';
-            
-            // Clean up old script to prevent duplicates
-            const oldScript = document.getElementById('dynamic-schema');
-            if (oldScript) oldScript.remove();
-            
-            document.head.appendChild(script);
-        }
     }
   }, [settings]);
-  // -------------------------------------------------------------------------
 
   const getYoutubeEmbedUrl = (url: string) => {
     if (!url) return null;
@@ -131,7 +87,6 @@ const Home = () => {
 
   const getWeatherIcon = (iconCode: string) => {
     if (!iconCode) return <Sun size={24} className="text-yellow-400" />;
-    
     if (iconCode.startsWith('01d')) return <Sun size={24} className="text-yellow-400" />; 
     if (iconCode.startsWith('01n')) return <Moon size={24} className="text-blue-200" />; 
     if (iconCode.startsWith('02d')) return <Cloud size={24} className="text-gray-300" />; 
@@ -144,7 +99,6 @@ const Home = () => {
     if (iconCode.startsWith('11')) return <CloudLightning size={24} className="text-gray-400" />; 
     if (iconCode.startsWith('13')) return <Snowflake size={24} className="text-blue-200" />; 
     if (iconCode.startsWith('50')) return <CloudFog size={24} className="text-gray-400" />; 
-
     return <Sun size={24} className="text-yellow-400" />; 
   }
 
@@ -168,7 +122,6 @@ const Home = () => {
             <span className="text-green-100 font-medium tracking-wide uppercase text-sm">Pure Nature Living</span>
           </div>
           
-          {/* ✅ MODULAR H1: Uses site title from DB, but keeps the SEO structure */}
           <h1 className="text-4xl md:text-6xl font-serif font-bold text-white mb-6 shadow-sm leading-tight">
             {settings.siteTitle || "Vinaya Vana"}: <br className="hidden md:block" /> Serenity Among the Palms
           </h1>
@@ -177,7 +130,6 @@ const Home = () => {
             {settings.siteDescription || "Experience tranquility in our beautiful bungalow surrounded by 1 acre of lush coconut and betelnut trees."}
           </p>
           
-          {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link 
               to="/accommodation" 
@@ -226,6 +178,45 @@ const Home = () => {
           )}
         </div>
       </div>
+
+      {/* ✅ SECTION MOVED UP: Recommended Stay (Restores Original Layout) */}
+      {featuredRoom && (
+        <div className="py-20 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* ✅ FIXED: bg-nature-50 ensures Mint Green background */}
+            <div className="flex flex-col md:flex-row items-center gap-12 bg-nature-50 rounded-3xl overflow-hidden shadow-xl">
+              <div className="md:w-1/2 h-64 md:h-auto self-stretch relative">
+                <img 
+                  src={featuredRoom.images[0]} 
+                  alt={featuredRoom.name} 
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              </div>
+              <div className="md:w-1/2 p-8 md:p-12">
+                <div className="flex items-center gap-2 mb-2">
+                   <div className="h-px w-8 bg-nature-500"></div>
+                   <span className="text-nature-600 font-bold uppercase tracking-wider text-xs">Recommended Stay</span>
+                </div>
+                <h2 className="text-3xl font-serif font-bold text-nature-900 mb-6">{featuredRoom.name}</h2>
+                <p className="text-gray-600 mb-8 leading-relaxed text-lg">
+                  {featuredRoom.description}
+                </p>
+                <ul className="grid grid-cols-2 gap-y-3 gap-x-4 mb-10">
+                  {featuredRoom.amenities.slice(0,6).map((am, idx) => (
+                     <li key={idx} className="flex items-center text-gray-700 font-medium">
+                       <span className="w-1.5 h-1.5 bg-nature-500 rounded-full mr-3"></span>
+                       {am}
+                     </li>
+                  ))}
+                </ul>
+                <Link to="/accommodation" className="inline-block bg-nature-800 text-white px-8 py-3 rounded-lg font-semibold hover:bg-nature-900 transition-colors">
+                  View Details & Rates
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Features/Intro */}
       <div className="py-20 bg-white">
@@ -321,44 +312,6 @@ const Home = () => {
             </div>
         </div>
       </div>
-
-      {/* Featured Accommodation Teaser */}
-      {featuredRoom && (
-        <div className="py-20 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col md:flex-row items-center gap-12 bg-nature-50 rounded-3xl overflow-hidden shadow-xl">
-              <div className="md:w-1/2 h-64 md:h-auto self-stretch relative">
-                <img 
-                  src={featuredRoom.images[0]} 
-                  alt={featuredRoom.name} 
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
-              </div>
-              <div className="md:w-1/2 p-8 md:p-12">
-                <div className="flex items-center gap-2 mb-2">
-                   <div className="h-px w-8 bg-nature-500"></div>
-                   <span className="text-nature-600 font-bold uppercase tracking-wider text-xs">Recommended Stay</span>
-                </div>
-                <h2 className="text-3xl font-serif font-bold text-nature-900 mb-6">{featuredRoom.name}</h2>
-                <p className="text-gray-600 mb-8 leading-relaxed text-lg">
-                  {featuredRoom.description}
-                </p>
-                <ul className="grid grid-cols-2 gap-y-3 gap-x-4 mb-10">
-                  {featuredRoom.amenities.slice(0,6).map((am, idx) => (
-                     <li key={idx} className="flex items-center text-gray-700 font-medium">
-                       <span className="w-1.5 h-1.5 bg-nature-500 rounded-full mr-3"></span>
-                       {am}
-                     </li>
-                  ))}
-                </ul>
-                <Link to="/accommodation" className="inline-block bg-nature-800 text-white px-8 py-3 rounded-lg font-semibold hover:bg-nature-900 transition-colors">
-                  View Details & Rates
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Sticky Mobile/Desktop Booking Bar */}
       <div 
