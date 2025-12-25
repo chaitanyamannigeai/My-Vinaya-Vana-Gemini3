@@ -100,7 +100,7 @@ export interface SiteSettings {
     colors: {
       primary: string; 
       secondary: string;
-      surface?: string; 
+      surface?: string;
     };
   };
 }

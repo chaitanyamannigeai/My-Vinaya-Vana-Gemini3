@@ -28,7 +28,7 @@ export const ThemeEngine = () => {
         // Default Fallbacks (Vinaya Vana Originals)
         const primaryHex = settings.theme?.colors?.primary || '#1d4634'; 
         const secondaryHex = settings.theme?.colors?.secondary || '#f5ebe1';
-        const surfaceHex = settings.theme?.colors?.surface || '#f2fbf5'; // The "Mint" Tint
+        const surfaceHex = settings.theme?.colors?.surface || '#f2fbf5'; // ✅ The Mint Tint
 
         // 1. Inject Fonts
         root.style.setProperty('--font-primary', settings.theme?.fontPrimary || 'Inter');
@@ -42,7 +42,7 @@ export const ThemeEngine = () => {
         root.style.setProperty('--color-primary-500', adjustColor(primaryHex, 80));
         
         // 3. Generate Light Shades (From SURFACE, not Primary)
-        // This ensures the "Mint" background and "Green" icons are preserved
+        // ✅ This ensures the "Mint" background and "Green" icons are preserved
         root.style.setProperty('--color-primary-50',  surfaceHex); 
         root.style.setProperty('--color-primary-100', adjustColor(surfaceHex, -10)); // Icon Backgrounds
         root.style.setProperty('--color-primary-200', adjustColor(surfaceHex, -20)); // Icon Borders

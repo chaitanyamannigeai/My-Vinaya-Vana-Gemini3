@@ -17,7 +17,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import Login from './pages/admin/Login';
 import { api } from './services/api';
 
-// ✅ NEW IMPORT: The Theme Engine
+// ✅ CRITICAL IMPORT: The Theme Engine
 import { ThemeEngine } from './components/layout/ThemeEngine';
 
 const { HashRouter: Router, Routes, Route, useLocation } = ReactRouterDOM as any;
@@ -38,12 +38,12 @@ function App() {
       <div className="flex flex-col min-h-screen font-sans">
         <HitTracker />
         
-        {/* ✅ ACTIVATE THEME ENGINE: Injects dynamic CSS variables */}
+        {/* ✅ ACTIVATE THEME ENGINE: This renders the colors */}
         <ThemeEngine />
 
         <Routes>
              <Route path="/admin/*" element={null} />
-             <Route path="/pay-balance/*" element={null} /> {/* Hide Navbar on Pay Page */}
+             <Route path="/pay-balance/*" element={null} /> 
              <Route path="*" element={<Navbar />} />
         </Routes>
         
@@ -59,7 +59,6 @@ function App() {
             <Route path="/docs" element={<Docs />} />
             <Route path="/reviews" element={<Reviews />} />
             
-            {/* Payment Route */}
             <Route path="/pay-balance/:bookingId" element={<PayBalance />} />
             
             <Route path="/admin/login" element={<Login />} />
@@ -69,7 +68,7 @@ function App() {
 
         <Routes>
              <Route path="/admin/*" element={null} />
-             <Route path="/pay-balance/*" element={null} /> {/* Hide Footer on Pay Page */}
+             <Route path="/pay-balance/*" element={null} /> 
              <Route path="*" element={<Footer />} />
         </Routes>
       </div>
