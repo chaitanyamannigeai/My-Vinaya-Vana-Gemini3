@@ -19,6 +19,8 @@
         theme: {
           extend: {
             colors: {
+              // ❌ OLD WAY: nature: { 50: '#f2fbf5', ... } -> This breaks the engine
+              // ✅ NEW WAY: nature: { 50: 'var(--color-primary-50)', ... } -> This works
               nature: { 
                 50: 'var(--color-primary-50)', 
                 100: 'var(--color-primary-100)', 
@@ -53,7 +55,7 @@
       body { font-family: var(--font-primary), sans-serif; }
       h1, h2, h3, h4, h5, h6 { font-family: var(--font-secondary), serif; }
       
-      /* ✅ GOOGLE TRANSLATE FIX: Using Theme Variables */
+      /* Google Translate Fix */
       .google-translate-container { display: inline-block; vertical-align: middle; min-width: 120px; min-height: 40px; }
       .goog-te-gadget-simple { 
         background-color: rgba(255, 255, 255, 0.1) !important; 
@@ -70,7 +72,6 @@
       }
       .goog-te-gadget-simple:hover { background-color: rgba(255, 255, 255, 0.2) !important; border-color: rgba(255, 255, 255, 0.8) !important; }
       
-      /* Force text color to use theme variable */
       .goog-te-gadget-simple .goog-te-menu-value,
       .goog-te-gadget-simple .goog-te-menu-value span { 
         color: var(--color-primary-50) !important; 
