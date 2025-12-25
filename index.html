@@ -12,11 +12,9 @@
           extend: {
             colors: {
               nature: { 
-                50: 'var(--color-primary-50)', 100: 'var(--color-primary-100)', 
-                200: 'var(--color-primary-200)', 300: 'var(--color-primary-300)', 
-                400: 'var(--color-primary-400)', 500: 'var(--color-primary-500)', 
-                600: 'var(--color-primary-600)', 700: 'var(--color-primary-700)', 
-                800: 'var(--color-primary-800)', 900: 'var(--color-primary-900)' 
+                50: 'var(--color-primary-50, #f2fbf5)', 100: 'var(--color-primary-100, #e6f4ea)', 
+                200: 'var(--color-primary-200, #ceead6)', 800: 'var(--color-primary-800, #132f23)', 
+                900: 'var(--color-primary-900, #1d4634)' 
               }
             }
           }
@@ -26,19 +24,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = window.tailwindConfig;</script>
 
-    <style id="theme-bootstrapper">
+    <style>
       :root {
         --color-primary-900: #1d4634;
         --color-primary-50: #f2fbf5;
         --font-primary: 'Inter', sans-serif;
-        --font-secondary: 'Merriweather', serif;
       }
-      body { background-color: var(--color-primary-50); font-family: var(--font-primary); color: var(--color-primary-900); }
-      h1, h2, h3 { font-family: var(--font-secondary); }
-      
-      /* Google Translate Widget Blending */
-      .goog-te-gadget-simple { background: rgba(255,255,255,0.1) !important; border-radius: 20px !important; padding: 5px 10px !important; border: 1px solid rgba(255,255,255,0.2) !important; }
-      .goog-te-menu-value span { color: var(--color-primary-50) !important; }
+      body { background-color: var(--color-primary-50); color: var(--color-primary-900); font-family: var(--font-primary); margin: 0; }
     </style>
 
     <script type="importmap">

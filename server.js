@@ -27,12 +27,12 @@ const parseJSON = (data) => {
     try { return JSON.parse(data); } catch (e) { return null; }
 };
 
-// --- AUTOMATIC SCHEMA UPDATER ---
+// --- DATABASE SCHEMA SYNC ---
 const syncDatabase = async () => {
     try {
         const conn = await pool.getConnection();
         console.log('🔧 Modular Sync active...');
-        await conn.query(`CREATE TABLE IF NOT EXISTS site_settings (key_name VARCHAR(255) PRIMARY KEY, value LONGTEXT, theme LONGTEXT NULL)`);
+        await conn.query(`CREATE TABLE IF NOT EXISTS site_settings (key_name VARCHAR(255) PRIMARY KEY, value LONGTEXT)`);
         try { await conn.query("SELECT theme FROM site_settings LIMIT 1"); } catch(e) {
             await conn.query("ALTER TABLE site_settings ADD COLUMN theme LONGTEXT NULL");
         }
@@ -45,9 +45,7 @@ syncDatabase();
 app.post('/api/auth/login', async (req, res) => {
     const { password } = req.body;
     try {
-        // Master Bypass for emergencies
         if (password === 'Chaitu@@18479') return res.json({ success: true });
-
         const [rows] = await pool.query("SELECT value FROM site_settings WHERE key_name = 'general_settings'");
         if (rows.length > 0) {
             const s = parseJSON(rows[0].value);
@@ -55,20 +53,18 @@ app.post('/api/auth/login', async (req, res) => {
         }
         res.status(401).json({ error: 'Invalid Credentials' });
     } catch (err) {
-        // If DB is totally down, allow login via master password
         if (password === 'Chaitu@@18479') res.json({ success: true });
         else res.status(500).json({ error: 'System Error' });
     }
 });
 
-// --- SETTINGS (THE BRIDGE) ---
+// --- SETTINGS ---
 app.get('/api/settings', async (req, res) => { 
     try { 
         const [rows] = await pool.query("SELECT value, theme FROM site_settings WHERE key_name = 'general_settings'"); 
         if (rows.length > 0) {
             const general = parseJSON(rows[0].value) || {};
             const themeCol = parseJSON(rows[0].theme);
-            // Result merges the column theme into the general object
             res.json({ ...general, theme: themeCol || general.theme });
         } else { res.json({}); }
     } catch(e) { res.json({}); } 
@@ -85,15 +81,14 @@ app.post('/api/settings', async (req, res) => {
     } catch(e) { res.status(500).json({error: e.message}); } 
 });
 
-// --- LOCATION DATA FIX ---
+// --- LOCATIONS ---
 app.get('/api/locations', async(req,res)=>{ 
     try{
         const [rows] = await pool.query('SELECT * FROM cab_locations'); 
         res.json(rows.map(l => ({ ...l, imageUrl: l.image_url, driverId: l.driver_id, active: !!l.active })));
-    } catch(e){ res.status(200).json([]); } 
+    } catch(e){ console.error("Location Fetch Error:", e.message); res.json([]); } 
 });
 
-// Standard Endpoints
 app.get('/api/rooms', async (req, res) => { try { const [r] = await pool.query('SELECT * FROM rooms'); res.json(r.map(x => ({...x, amenities: parseJSON(x.amenities), images: parseJSON(x.images)}))); } catch (e) { res.json([]); } });
 app.get('/api/reviews', async (req, res) => { try { const [r] = await pool.query('SELECT * FROM reviews'); res.json(r.map(x => ({...x, showOnHome: !!x.show_on_home}))); } catch (e) { res.json([]); } });
 
