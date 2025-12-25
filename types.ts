@@ -67,6 +67,7 @@ export interface CabVehicle {
 export interface ThemeColors {
   primary: string;   
   secondary: string; 
+  surface: string; // ✅ NEW: Explicit control for background tint
   background: string; 
   text: string;      
 }
@@ -101,6 +102,7 @@ export interface SiteSettings {
     colors: {
       primary: string; 
       secondary: string;
+      surface?: string; // ✅ NEW: Optional to maintain backward compatibility
     };
   };
 }

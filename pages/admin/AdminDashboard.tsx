@@ -1,3 +1,4 @@
+// pages/admin/AdminDashboard.tsx
 import React, { useState, useEffect } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
@@ -7,30 +8,30 @@ import ImageUploader from '../../components/ui/ImageUploader';
 
 const { useNavigate } = ReactRouterDOM as any;
 
-// ✅ NEW: Theme Presets Configuration
+// ✅ NEW: Theme Presets Configuration with SURFACE Colors
 const THEME_PRESETS = {
   forest: {
     name: 'Vinaya Original',
     icon: <Trees size={24} />,
-    colors: { primary: '#1d4634', secondary: '#f5ebe1' },
+    colors: { primary: '#1d4634', secondary: '#f5ebe1', surface: '#f2fbf5' }, // Original Mint
     fonts: { primary: 'Merriweather', secondary: 'Inter' }
   },
   rainy: {
     name: 'Monsoon Mist',
     icon: <CloudRain size={24} />,
-    colors: { primary: '#334155', secondary: '#f1f5f9' }, // Slate Blue & Cool Grey
+    colors: { primary: '#334155', secondary: '#cbd5e1', surface: '#f1f5f9' },
     fonts: { primary: 'Roboto', secondary: 'Open Sans' }
   },
   summer: {
     name: 'Golden Summer',
     icon: <Sun size={24} />,
-    colors: { primary: '#ca8a04', secondary: '#fefce8' }, // Warm Gold & Yellowish White
+    colors: { primary: '#ca8a04', secondary: '#fefce8', surface: '#fffbeb' },
     fonts: { primary: 'Playfair Display', secondary: 'Lato' }
   },
   winter: {
     name: 'Winter Fog',
     icon: <Snowflake size={24} />,
-    colors: { primary: '#1e293b', secondary: '#f8fafc' }, // Dark Navy & Ghost White
+    colors: { primary: '#1e293b', secondary: '#f8fafc', surface: '#f1f5f9' },
     fonts: { primary: 'Merriweather', secondary: 'Inter' }
   }
 };
@@ -623,17 +624,17 @@ const AdminDashboard = () => {
     </div>
   );
 
-  // ✅ UPDATED: Theme Settings Panel with "Smart Presets"
+  // ✅ UPDATED: Theme Settings Panel with Surface Color Control
   const renderThemeSettings = () => (
     <div className="bg-white p-8 rounded-lg shadow max-w-3xl space-y-8">
       <div>
           <h3 className="text-lg font-bold mb-4 border-b pb-2 flex items-center gap-2"><PaintBucket size={20} /> Theme & Branding</h3>
-          <p className="text-sm text-gray-500 mb-6">Customize the look and feel of your website. Pick a quick preset or fine-tune manually.</p>
+          <p className="text-sm text-gray-500 mb-6">Customize the look and feel. Use 'Surface Color' to control the light background tint (e.g. Mint Green).</p>
       </div>
 
-      {/* NEW: Quick Presets Section */}
+      {/* Quick Presets */}
       <div className="space-y-4">
-        <h4 className="text-sm font-bold text-gray-700 uppercase">Quick Themes (Smart Presets)</h4>
+        <h4 className="text-sm font-bold text-gray-700 uppercase">Quick Themes</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {Object.entries(THEME_PRESETS).map(([key, preset]) => (
             <button
@@ -652,8 +653,9 @@ const AdminDashboard = () => {
               className="flex flex-col items-center justify-center gap-2 p-4 border rounded-lg hover:border-nature-500 hover:shadow-md transition-all bg-gray-50"
             >
               <div className="flex gap-1">
-                <div className="w-6 h-6 rounded-full" style={{ backgroundColor: preset.colors.primary }}></div>
-                <div className="w-6 h-6 rounded-full border border-gray-300" style={{ backgroundColor: preset.colors.secondary }}></div>
+                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: preset.colors.primary }}></div>
+                <div className="w-4 h-4 rounded-full border border-gray-300" style={{ backgroundColor: preset.colors.surface }}></div>
+                <div className="w-4 h-4 rounded-full border border-gray-300" style={{ backgroundColor: preset.colors.secondary }}></div>
               </div>
               <div className="text-nature-600">{preset.icon}</div>
               <span className="text-xs font-bold text-gray-700">{preset.name}</span>
@@ -666,33 +668,47 @@ const AdminDashboard = () => {
 
       {/* Manual Controls */}
       <h4 className="text-sm font-bold text-gray-700 uppercase mb-4">Manual Fine-Tuning</h4>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Picker 1: Primary */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Primary Brand Color</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Primary (Dark)</label>
             <div className="flex items-center gap-3">
                 <input 
                   type="color" 
                   value={settings.theme?.colors?.primary || '#1d4634'} 
                   onChange={(e) => setSettings({ ...settings, theme: { ...settings.theme, colors: { ...settings.theme?.colors, primary: e.target.value } } } as any)}
-                  className="h-12 w-24 p-1 border rounded cursor-pointer"
+                  className="h-12 w-full p-1 border rounded cursor-pointer"
                 />
-                <span className="text-gray-500 font-mono text-sm uppercase">{settings.theme?.colors?.primary || '#1d4634'}</span>
             </div>
-            <p className="text-xs text-gray-400 mt-1">Used for buttons, headers, and key accents.</p>
+            <p className="text-xs text-gray-400 mt-1">Buttons, Headers</p>
           </div>
 
+          {/* Picker 2: Surface (NEW) */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Secondary / Background Color</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Surface (Background)</label>
+            <div className="flex items-center gap-3">
+                <input 
+                  type="color" 
+                  value={settings.theme?.colors?.surface || '#f2fbf5'} 
+                  onChange={(e) => setSettings({ ...settings, theme: { ...settings.theme, colors: { ...settings.theme?.colors, surface: e.target.value } } } as any)}
+                  className="h-12 w-full p-1 border rounded cursor-pointer"
+                />
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Light Tints, Cards</p>
+          </div>
+
+          {/* Picker 3: Secondary */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Secondary (Accent)</label>
               <div className="flex items-center gap-3">
                 <input 
                   type="color" 
                   value={settings.theme?.colors?.secondary || '#f5ebe1'} 
                   onChange={(e) => setSettings({ ...settings, theme: { ...settings.theme, colors: { ...settings.theme?.colors, secondary: e.target.value } } } as any)}
-                  className="h-12 w-24 p-1 border rounded cursor-pointer"
+                  className="h-12 w-full p-1 border rounded cursor-pointer"
                 />
-                <span className="text-gray-500 font-mono text-sm uppercase">{settings.theme?.colors?.secondary || '#f5ebe1'}</span>
             </div>
-            <p className="text-xs text-gray-400 mt-1">Used for section backgrounds and subtle highlights.</p>
+            <p className="text-xs text-gray-400 mt-1">Highlights, Borders</p>
           </div>
       </div>
 
