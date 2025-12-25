@@ -59,19 +59,9 @@ const Home = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // -------------------------------------------------------------------------
-  // 🚀 MODULAR SEO ENGINE
-  // -------------------------------------------------------------------------
   useEffect(() => {
     if (settings) {
         document.title = settings.siteTitle ? `${settings.siteTitle} | Serenity Among the Palms` : "Vinaya Vana | Luxury Farmhouse";
-        let metaDescription = document.querySelector('meta[name="description"]');
-        if (!metaDescription) {
-            metaDescription = document.createElement('meta');
-            metaDescription.setAttribute('name', 'description');
-            document.head.appendChild(metaDescription);
-        }
-        metaDescription.setAttribute('content', settings.siteDescription || "Experience tranquility in our beautiful bungalow surrounded by 1 acre of lush coconut trees.");
     }
   }, [settings]);
 
@@ -88,18 +78,7 @@ const Home = () => {
   const getWeatherIcon = (iconCode: string) => {
     if (!iconCode) return <Sun size={24} className="text-yellow-400" />;
     if (iconCode.startsWith('01d')) return <Sun size={24} className="text-yellow-400" />; 
-    if (iconCode.startsWith('01n')) return <Moon size={24} className="text-blue-200" />; 
-    if (iconCode.startsWith('02d')) return <Cloud size={24} className="text-gray-300" />; 
-    if (iconCode.startsWith('02n')) return <Cloud size={24} className="text-gray-300" />; 
-    if (iconCode.startsWith('03')) return <Cloud size={24} className="text-gray-400" />; 
-    if (iconCode.startsWith('04')) return <Cloud size={24} className="text-gray-500" />; 
-    if (iconCode.startsWith('09')) return <CloudRain size={24} className="text-blue-400" />; 
-    if (iconCode.startsWith('10d')) return <CloudDrizzle size={24} className="text-blue-400" />; 
-    if (iconCode.startsWith('10n')) return <CloudDrizzle size={24} className="text-blue-400" />; 
-    if (iconCode.startsWith('11')) return <CloudLightning size={24} className="text-gray-400" />; 
-    if (iconCode.startsWith('13')) return <Snowflake size={24} className="text-blue-200" />; 
-    if (iconCode.startsWith('50')) return <CloudFog size={24} className="text-gray-400" />; 
-    return <Sun size={24} className="text-yellow-400" />; 
+    return <Cloud size={24} className="text-gray-300" />; 
   }
 
   const whatsappLink = `https://wa.me/${settings.whatsappNumber || '919999999999'}?text=Hi, I am interested in booking a stay at Vinaya Vana.`;
@@ -179,12 +158,14 @@ const Home = () => {
         </div>
       </div>
 
-      {/* ✅ SECTION MOVED UP: Recommended Stay (Restores Original Layout) */}
+      {/* ✅ SECTION MOVED TO TOP + MINT COLOR FORCED */}
       {featuredRoom && (
         <div className="py-20 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            {/* ✅ FIXED: bg-nature-50 ensures Mint Green background */}
-            <div className="flex flex-col md:flex-row items-center gap-12 bg-nature-50 rounded-3xl overflow-hidden shadow-xl">
+            <div 
+              className="flex flex-col md:flex-row items-center gap-12 bg-nature-50 rounded-3xl overflow-hidden shadow-xl"
+              style={{ backgroundColor: 'var(--color-primary-50)' }} // 👈 Explicitly forces Mint Color
+            >
               <div className="md:w-1/2 h-64 md:h-auto self-stretch relative">
                 <img 
                   src={featuredRoom.images[0]} 

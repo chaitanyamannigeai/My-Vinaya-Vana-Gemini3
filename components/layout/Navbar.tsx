@@ -32,8 +32,7 @@ const Navbar = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    // ✅ FIXED: Removed '/90' opacity. Hex variables cannot handle modifiers.
-    // Changed 'bg-nature-900/90' to 'bg-nature-900' to ensure visibility.
+    // ✅ FIXED: Using solid 'bg-nature-900'. Removed '/90' which caused invisibility.
     <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'bg-nature-900 shadow-lg py-2' : 'bg-nature-900 py-4'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
