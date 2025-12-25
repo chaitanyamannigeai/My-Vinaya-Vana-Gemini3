@@ -1,113 +1,80 @@
-import React, { useState, useEffect } from 'react';
-import * as ReactRouterDOM from 'react-router-dom';
-import { Menu, X, Globe } from 'lucide-react';
-import GoogleTranslate from '../ui/GoogleTranslate';
-import Logo from '../ui/Logo';
+import React, { useEffect } from 'react';
 import { api } from '../../services/api';
 
-const { Link, useLocation } = ReactRouterDOM as any;
-
-const Navbar = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const location = useLocation();
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const navLinks = [
-    { name: 'Home', path: '/' },
-    { name: 'Accommodation', path: '/accommodation' },
-    { name: 'Availability', path: '/availability' },
-    { name: 'Gallery', path: '/gallery' },
-    { name: 'Tariff', path: '/tariff' },
-    { name: 'Cab Services', path: '/cabs' },
-    { name: 'Reviews', path: '/reviews' },
-    { name: 'Contact', path: '/contact' },
-  ];
-
-  const isActive = (path: string) => location.pathname === path;
-
-  return (
-    // ✅ FIXED: Using solid 'bg-nature-900'. Removed '/90' which caused invisibility.
-    <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'bg-nature-900 shadow-lg py-2' : 'bg-nature-900 py-4'}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center flex-shrink-0 gap-2">
-            <Link to="/" className="flex items-center gap-2">
-              <Logo className="h-10 w-auto text-nature-50" />
-            </Link>
-          </div>
-
-          {/* Desktop Menu */}
-          <div className="hidden lg:flex items-center">
-            <div className="ml-10 flex items-baseline space-x-4">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.name}
-                  to={link.path}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-                    isActive(link.path)
-                      ? 'bg-nature-800 text-white'
-                      : 'text-nature-50 hover:bg-nature-800 hover:text-white'
-                  }`}
-                >
-                  {link.name}
-                </Link>
-              ))}
-              <Link to="/admin" className="ml-2 px-3 py-2 text-xs text-nature-200 hover:text-white border border-nature-700 rounded opacity-70 hover:opacity-100">
-                Admin
-              </Link>
-            </div>
-            
-            <div className="ml-6 flex items-center gap-3 pl-6 border-l border-nature-700">
-                <Globe size={16} className="text-nature-300"/>
-                <div className="scale-90 origin-left">
-                  <GoogleTranslate mobile={false} />
-                </div>
-            </div>
-          </div>
-
-          {/* Mobile menu button */}
-          <div className="lg:hidden flex items-center gap-4">
-            <div className="scale-75 origin-right"><GoogleTranslate mobile={true} /></div>
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-nature-50 hover:text-white hover:bg-nature-800 focus:outline-none"
-            >
-              {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Menu */}
-      {isOpen && (
-        <div className="lg:hidden bg-nature-900 border-t border-nature-800 animate-fade-in">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            {navLinks.map((link) => (
-              <Link
-                key={link.name}
-                to={link.path}
-                onClick={() => setIsOpen(false)}
-                className={`block px-3 py-2 rounded-md text-base font-medium ${
-                   isActive(link.path)
-                      ? 'bg-nature-800 text-white'
-                      : 'text-nature-50 hover:bg-nature-800 hover:text-white'
-                }`}
-              >
-                {link.name}
-              </Link>
-            ))}
-             <Link to="/admin" onClick={() => setIsOpen(false)} className="block px-3 py-2 text-sm text-nature-400 border-t border-nature-800 mt-2">Admin Panel</Link>
-          </div>
-        </div>
-      )}
-    </nav>
-  );
+// Helper: Lighten a color (mix with white)
+const lighten = (hex: string, percent: number) => {
+    if (!hex) return '#ffffff';
+    const num = parseInt(hex.replace("#",""), 16);
+    const r = (num >> 16) + Math.round((255 - (num >> 16)) * (percent / 100));
+    const g = (num >> 8 & 0x00FF) + Math.round((255 - (num >> 8 & 0x00FF)) * (percent / 100));
+    const b = (num & 0x0000FF) + Math.round((255 - (num & 0x0000FF)) * (percent / 100));
+    return "#" + (0x1000000 + (r * 0x10000) + (g * 0x100) + b).toString(16).slice(1);
 };
 
-export default Navbar;
+// Helper: Adjust brightness (standard)
+const adjustColor = (hex: string, percent: number) => {
+    if (!hex) return '#ffffff';
+    const num = parseInt(hex.replace("#",""), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
+    return "#" + (
+        0x1000000 + 
+        (R<255?R<1?0:R:255)*0x10000 + 
+        (G<255?G<1?0:G:255)*0x100 + 
+        (B<255?B<1?0:B:255)
+    ).toString(16).slice(1);
+};
+
+export const ThemeEngine = () => {
+  const paintTheme = (primaryHex: string, secondaryHex: string, surfaceHex: string, fontPrimary: string, fontSecondary: string) => {
+      const root = document.documentElement;
+      
+      // Inject Fonts
+      root.style.setProperty('--font-primary', fontPrimary);
+      root.style.setProperty('--font-secondary', fontSecondary);
+
+      // 1. Dark Shades (Base: Primary Color)
+      root.style.setProperty('--color-primary-900', primaryHex);
+      root.style.setProperty('--color-primary-800', adjustColor(primaryHex, 20));
+      root.style.setProperty('--color-primary-700', adjustColor(primaryHex, 40));
+      root.style.setProperty('--color-primary-600', adjustColor(primaryHex, 60));
+      root.style.setProperty('--color-primary-500', adjustColor(primaryHex, 80));
+      
+      // 2. Light Shades (Base: Primary mixed with White)
+      // ✅ FIX: This creates "Mint Green" icons instead of "Grey" icons
+      root.style.setProperty('--color-primary-400', lighten(primaryHex, 40)); 
+      root.style.setProperty('--color-primary-300', lighten(primaryHex, 60)); 
+      root.style.setProperty('--color-primary-200', lighten(primaryHex, 80)); // Icons Circle
+      root.style.setProperty('--color-primary-100', lighten(primaryHex, 90)); // Light Backgrounds
+      root.style.setProperty('--color-primary-50',  surfaceHex); // The Main Surface (User Selected)
+
+      // 3. Secondary Palette
+      root.style.setProperty('--color-secondary-900', adjustColor(secondaryHex, -40));
+      root.style.setProperty('--color-secondary-800', adjustColor(secondaryHex, -20));
+      root.style.setProperty('--color-secondary-100', secondaryHex);
+      root.style.setProperty('--color-secondary-50',  adjustColor(secondaryHex, 20));
+  };
+
+  useEffect(() => {
+    // Instant Paint Defaults
+    paintTheme('#1d4634', '#f5ebe1', '#f2fbf5', 'Inter', 'Merriweather');
+
+    // Fetch from DB
+    const fetchSettings = async () => {
+      try {
+        const settings = await api.settings.get();
+        const p = settings.theme?.colors?.primary || '#1d4634';
+        const s = settings.theme?.colors?.secondary || '#f5ebe1';
+        const surf = settings.theme?.colors?.surface || '#f2fbf5';
+        const f1 = settings.theme?.fontPrimary || 'Inter';
+        const f2 = settings.theme?.fontSecondary || 'Merriweather';
+        paintTheme(p, s, surf, f1, f2);
+      } catch (error) { console.warn("Using Defaults"); }
+    };
+    fetchSettings();
+  }, []);
+
+  return null;
+};
