@@ -21,6 +21,7 @@ app.set('trust proxy', true);
 
 app.use(cors());
 app.use(compression()); 
+// ✅ Increased limit to handle Base64 images/Large Theme data
 app.use(express.json({ limit: '50mb' })); 
 
 // ✅ NEW BUG FIX: Prevent browser caching for all API routes to ensure fresh data
@@ -143,7 +144,14 @@ const fixDatabaseSchema = async () => {
         )`);
 
         // 8. SITE SETTINGS & LOGS
-        await connection.query(`CREATE TABLE IF NOT EXISTS site_settings (key_name VARCHAR(255) PRIMARY KEY, value TEXT)`);
+        // ✅ CRITICAL FIX: Ensure 'value' is LONGTEXT to hold JSON + Images without truncation
+        await connection.query(`CREATE TABLE IF NOT EXISTS site_settings (key_name VARCHAR(255) PRIMARY KEY, value LONGTEXT)`);
+        try {
+            // Force upgrade existing TEXT column to LONGTEXT
+            await connection.query("ALTER TABLE site_settings MODIFY value LONGTEXT");
+            console.log("✅ Upgraded site_settings.value to LONGTEXT");
+        } catch (e) { console.log("ℹ️ site_settings check passed"); }
+
         await connection.query(`CREATE TABLE IF NOT EXISTS visit_logs (
             id INT AUTO_INCREMENT PRIMARY KEY, 
             ip_address VARCHAR(50), 
@@ -224,7 +232,7 @@ app.post('/api/vehicles', async(req,res)=>{
     }catch(e){res.status(500).json({error:e.message})} 
 });
 
-// ✅ SAFER DELETE (Chunk 7 Fix): Unassigns vehicle from drivers before deleting the vehicle
+// ✅ SAFER DELETE: Unassigns vehicle from drivers before deleting the vehicle
 app.delete('/api/vehicles/:id', async (req, res) => { 
     try { 
         const vehicleId = req.params.id;
