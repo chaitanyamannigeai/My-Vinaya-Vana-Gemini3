@@ -12,13 +12,10 @@ import Cabs from './pages/public/Cabs';
 import Tariff from './pages/public/Tariff';
 import Docs from './pages/public/Docs';
 import Reviews from './pages/public/Reviews';
-import PayBalance from './pages/public/PayBalance'; 
+import PayBalance from './pages/public/PayBalance'; // NEW IMPORT
 import AdminDashboard from './pages/admin/AdminDashboard';
 import Login from './pages/admin/Login';
 import { api } from './services/api';
-
-// ✅ CRITICAL IMPORT: The Theme Engine
-import { ThemeEngine } from './components/layout/ThemeEngine';
 
 const { HashRouter: Router, Routes, Route, useLocation } = ReactRouterDOM as any;
 
@@ -37,13 +34,10 @@ function App() {
     <Router>
       <div className="flex flex-col min-h-screen font-sans">
         <HitTracker />
-        
-        {/* ✅ ACTIVATE THEME ENGINE: This renders the colors */}
-        <ThemeEngine />
 
         <Routes>
              <Route path="/admin/*" element={null} />
-             <Route path="/pay-balance/*" element={null} /> 
+             <Route path="/pay-balance/*" element={null} /> {/* Hide Navbar on Pay Page */}
              <Route path="*" element={<Navbar />} />
         </Routes>
         
@@ -59,6 +53,7 @@ function App() {
             <Route path="/docs" element={<Docs />} />
             <Route path="/reviews" element={<Reviews />} />
             
+            {/* New Payment Route */}
             <Route path="/pay-balance/:bookingId" element={<PayBalance />} />
             
             <Route path="/admin/login" element={<Login />} />
@@ -68,7 +63,7 @@ function App() {
 
         <Routes>
              <Route path="/admin/*" element={null} />
-             <Route path="/pay-balance/*" element={null} /> 
+             <Route path="/pay-balance/*" element={null} /> {/* Hide Footer on Pay Page */}
              <Route path="*" element={<Footer />} />
         </Routes>
       </div>

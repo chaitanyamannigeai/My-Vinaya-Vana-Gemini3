@@ -2,38 +2,10 @@ import React, { useState, useEffect } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { Room, Booking, Driver, CabLocation, SiteSettings, PaymentStatus, PricingRule, GalleryItem, Review, CabVehicle } from '../../types';
-import { Settings, Calendar, Truck, Map, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent, Download, MessageCircle, CheckCircle, BarChart2, Activity, Loader, TrendingUp, DollarSign, Clock, Link as LinkIcon, PaintBucket, CloudRain, Sun, Snowflake, Trees } from 'lucide-react';
+import { Settings, Calendar, Truck, Map, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent, Download, MessageCircle, CheckCircle, BarChart2, Activity, Loader, TrendingUp, DollarSign, Clock, Link as LinkIcon } from 'lucide-react';
 import ImageUploader from '../../components/ui/ImageUploader';
 
 const { useNavigate } = ReactRouterDOM as any;
-
-// ✅ THEME PRESETS with Surface Tint
-const THEME_PRESETS = {
-  forest: {
-    name: 'Vinaya Original',
-    icon: <Trees size={24} />,
-    colors: { primary: '#1d4634', secondary: '#f5ebe1', surface: '#f2fbf5' }, // Mint Green
-    fonts: { primary: 'Merriweather', secondary: 'Inter' }
-  },
-  rainy: {
-    name: 'Monsoon Mist',
-    icon: <CloudRain size={24} />,
-    colors: { primary: '#334155', secondary: '#cbd5e1', surface: '#f1f5f9' },
-    fonts: { primary: 'Roboto', secondary: 'Open Sans' }
-  },
-  summer: {
-    name: 'Golden Summer',
-    icon: <Sun size={24} />,
-    colors: { primary: '#ca8a04', secondary: '#fefce8', surface: '#fffbeb' },
-    fonts: { primary: 'Playfair Display', secondary: 'Lato' }
-  },
-  winter: {
-    name: 'Winter Fog',
-    icon: <Snowflake size={24} />,
-    colors: { primary: '#1e293b', secondary: '#f8fafc', surface: '#f1f5f9' },
-    fonts: { primary: 'Merriweather', secondary: 'Inter' }
-  }
-};
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -81,17 +53,17 @@ const AdminDashboard = () => {
           else if (tab === 'locations') { 
               setLocations(await api.locations.getAll()); 
               setDrivers(await api.drivers.getAll()); 
-              setVehicles(await api.vehicles.getAll()); 
+              setVehicles(await api.vehicles.getAll()); // Load vehicles for dropdown
           }
           else if (tab === 'fleet') setVehicles(await api.vehicles.getAll());
           else if (tab === 'drivers') {
               setDrivers(await api.drivers.getAll());
-              setVehicles(await api.vehicles.getAll()); 
+              setVehicles(await api.vehicles.getAll()); // Load vehicles for dropdown
           }
           else if (tab === 'pricing') setPricingRules(await api.pricing.getAll());
           else if (tab === 'gallery') setGallery(await api.gallery.getAll());
           else if (tab === 'reviews') setReviews(await api.reviews.getAll());
-          else if ((tab === 'settings' || tab === 'home-content' || tab === 'theme')) {
+          else if ((tab === 'settings' || tab === 'home-content')) {
               const s = await api.settings.get();
               setSettings(s);
               if (tab === 'home-content') {
@@ -110,7 +82,7 @@ const AdminDashboard = () => {
   useEffect(() => { if (!authLoading) loadTab(activeTab); }, [activeTab, authLoading]);
   const handleLogout = () => { sessionStorage.removeItem('vv_admin_auth'); navigate('/'); };
 
-  // Analytics & Actions
+  // Analytics & Actions (Abbreviated for brevity, logic identical to previous chunks)
   const calculateAnalytics = () => {
       const totalRevenue = bookings.reduce((sum, b) => sum + (parseFloat((b.amountPaid || 0) as any)), 0);
       const totalBookings = bookings.length;
@@ -252,6 +224,7 @@ const AdminDashboard = () => {
   const saveReview = async (id: string) => { try { await api.reviews.save(reviews.find(r => r.id === id)!); alert("Review Saved!"); } catch (e) { alert("Error"); } };
   const deleteReview = async (id: string) => { if (window.confirm("Delete?")) try { await api.reviews.delete(id); setReviews(prev => prev.filter(r => r.id !== id)); } catch(e) {} };
 
+  // Vehicle CRUD
   const addVehicleLocal = () => { 
       setVehicles([{ id: `v${Date.now()}`, name: 'New Vehicle', vehicleType: 'Sedan', capacity: 4, images: [], features: ['AC', 'Music'], baseRate: 0, active: true }, ...vehicles]); 
   };
@@ -457,6 +430,7 @@ const AdminDashboard = () => {
     </div>
   );
 
+  // ✅ UPDATED: Driver Rendering with Vehicle Selection
   const renderDrivers = () => (
     <div className="space-y-4">
         <button onClick={addDriverLocal} className="flex items-center gap-2 bg-nature-600 text-white px-4 py-2 rounded hover:bg-nature-700"><Plus size={16} /> Add Driver</button>
@@ -474,6 +448,7 @@ const AdminDashboard = () => {
                         </div>
                     </div>
                     
+                    {/* Vehicle Assignment Dropdown */}
                     <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="text-xs text-gray-500 block">Vehicle Description (Manual Text)</label>
@@ -623,131 +598,6 @@ const AdminDashboard = () => {
     </div>
   );
 
-  // ✅ UPDATED: Theme Settings Panel with Surface Color Control
-  const renderThemeSettings = () => (
-    <div className="bg-white p-8 rounded-lg shadow max-w-3xl space-y-8">
-      <div>
-          <h3 className="text-lg font-bold mb-4 border-b pb-2 flex items-center gap-2"><PaintBucket size={20} /> Theme & Branding</h3>
-          <p className="text-sm text-gray-500 mb-6">Customize the look and feel. Use 'Surface Color' to control the light background tint (e.g. Mint Green).</p>
-      </div>
-
-      {/* Quick Presets */}
-      <div className="space-y-4">
-        <h4 className="text-sm font-bold text-gray-700 uppercase">Quick Themes</h4>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {Object.entries(THEME_PRESETS).map(([key, preset]) => (
-            <button
-              key={key}
-              onClick={() => {
-                setSettings({
-                  ...settings,
-                  theme: {
-                    ...settings.theme,
-                    fontPrimary: preset.fonts.primary,
-                    fontSecondary: preset.fonts.secondary,
-                    colors: { ...preset.colors }
-                  }
-                } as any);
-              }}
-              className="flex flex-col items-center justify-center gap-2 p-4 border rounded-lg hover:border-nature-500 hover:shadow-md transition-all bg-gray-50"
-            >
-              <div className="flex gap-1">
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: preset.colors.primary }}></div>
-                <div className="w-4 h-4 rounded-full border border-gray-300" style={{ backgroundColor: preset.colors.surface }}></div>
-                <div className="w-4 h-4 rounded-full border border-gray-300" style={{ backgroundColor: preset.colors.secondary }}></div>
-              </div>
-              <div className="text-nature-600">{preset.icon}</div>
-              <span className="text-xs font-bold text-gray-700">{preset.name}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="border-t border-gray-200 my-6"></div>
-
-      {/* Manual Controls */}
-      <h4 className="text-sm font-bold text-gray-700 uppercase mb-4">Manual Fine-Tuning</h4>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Picker 1: Primary */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Primary (Dark)</label>
-            <div className="flex items-center gap-3">
-                <input 
-                  type="color" 
-                  value={settings.theme?.colors?.primary || '#1d4634'} 
-                  onChange={(e) => setSettings({ ...settings, theme: { ...settings.theme, colors: { ...settings.theme?.colors, primary: e.target.value } } } as any)}
-                  className="h-12 w-full p-1 border rounded cursor-pointer"
-                />
-            </div>
-            <p className="text-xs text-gray-400 mt-1">Buttons, Headers</p>
-          </div>
-
-          {/* Picker 2: Surface (NEW) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Surface (Background)</label>
-            <div className="flex items-center gap-3">
-                <input 
-                  type="color" 
-                  value={settings.theme?.colors?.surface || '#f2fbf5'} 
-                  onChange={(e) => setSettings({ ...settings, theme: { ...settings.theme, colors: { ...settings.theme?.colors, surface: e.target.value } } } as any)}
-                  className="h-12 w-full p-1 border rounded cursor-pointer"
-                />
-            </div>
-            <p className="text-xs text-gray-400 mt-1">Light Tints, Cards</p>
-          </div>
-
-          {/* Picker 3: Secondary */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Secondary (Accent)</label>
-              <div className="flex items-center gap-3">
-                <input 
-                  type="color" 
-                  value={settings.theme?.colors?.secondary || '#f5ebe1'} 
-                  onChange={(e) => setSettings({ ...settings, theme: { ...settings.theme, colors: { ...settings.theme?.colors, secondary: e.target.value } } } as any)}
-                  className="h-12 w-full p-1 border rounded cursor-pointer"
-                />
-            </div>
-            <p className="text-xs text-gray-400 mt-1">Highlights, Borders</p>
-          </div>
-      </div>
-
-      <div className="space-y-4 pt-6 border-t">
-          <h4 className="font-bold text-gray-700">Typography</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Primary Font (Headings)</label>
-              <select value={settings.theme?.fontPrimary || 'Merriweather'} onChange={(e) => setSettings({ ...settings, theme: { ...settings.theme, fontPrimary: e.target.value } } as any)} className="w-full border p-2 rounded">
-                  <option value="Merriweather">Merriweather (Serif)</option>
-                  <option value="Inter">Inter (Sans-Serif)</option>
-                  <option value="Roboto">Roboto</option>
-                  <option value="Playfair Display">Playfair Display</option>
-              </select>
-            </div>
-              <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Secondary Font (Body Text)</label>
-              <select value={settings.theme?.fontSecondary || 'Inter'} onChange={(e) => setSettings({ ...settings, theme: { ...settings.theme, fontSecondary: e.target.value } } as any)} className="w-full border p-2 rounded">
-                  <option value="Inter">Inter (Sans-Serif)</option>
-                  <option value="Merriweather">Merriweather (Serif)</option>
-                  <option value="Open Sans">Open Sans</option>
-                  <option value="Lato">Lato</option>
-              </select>
-            </div>
-          </div>
-      </div>
-
-      <button 
-        onClick={async () => { 
-            await api.settings.save(settings); 
-            alert("Theme Saved! Reloading to apply changes...");
-            window.location.reload(); 
-        }} 
-        className="flex items-center gap-2 bg-nature-600 text-white px-6 py-3 rounded-md hover:bg-nature-700 w-full justify-center font-bold"
-      >
-        <Save size={18} /> Save & Apply Theme
-      </button>
-    </div>
-  );
-
   const renderSettings = () => (
     <div className="bg-white p-8 rounded-lg shadow max-w-2xl space-y-8">
         <div className="border border-nature-200 rounded-lg p-6 bg-nature-50">
@@ -814,7 +664,7 @@ const AdminDashboard = () => {
       <div className="w-64 bg-nature-900 text-white flex flex-col hidden md:flex shrink-0">
         <div className="p-6 font-serif font-bold text-xl border-b border-nature-800">Admin Panel</div>
         <nav className="flex-grow py-4 overflow-y-auto">
-          {['bookings', 'rooms', 'locations', 'fleet', 'drivers', 'pricing', 'gallery', 'reviews', 'home-content', 'theme', 'settings'].map(tab => (
+          {['bookings', 'rooms', 'locations', 'fleet', 'drivers', 'pricing', 'gallery', 'reviews', 'home-content', 'settings'].map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full text-left px-6 py-3 flex items-center gap-3 hover:bg-nature-800 capitalize ${activeTab === tab ? 'bg-nature-800 border-r-4 border-green-400' : ''}`}>
                 <span className="capitalize">{tab.replace('-', ' ')}</span>
             </button>
@@ -835,7 +685,6 @@ const AdminDashboard = () => {
             {activeTab === 'gallery' && renderGallery()}
             {activeTab === 'reviews' && renderReviews()}
             {activeTab === 'home-content' && renderHomePageContent()}
-            {activeTab === 'theme' && renderThemeSettings()}
             {activeTab === 'settings' && renderSettings()}
         </div>
       </div>

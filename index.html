@@ -3,50 +3,74 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#1d4634" />
+
     <title>Vinaya Vana</title> 
     
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      window.tailwindConfig = {
+      tailwind.config = {
         theme: {
           extend: {
             colors: {
-              nature: { 
-                50: 'var(--color-primary-50, #f2fbf5)', 100: 'var(--color-primary-100, #e6f4ea)', 
-                200: 'var(--color-primary-200, #ceead6)', 800: 'var(--color-primary-800, #132f23)', 
-                900: 'var(--color-primary-900, #1d4634)' 
-              }
-            }
+              nature: { 50: '#f2fbf5', 100: '#e0f7e9', 200: '#c3ecd3', 300: '#95dab3', 400: '#5fc08d', 500: '#3ba573', 600: '#2b865b', 700: '#266b4b', 800: '#22553e', 900: '#1d4634' },
+              earth: { 50: '#fbf7f3', 100: '#f5ebe1', 800: '#5e4b35', 900: '#4d3d2b' }
+            },
+            fontFamily: { sans: ['Inter', 'sans-serif'], serif: ['Merriweather', 'serif'] }
           }
         }
-      };
+      }
     </script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>tailwind.config = window.tailwindConfig;</script>
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
+    
     <style>
-      :root {
-        --color-primary-900: #1d4634;
-        --color-primary-50: #f2fbf5;
-        --font-primary: 'Inter', sans-serif;
-      }
-      body { background-color: var(--color-primary-50); color: var(--color-primary-900); font-family: var(--font-primary); margin: 0; }
+      body { font-family: 'Inter', sans-serif; }
+      h1, h2, h3, h4, h5, h6 { font-family: 'Merriweather', serif; }
+      /* Google Translate Widget Styles */
+      .google-translate-container { display: inline-block; vertical-align: middle; min-width: 120px; min-height: 40px; }
+      .goog-te-gadget-simple { background-color: rgba(255, 255, 255, 0.1) !important; border: 1px solid rgba(255, 255, 255, 0.3) !important; padding: 8px 12px !important; border-radius: 9999px !important; font-family: 'Inter', sans-serif !important; display: flex !important; align-items: center; justify-content: center; gap: 6px; cursor: pointer; text-decoration: none !important; }
+      .goog-te-gadget-simple:hover { background-color: rgba(255, 255, 255, 0.2) !important; border-color: rgba(255, 255, 255, 0.8) !important; }
+      .goog-te-gadget-simple .goog-te-menu-value { color: #e0f7e9 !important; font-weight: 500; font-size: 14px; margin: 0 !important; }
+      .goog-te-gadget-simple .goog-te-menu-value span { color: #e0f7e9 !important; border-left: none !important; }
+      .goog-te-gadget-simple .goog-te-menu-value span:last-child { display: none !important; }
+      .goog-te-gadget-icon, .goog-te-gadget-simple img { display: none !important; }
+      .goog-te-menu-frame { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important; border-radius: 12px !important; z-index: 10000 !important; }
+      .goog-te-banner-frame.skiptranslate { display: none !important; } 
+      body { top: 0px !important; }
+      .mobile-translate .goog-te-gadget-simple { background-color: rgba(255,255,255,0.05) !important; border-color: rgba(255,255,255,0.1) !important; width: 100%; justify-content: center; padding: 12px !important; }
     </style>
-
-    <script type="importmap">
-    {
-      "imports": {
-        "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-        "react-router-dom": "https://esm.sh/react-router-dom@^7.11.0",
-        "react/": "https://esm.sh/react@^19.2.3/",
-        "react": "https://esm.sh/react@^19.2.3",
-        "axios": "https://esm.sh/axios@^1.13.2"
-      }
-    }
-    </script>
-  </head>
-  <body>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.11.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "express": "https://esm.sh/express@^5.2.1",
+    "dotenv": "https://esm.sh/dotenv@^17.2.3",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "path": "https://esm.sh/path@^0.12.7",
+    "cors": "https://esm.sh/cors@^2.8.5",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "compression": "https://esm.sh/compression@^1.8.1",
+    "url": "https://esm.sh/url@^0.11.4",
+    "fs": "https://esm.sh/fs@^0.0.1-security",
+    "mysql2/": "https://esm.sh/mysql2@^3.16.0/",
+    "axios": "https://esm.sh/axios@^1.13.2"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-nature-50 text-nature-900 antialiased">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
-  </body>
+    <script type="module" src="./index.tsx"></script>
+  <script type="module" src="/index.tsx"></script>
+</body>
 </html>

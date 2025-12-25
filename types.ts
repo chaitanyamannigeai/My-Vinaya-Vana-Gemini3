@@ -3,7 +3,7 @@
 export enum PaymentStatus {
   PENDING = 'PENDING',
   PAID = 'PAID',
-  PARTIAL = 'PARTIAL',
+  PARTIAL = 'PARTIAL', // Added PARTIAL
   FAILED = 'FAILED'
 }
 
@@ -25,8 +25,11 @@ export interface Booking {
   checkIn: string;
   checkOut: string;
   totalAmount: number;
+  
+  // ✅ Payment Fields (Marked optional for safety)
   amountPaid?: number;
   balanceAmount?: number;
+  
   status: PaymentStatus;
   createdAt: string;
 }
@@ -39,7 +42,6 @@ export interface Driver {
   isDefault: boolean;
   active: boolean;
   vehicleInfo?: string;
-  assignedVehicleId?: string | null;
 }
 
 export interface CabLocation {
@@ -50,24 +52,6 @@ export interface CabLocation {
   price?: number;
   driverId?: string | null;
   active: boolean;
-}
-
-export interface CabVehicle {
-  id: string;
-  name: string;          
-  vehicleType: string;   
-  capacity: number;      
-  images: string[];      
-  features: string[];    
-  baseRate?: number;     
-  active: boolean;
-}
-
-// ✅ NEW: Theme Engine Interfaces
-export interface ThemeColors {
-  primary: string;   
-  secondary: string; 
-  surface: string; // Stores the "Mint" background color
 }
 
 export interface SiteSettings {
@@ -88,21 +72,10 @@ export interface SiteSettings {
     minDays: number;
     percentage: number;
   };
-  advancePaymentPercentage?: number; 
+  advancePaymentPercentage?: number; // Added
   houseRules: string;
   weatherApiKey?: string;
   websiteHits?: number;
-
-  // ✅ NEW: Theme Engine Configuration
-  theme?: {
-    fontPrimary: string;
-    fontSecondary: string;
-    colors: {
-      primary: string; 
-      secondary: string;
-      surface?: string;
-    };
-  };
 }
 
 export interface GalleryItem {
@@ -138,3 +111,50 @@ export interface WeatherData {
   description: string;
   icon: string;
 }
+
+
+// ✅ NEW: Represents a vehicle type offered (e.g., "Toyota Innova")
+export interface CabVehicle {
+  id: string;
+  name: string;          // e.g., "Toyota Etios"
+  vehicleType: string;   // e.g., "Sedan", "SUV", "Tempo Traveller"
+  capacity: number;      // e.g., 4
+  images: string[];      // Array of Supabase URLs
+  features: string[];    // e.g., ["AC", "Carrier", "Music System"]
+  baseRate?: number;     // Optional: For display (e.g. "12" -> "Rs 12/km")
+  active: boolean;
+}
+
+// ✅ UPDATE: Driver (No breaking changes, just preparation)
+// We will eventually link drivers to vehicles in Chunk 5.
+export interface Driver {
+  // ... existing fields ...
+  assignedVehicleId?: string | null; // Optional link to a CabVehicle
+}
+
+// ... (keep existing enums and interfaces) ...
+
+// ✅ NEW: Represents a vehicle type
+export interface CabVehicle {
+  id: string;
+  name: string;          // e.g., "Toyota Etios"
+  vehicleType: string;   // e.g., "Sedan", "SUV"
+  capacity: number;      // e.g., 4
+  images: string[];      // Array of URLs (Supabase)
+  features: string[];    // e.g., ["AC", "Music System"]
+  baseRate?: number;     // Optional base rate for display
+  active: boolean;
+}
+
+export interface Driver {
+  id: string;
+  name: string;
+  phone: string;
+  whatsapp: string;
+  isDefault: boolean;
+  active: boolean;
+  vehicleInfo?: string;
+  assignedVehicleId?: string | null; // ✅ NEW: Optional link
+}
+
+// ... (keep remaining interfaces like SiteSettings, etc.) ...
