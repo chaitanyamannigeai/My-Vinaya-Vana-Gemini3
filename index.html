@@ -12,15 +12,12 @@
 
     <title>Vinaya Vana</title> 
     
-    <script src="https://cdn.tailwindcss.com"></script>
-    
     <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
-              // ❌ OLD WAY: nature: { 50: '#f2fbf5', ... } -> This breaks the engine
-              // ✅ NEW WAY: nature: { 50: 'var(--color-primary-50)', ... } -> This works
+              // Now mapped to Dynamic Variables
               nature: { 
                 50: 'var(--color-primary-50)', 
                 100: 'var(--color-primary-100)', 
@@ -49,6 +46,8 @@
       }
     </script>
 
+    <script src="https://cdn.tailwindcss.com"></script>
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
     
     <style>
@@ -72,6 +71,7 @@
       }
       .goog-te-gadget-simple:hover { background-color: rgba(255, 255, 255, 0.2) !important; border-color: rgba(255, 255, 255, 0.8) !important; }
       
+      /* Force text to use theme variable */
       .goog-te-gadget-simple .goog-te-menu-value,
       .goog-te-gadget-simple .goog-te-menu-value span { 
         color: var(--color-primary-50) !important; 
