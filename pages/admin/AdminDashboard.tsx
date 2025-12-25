@@ -1,4 +1,3 @@
-// pages/admin/AdminDashboard.tsx
 import React, { useState, useEffect } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
@@ -8,12 +7,12 @@ import ImageUploader from '../../components/ui/ImageUploader';
 
 const { useNavigate } = ReactRouterDOM as any;
 
-// ✅ NEW: Theme Presets Configuration with SURFACE Colors
+// ✅ THEME PRESETS with Surface Tint
 const THEME_PRESETS = {
   forest: {
     name: 'Vinaya Original',
     icon: <Trees size={24} />,
-    colors: { primary: '#1d4634', secondary: '#f5ebe1', surface: '#f2fbf5' }, // Original Mint
+    colors: { primary: '#1d4634', secondary: '#f5ebe1', surface: '#f2fbf5' }, // Mint Green
     fonts: { primary: 'Merriweather', secondary: 'Inter' }
   },
   rainy: {
