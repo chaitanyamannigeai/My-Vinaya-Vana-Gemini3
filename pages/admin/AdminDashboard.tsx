@@ -2,10 +2,38 @@ import React, { useState, useEffect } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { Room, Booking, Driver, CabLocation, SiteSettings, PaymentStatus, PricingRule, GalleryItem, Review, CabVehicle } from '../../types';
-import { Settings, Calendar, Truck, Map, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent, Download, MessageCircle, CheckCircle, BarChart2, Activity, Loader, TrendingUp, DollarSign, Clock, Link as LinkIcon, PaintBucket } from 'lucide-react';
+import { Settings, Calendar, Truck, Map, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent, Download, MessageCircle, CheckCircle, BarChart2, Activity, Loader, TrendingUp, DollarSign, Clock, Link as LinkIcon, PaintBucket, CloudRain, Sun, Snowflake, Trees } from 'lucide-react';
 import ImageUploader from '../../components/ui/ImageUploader';
 
 const { useNavigate } = ReactRouterDOM as any;
+
+// ✅ NEW: Theme Presets Configuration
+const THEME_PRESETS = {
+  forest: {
+    name: 'Vinaya Original',
+    icon: <Trees size={24} />,
+    colors: { primary: '#1d4634', secondary: '#f5ebe1' },
+    fonts: { primary: 'Merriweather', secondary: 'Inter' }
+  },
+  rainy: {
+    name: 'Monsoon Mist',
+    icon: <CloudRain size={24} />,
+    colors: { primary: '#334155', secondary: '#f1f5f9' }, // Slate Blue & Cool Grey
+    fonts: { primary: 'Roboto', secondary: 'Open Sans' }
+  },
+  summer: {
+    name: 'Golden Summer',
+    icon: <Sun size={24} />,
+    colors: { primary: '#ca8a04', secondary: '#fefce8' }, // Warm Gold & Yellowish White
+    fonts: { primary: 'Playfair Display', secondary: 'Lato' }
+  },
+  winter: {
+    name: 'Winter Fog',
+    icon: <Snowflake size={24} />,
+    colors: { primary: '#1e293b', secondary: '#f8fafc' }, // Dark Navy & Ghost White
+    fonts: { primary: 'Merriweather', secondary: 'Inter' }
+  }
+};
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -595,14 +623,49 @@ const AdminDashboard = () => {
     </div>
   );
 
-  // ✅ NEW: Theme Settings Panel
+  // ✅ UPDATED: Theme Settings Panel with "Smart Presets"
   const renderThemeSettings = () => (
     <div className="bg-white p-8 rounded-lg shadow max-w-3xl space-y-8">
       <div>
           <h3 className="text-lg font-bold mb-4 border-b pb-2 flex items-center gap-2"><PaintBucket size={20} /> Theme & Branding</h3>
-          <p className="text-sm text-gray-500 mb-6">Customize the look and feel of your website. Changes apply immediately after saving.</p>
+          <p className="text-sm text-gray-500 mb-6">Customize the look and feel of your website. Pick a quick preset or fine-tune manually.</p>
       </div>
 
+      {/* NEW: Quick Presets Section */}
+      <div className="space-y-4">
+        <h4 className="text-sm font-bold text-gray-700 uppercase">Quick Themes (Smart Presets)</h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Object.entries(THEME_PRESETS).map(([key, preset]) => (
+            <button
+              key={key}
+              onClick={() => {
+                setSettings({
+                  ...settings,
+                  theme: {
+                    ...settings.theme,
+                    fontPrimary: preset.fonts.primary,
+                    fontSecondary: preset.fonts.secondary,
+                    colors: { ...preset.colors }
+                  }
+                } as any);
+              }}
+              className="flex flex-col items-center justify-center gap-2 p-4 border rounded-lg hover:border-nature-500 hover:shadow-md transition-all bg-gray-50"
+            >
+              <div className="flex gap-1">
+                <div className="w-6 h-6 rounded-full" style={{ backgroundColor: preset.colors.primary }}></div>
+                <div className="w-6 h-6 rounded-full border border-gray-300" style={{ backgroundColor: preset.colors.secondary }}></div>
+              </div>
+              <div className="text-nature-600">{preset.icon}</div>
+              <span className="text-xs font-bold text-gray-700">{preset.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="border-t border-gray-200 my-6"></div>
+
+      {/* Manual Controls */}
+      <h4 className="text-sm font-bold text-gray-700 uppercase mb-4">Manual Fine-Tuning</h4>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Primary Brand Color</label>
@@ -613,7 +676,7 @@ const AdminDashboard = () => {
                   onChange={(e) => setSettings({ ...settings, theme: { ...settings.theme, colors: { ...settings.theme?.colors, primary: e.target.value } } } as any)}
                   className="h-12 w-24 p-1 border rounded cursor-pointer"
                 />
-                <span className="text-gray-500 font-mono text-sm">{settings.theme?.colors?.primary || '#1d4634'}</span>
+                <span className="text-gray-500 font-mono text-sm uppercase">{settings.theme?.colors?.primary || '#1d4634'}</span>
             </div>
             <p className="text-xs text-gray-400 mt-1">Used for buttons, headers, and key accents.</p>
           </div>
@@ -627,7 +690,7 @@ const AdminDashboard = () => {
                   onChange={(e) => setSettings({ ...settings, theme: { ...settings.theme, colors: { ...settings.theme?.colors, secondary: e.target.value } } } as any)}
                   className="h-12 w-24 p-1 border rounded cursor-pointer"
                 />
-                <span className="text-gray-500 font-mono text-sm">{settings.theme?.colors?.secondary || '#f5ebe1'}</span>
+                <span className="text-gray-500 font-mono text-sm uppercase">{settings.theme?.colors?.secondary || '#f5ebe1'}</span>
             </div>
             <p className="text-xs text-gray-400 mt-1">Used for section backgrounds and subtle highlights.</p>
           </div>
