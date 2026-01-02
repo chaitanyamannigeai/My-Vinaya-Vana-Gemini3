@@ -67,7 +67,7 @@ const About = () => {
              Located in the heart of <strong>Gokarna</strong>, Vinaya Vana is a rare gem offering exclusive access to a <strong>private 1-acre estate</strong>. Unlike crowded hotels, here you wake up to the rustling of coconut palms and the songs of over 20 species of native birds.
            </p>
            <p className="text-gray-600 text-lg leading-relaxed mb-8">
-             We built this space as a tribute to nature—a place where modern luxury meets the raw, untouched beauty of the Konkan coast.
+             We built this space as a tribute to nature—a place where modern luxury meets the raw, untouched beauty of the Karnataka coast.
            </p>
            
            <div className="grid grid-cols-2 gap-6 border-t border-gray-100 pt-8">
@@ -147,5 +147,8 @@ const About = () => {
     </div>
   );
 };
+
+
+
 
 export default About;

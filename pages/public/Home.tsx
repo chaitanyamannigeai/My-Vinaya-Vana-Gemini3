@@ -15,6 +15,12 @@ const Home = () => {
   
   const [showStickyNav, setShowStickyNav] = useState(false);
 
+  // 1. FIX: Calculate the Minimum Price across all rooms
+  const minPrice = rooms.length > 0 
+    ? Math.min(...rooms.map(r => r.basePrice)) 
+    : 0;
+
+  // Optional: You can choose to feature the cheapest room, or keep the first one
   const featuredRoom = rooms[0];
 
   useEffect(() => {
@@ -61,14 +67,11 @@ const Home = () => {
 
   // -------------------------------------------------------------------------
   // 🚀 MODULAR SEO ENGINE
-  // This block dynamically updates Google SEO data based on your Admin Settings.
   // -------------------------------------------------------------------------
   useEffect(() => {
     if (settings) {
-        // 1. Update Page Title
         document.title = settings.siteTitle ? `${settings.siteTitle} | Serenity Among the Palms` : "Vinaya Vana | Luxury Farmhouse";
 
-        // 2. Update Meta Description
         let metaDescription = document.querySelector('meta[name="description"]');
         if (!metaDescription) {
             metaDescription = document.createElement('meta');
@@ -77,7 +80,6 @@ const Home = () => {
         }
         metaDescription.setAttribute('content', settings.siteDescription || "Experience tranquility in our beautiful bungalow surrounded by 1 acre of lush coconut trees.");
 
-        // 3. Inject Structured Data (Schema)
         if (settings.whatsappNumber) {
             const schemaData = {
                 "@context": "https://schema.org",
@@ -86,11 +88,11 @@ const Home = () => {
                 "image": "https://vinayavana.com/social-preview.jpg",
                 "@id": "https://vinayavana.com",
                 "url": "https://vinayavana.com",
-                "telephone": `+91${settings.whatsappNumber}`, // ✅ DYNAMIC FROM DB
+                "telephone": `+91${settings.whatsappNumber}`,
                 "priceRange": "₹₹",
                 "address": {
                     "@type": "PostalAddress",
-                    "streetAddress": settings.address || "Gokarna", // ✅ DYNAMIC FROM DB
+                    "streetAddress": settings.address || "Gokarna",
                     "addressLocality": "Gokarna",
                     "addressRegion": "Karnataka",
                     "postalCode": "581326",
@@ -108,16 +110,12 @@ const Home = () => {
             script.type = 'application/ld+json';
             script.text = JSON.stringify(schemaData);
             script.id = 'dynamic-schema';
-            
-            // Clean up old script to prevent duplicates
             const oldScript = document.getElementById('dynamic-schema');
             if (oldScript) oldScript.remove();
-            
             document.head.appendChild(script);
         }
     }
   }, [settings]);
-  // -------------------------------------------------------------------------
 
   const getYoutubeEmbedUrl = (url: string) => {
     if (!url) return null;
@@ -131,20 +129,16 @@ const Home = () => {
 
   const getWeatherIcon = (iconCode: string) => {
     if (!iconCode) return <Sun size={24} className="text-yellow-400" />;
-    
     if (iconCode.startsWith('01d')) return <Sun size={24} className="text-yellow-400" />; 
     if (iconCode.startsWith('01n')) return <Moon size={24} className="text-blue-200" />; 
-    if (iconCode.startsWith('02d')) return <Cloud size={24} className="text-gray-300" />; 
-    if (iconCode.startsWith('02n')) return <Cloud size={24} className="text-gray-300" />; 
+    if (iconCode.startsWith('02')) return <Cloud size={24} className="text-gray-300" />; 
     if (iconCode.startsWith('03')) return <Cloud size={24} className="text-gray-400" />; 
     if (iconCode.startsWith('04')) return <Cloud size={24} className="text-gray-500" />; 
     if (iconCode.startsWith('09')) return <CloudRain size={24} className="text-blue-400" />; 
-    if (iconCode.startsWith('10d')) return <CloudDrizzle size={24} className="text-blue-400" />; 
-    if (iconCode.startsWith('10n')) return <CloudDrizzle size={24} className="text-blue-400" />; 
+    if (iconCode.startsWith('10')) return <CloudDrizzle size={24} className="text-blue-400" />; 
     if (iconCode.startsWith('11')) return <CloudLightning size={24} className="text-gray-400" />; 
     if (iconCode.startsWith('13')) return <Snowflake size={24} className="text-blue-200" />; 
     if (iconCode.startsWith('50')) return <CloudFog size={24} className="text-gray-400" />; 
-
     return <Sun size={24} className="text-yellow-400" />; 
   }
 
@@ -168,7 +162,6 @@ const Home = () => {
             <span className="text-green-100 font-medium tracking-wide uppercase text-sm">Pure Nature Living</span>
           </div>
           
-          {/* ✅ MODULAR H1: Uses site title from DB, but keeps the SEO structure */}
           <h1 className="text-4xl md:text-6xl font-serif font-bold text-white mb-6 shadow-sm leading-tight">
             {settings.siteTitle || "Vinaya Vana"}: <br className="hidden md:block" /> Serenity Among the Palms
           </h1>
@@ -369,9 +362,10 @@ const Home = () => {
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
             <div className="hidden md:block">
                 <p className="font-serif font-bold text-nature-900 text-lg">{settings.siteTitle || "Vinaya Vana"}</p>
-                {featuredRoom && (
+                {/* ✅ FIX: Correctly displays the minimum starting price */}
+                {rooms.length > 0 && (
                     <p className="text-sm text-gray-500">
-                        Starts from <span className="font-bold text-nature-700">₹{featuredRoom.basePrice.toLocaleString()}</span> / night
+                        Starts from <span className="font-bold text-nature-700">₹{minPrice.toLocaleString()}</span> / night
                     </p>
                 )}
             </div>
