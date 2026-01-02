@@ -110,12 +110,18 @@ const Cabs = () => {
   return (
     <div className="bg-gray-50 min-h-screen pb-20">
       
-      {/* 1. HERO SECTION */}
-      <div className="bg-nature-900 text-white py-24 px-4 text-center relative overflow-hidden">
+      {/* 1. HERO SECTION (Fixed: Added Background Image) */}
+      <div 
+        className="bg-nature-900 text-white py-32 px-4 text-center relative overflow-hidden bg-cover bg-center"
+        style={{ 
+            backgroundImage: "url('https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=1920')",
+            backgroundAttachment: 'fixed'
+        }}
+      >
         <div className="absolute inset-0 bg-black/50 z-0"></div>
-        <div className="relative z-10 max-w-4xl mx-auto">
-            <h1 className="text-3xl md:text-5xl font-serif font-bold mb-6">Explore Gokarna & Beyond</h1>
-            <p className="text-lg md:text-xl text-gray-200 max-w-2xl mx-auto leading-relaxed">
+        <div className="relative z-10 max-w-4xl mx-auto animate-fade-in-up">
+            <h1 className="text-3xl md:text-5xl font-serif font-bold mb-6 drop-shadow-lg">Explore Gokarna & Beyond</h1>
+            <p className="text-lg md:text-xl text-gray-100 max-w-2xl mx-auto leading-relaxed drop-shadow-md">
                 From local sightseeing to airport transfers, travel in comfort with our premium fleet.
             </p>
         </div>
