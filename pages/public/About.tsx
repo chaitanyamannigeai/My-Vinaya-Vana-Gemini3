@@ -19,7 +19,7 @@ const About = () => {
       <div 
         className="relative py-32 px-6 text-center text-white overflow-hidden bg-cover bg-center flex items-center justify-center min-h-[50vh]"
         style={{ 
-          backgroundImage: "url('https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&q=80&w=1920')",
+          backgroundImage: "url('https://dtbhbovaairwroilxcqc.supabase.co/storage/v1/object/public/farmhouse/Property%20Vinaya%20Vana/b_can_you_reduce_the_s.jpeg)",
           backgroundPosition: 'center 40%' 
         }}
       >
@@ -29,7 +29,7 @@ const About = () => {
         <div className="relative z-10 max-w-4xl mx-auto animate-fade-in-up">
           <h1 className="text-4xl md:text-6xl font-serif font-bold mb-4 drop-shadow-lg">Our Story</h1>
           <p className="text-lg md:text-2xl font-light text-gray-100 max-w-2xl mx-auto drop-shadow-md">
-            "Vinaya Vana" translates to <span className="italic font-serif text-white">The Modest Forest</span>
+            "Vinaya Vana" translates to <span className="italic font-serif text-white">The Modest Farm</span>
           </p>
         </div>
       </div>
@@ -45,7 +45,7 @@ const About = () => {
              More Than Just A Stay,<br/> It's A Private Sanctuary.
            </h2>
            <p className="text-gray-600 text-lg leading-relaxed mb-6">
-             Located in the heart of <strong>Gokarna</strong>, Vinaya Vana is a rare gem offering exclusive access to a <strong>private 1-acre estate</strong>. Unlike crowded hotels, here you wake up to the rustling of coconut palms and the songs of over 20 species of native birds.
+             Located near the heart of <strong>Gokarna</strong>, Vinaya Vana is a rare gem offering exclusive access to a <strong>private 1-acre estate</strong>. Unlike crowded hotels, here you wake up to the rustling of coconut palms and the songs of over 20 species of native birds.
            </p>
            <p className="text-gray-600 text-lg leading-relaxed mb-8">
              We built this space as a tribute to nature—a place where modern luxury meets the raw, untouched beauty of the Konkan coast.
@@ -76,12 +76,12 @@ const About = () => {
         {/* CUSTOM IMAGE GRID */}
         <div className="grid grid-cols-2 gap-4 relative">
             <img 
-              src="https://images.unsplash.com/photo-1613553507747-5f8d62ad5904?auto=format&fit=crop&q=80&w=800" 
+              src="https://dtbhbovaairwroilxcqc.supabase.co/storage/v1/object/public/farmhouse/Property%20Vinaya%20Vana/ChatGPT%20Image%20Dec%2020,%202025,%2001_57_26%20PM.png" 
               alt="Vinaya Vana Pathway" 
               className="rounded-2xl shadow-xl w-full h-64 object-cover transform translate-y-8 hover:scale-[1.02] transition-transform duration-500"
             />
             <img 
-              src="https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&q=80&w=800" 
+              src="https://dtbhbovaairwroilxcqc.supabase.co/storage/v1/object/public/farmhouse/accommodation-1_1760336319837.jpg" 
               alt="Luxury Interiors" 
               className="rounded-2xl shadow-xl w-full h-64 object-cover hover:scale-[1.02] transition-transform duration-500"
             />
