@@ -28,13 +28,19 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+            // Allows images from your own domain and external APIs (Weather/Maps)
             "img-src": ["'self'", "data:", "https:", "http:"],
+            // 'unsafe-inline' and 'unsafe-eval' are required for Vite/React to boot
             "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://translate.google.com"],
-            "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"], // ✅ Allows Tailwind/React styles
-            "connect-src": ["'self'", "https://api.openweathermap.org", "http://ip-api.com"] 
+            // CRITICAL: Allows Tailwind and Vite to inject the CSS needed for your layout
+            "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            // Whitelists your database and weather API connections
+            "connect-src": ["'self'", "https://api.openweathermap.org", "http://ip-api.com", "https://*.northflank.app"] 
         },
     },
+    // Required to prevent cross-origin issues with external images (Pichwai art)
     crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
 app.use(cors());
