@@ -19,7 +19,7 @@ const About = () => {
       <div 
         className="relative py-32 px-6 text-center text-white overflow-hidden bg-cover bg-center flex items-center justify-center min-h-[50vh]"
         style={{ 
-          backgroundImage: "url('https://dtbhbovaairwroilxcqc.supabase.co/storage/v1/object/public/farmhouse/Property%20Vinaya%20Vana/b_can_you_reduce_the_s.jpeg)",
+          backgroundImage: "url('https://dtbhbovaairwroilxcqc.supabase.co/storage/v1/object/public/farmhouse/Property%20Vinaya%20Vana/ChatGPT%20Image%20Dec%2020,%202025,%2001_57_26%20PM.png)",
           backgroundPosition: 'center 40%' 
         }}
       >
@@ -29,7 +29,7 @@ const About = () => {
         <div className="relative z-10 max-w-4xl mx-auto animate-fade-in-up">
           <h1 className="text-4xl md:text-6xl font-serif font-bold mb-4 drop-shadow-lg">Our Story</h1>
           <p className="text-lg md:text-2xl font-light text-gray-100 max-w-2xl mx-auto drop-shadow-md">
-            "Vinaya Vana" translates to <span className="italic font-serif text-white">The Modest Farm</span>
+            "Vinaya Vana" translates to <span className="italic font-serif text-white">The Modest Grove</span>
           </p>
         </div>
       </div>
