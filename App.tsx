@@ -7,6 +7,7 @@ import Home from './pages/public/Home';
 import Accommodation from './pages/public/Accommodation';
 import Availability from './pages/public/Availability'; 
 import Gallery from './pages/public/Gallery';
+import About from './pages/public/About'; // <--- Add this line
 import Contact from './pages/public/Contact';
 import Cabs from './pages/public/Cabs';
 import Tariff from './pages/public/Tariff';
@@ -47,6 +48,7 @@ function App() {
             <Route path="/accommodation" element={<Accommodation />} />
             <Route path="/availability" element={<Availability />} />
             <Route path="/gallery" element={<Gallery />} />
+            <Route path="/about" element={<About />} />  {/* <--- Add this line */}
             <Route path="/contact" element={<Contact />} />
             <Route path="/cabs" element={<Cabs />} />
             <Route path="/tariff" element={<Tariff />} />
@@ -58,6 +60,7 @@ function App() {
             
             <Route path="/admin/login" element={<Login />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            
           </Routes>
         </main>
 

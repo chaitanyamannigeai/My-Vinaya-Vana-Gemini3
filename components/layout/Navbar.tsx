@@ -4,16 +4,19 @@ import { Menu, X, Globe } from 'lucide-react';
 import GoogleTranslate from '../ui/GoogleTranslate';
 import Logo from '../ui/Logo';
 
+// ✅ SAFE PATTERN: Preserved from your working code
 const { Link, useLocation } = ReactRouterDOM as any;
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
 
+  // ✅ UPDATED MENU: Added "Our Story" (About Us)
   const navLinks = [
     { name: 'Home', path: '/' },
+    { name: 'Our Story', path: '/about' }, // <--- NEW LINK ADDED HERE
     { name: 'Accommodation', path: '/accommodation' },
-    { name: 'Availability', path: '/availability' }, // New Link
+    { name: 'Availability', path: '/availability' },
     { name: 'Gallery', path: '/gallery' },
     { name: 'Tariff', path: '/tariff' },
     { name: 'Cab Services', path: '/cabs' },
