@@ -12,8 +12,8 @@ const Cabs = () => {
   const [activeImages, setActiveImages] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    // 🚀 SEO: Set Meta Tags for Cabs Page
-    document.title = "Taxi Services in Gokarna | Airport Pickup & Sightseeing - Vinaya Vana";
+    // 🚀 SEO: Set Meta Tags
+    document.title = "Taxi Services in Gokarna | Airport Pickup & Sightseeing";
     const metaDesc = document.querySelector('meta[name="description"]');
     if (metaDesc) {
         metaDesc.setAttribute('content', 'Book reliable cabs in Gokarna for sightseeing, airport transfers, and local drops. Premium fleet, verified drivers, and transparent pricing.');
@@ -41,7 +41,6 @@ const Cabs = () => {
     fetchData();
   }, []);
 
-  // --- SMART GROUPING (Preserved Logic) ---
   const { sightseeing, transfers, localDrops } = useMemo(() => {
       const groups: Record<string, CabLocation[]> = {};
       locations.forEach(loc => {
@@ -137,10 +136,10 @@ const Cabs = () => {
                              return (
                                  <div key={v.id} className="border rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-gray-50 group">
                                      <div className="h-40 overflow-hidden relative">
-                                         {/* 🚀 SEO FIX: Added Alt Tag & Lazy Loading */}
+                                         {/* 🚀 SEO FIX: Added Meaningful Alt Tag + Lazy Loading */}
                                          <img 
                                             src={activeImg} 
-                                            alt={`${v.name} - ${v.vehicleType} Taxi in Gokarna`}
+                                            alt={`${v.name} - ${v.vehicleType} Taxi in Gokarna`} 
                                             loading="lazy"
                                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
                                          />
@@ -150,7 +149,6 @@ const Cabs = () => {
                                      {v.images && v.images.length > 1 && (
                                           <div className="flex gap-1 p-1 bg-white overflow-x-auto">
                                               {v.images.map((img, i) => (
-                                                  // 🚀 SEO FIX: Added Alt Tag to Thumbnails
                                                   <img 
                                                     key={i} 
                                                     src={img} 
@@ -195,14 +193,13 @@ const Cabs = () => {
                       {Object.keys(sightseeing).map(name => {
                           const variants = sightseeing[name];
                           const mainDesc = variants[0].description;
-                          
                           return (
                               <div key={name} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 flex flex-col md:flex-row group hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                                   <div className="md:w-1/3 h-56 md:h-auto relative overflow-hidden">
-                                      {/* 🚀 SEO FIX: Added Alt Tag for Packages */}
+                                      {/* 🚀 SEO FIX: Added Alt Tag */}
                                       <img 
                                         src={variants[0].imageUrl} 
-                                        alt={`Sightseeing Package: ${name} in Gokarna`}
+                                        alt={`Sightseeing Package: ${name} Gokarna`}
                                         loading="lazy"
                                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
                                       />
@@ -210,7 +207,6 @@ const Cabs = () => {
                                           <h3 className="text-white font-bold text-2xl">{name}</h3>
                                       </div>
                                   </div>
-
                                   <div className="p-6 md:w-2/3 flex flex-col">
                                       <div className="mb-6">
                                           <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-2">Places Covered</h4>
@@ -231,9 +227,6 @@ const Cabs = () => {
                                                           <div className="text-lg font-bold text-gray-800">₹{v.price}</div>
                                                           <div className="text-[10px] text-gray-400">
                                                               {vehicle ? vehicle.name : 'View'}
-                                                          </div>
-                                                          <div className="absolute bottom-1 right-1 opacity-0 group-hover/btn:opacity-100 transition-opacity text-nature-600">
-                                                              <MessageCircle size={14} />
                                                           </div>
                                                       </div>
                                                   )
@@ -258,19 +251,17 @@ const Cabs = () => {
                           <p className="text-gray-500 text-sm">Reliable pick-up and drop services</p>
                       </div>
                   </div>
-
                   <div className="grid gap-8">
                       {Object.keys(transfers).map(name => {
                           const variants = transfers[name];
                           const mainDesc = variants[0].description;
-                          
                           return (
                               <div key={name} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 flex flex-col md:flex-row group hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                                   <div className="md:w-1/3 h-56 md:h-auto relative overflow-hidden">
-                                      {/* 🚀 SEO FIX: Added Alt Tag for Transfers */}
+                                      {/* 🚀 SEO FIX: Added Alt Tag */}
                                       <img 
                                         src={variants[0].imageUrl} 
-                                        alt={`Transfer Service: ${name}`}
+                                        alt={`Airport Transfer: ${name}`}
                                         loading="lazy"
                                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
                                       />
@@ -278,7 +269,6 @@ const Cabs = () => {
                                           <h3 className="text-white font-bold text-2xl">{name}</h3>
                                       </div>
                                   </div>
-
                                   <div className="p-6 md:w-2/3 flex flex-col">
                                       <div className="mb-6">
                                           <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-2">Service Details</h4>
@@ -299,9 +289,6 @@ const Cabs = () => {
                                                           <div className="text-lg font-bold text-gray-800">₹{v.price}</div>
                                                           <div className="text-[10px] text-gray-400">
                                                               {vehicle ? vehicle.name : 'View'}
-                                                          </div>
-                                                          <div className="absolute bottom-1 right-1 opacity-0 group-hover/btn:opacity-100 transition-opacity text-blue-600">
-                                                              <MessageCircle size={14} />
                                                           </div>
                                                       </div>
                                                   )
@@ -326,12 +313,10 @@ const Cabs = () => {
                           <p className="text-gray-500 text-sm">Quick rides to beaches and temples</p>
                       </div>
                   </div>
-                  
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       {Object.keys(localDrops).map(name => {
                           const variants = localDrops[name];
                           const startPrice = variants[0].price;
-                          
                           return (
                               <div key={name} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
                                   <h3 className="font-bold text-gray-800 text-lg mb-1">{name}</h3>

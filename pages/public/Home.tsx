@@ -15,6 +15,7 @@ const Home = () => {
   
   const [showStickyNav, setShowStickyNav] = useState(false);
 
+  // ✅ PRICE FIX: Automatically find the lowest price
   const minPrice = rooms.length > 0 
     ? Math.min(...rooms.map(r => r.basePrice)) 
     : 0;
@@ -349,6 +350,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
             <div className="hidden md:block">
                 <p className="font-serif font-bold text-nature-900 text-lg">{settings.siteTitle || "Vinaya Vana"}</p>
+                {/* ✅ PRICE FIX: Displays lowest starting price correctly */}
                 {rooms.length > 0 && (
                     <p className="text-sm text-gray-500">
                         Starts from <span className="font-bold text-nature-700">₹{minPrice.toLocaleString()}</span> / night
