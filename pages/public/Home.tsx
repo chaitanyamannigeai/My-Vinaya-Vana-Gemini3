@@ -15,12 +15,10 @@ const Home = () => {
   
   const [showStickyNav, setShowStickyNav] = useState(false);
 
-  // 1. FIX: Calculate the Minimum Price across all rooms
   const minPrice = rooms.length > 0 
     ? Math.min(...rooms.map(r => r.basePrice)) 
     : 0;
 
-  // Optional: You can choose to feature the cheapest room, or keep the first one
   const featuredRoom = rooms[0];
 
   useEffect(() => {
@@ -65,13 +63,10 @@ const Home = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // -------------------------------------------------------------------------
-  // 🚀 MODULAR SEO ENGINE
-  // -------------------------------------------------------------------------
+  // SEO ENGINE Logic (Preserved)
   useEffect(() => {
     if (settings) {
         document.title = settings.siteTitle ? `${settings.siteTitle} | Serenity Among the Palms` : "Vinaya Vana | Luxury Farmhouse";
-
         let metaDescription = document.querySelector('meta[name="description"]');
         if (!metaDescription) {
             metaDescription = document.createElement('meta');
@@ -105,7 +100,6 @@ const Home = () => {
                 },
                 "description": settings.siteDescription || "Premium farmhouse stay in Gokarna."
             };
-
             const script = document.createElement('script');
             script.type = 'application/ld+json';
             script.text = JSON.stringify(schemaData);
@@ -124,9 +118,7 @@ const Home = () => {
     const id = (match && match[1]) ? match[1] : null;
     return id ? `https://www.youtube.com/embed/${id}` : null;
   };
-
   const videoEmbedUrl = getYoutubeEmbedUrl(settings.youtubeVideoUrl);
-
   const getWeatherIcon = (iconCode: string) => {
     if (!iconCode) return <Sun size={24} className="text-yellow-400" />;
     if (iconCode.startsWith('01d')) return <Sun size={24} className="text-yellow-400" />; 
@@ -141,13 +133,12 @@ const Home = () => {
     if (iconCode.startsWith('50')) return <CloudFog size={24} className="text-gray-400" />; 
     return <Sun size={24} className="text-yellow-400" />; 
   }
-
   const whatsappLink = `https://wa.me/${settings.whatsappNumber || '919999999999'}?text=Hi, I am interested in booking a stay at Vinaya Vana.`;
 
   return (
     <div className="flex flex-col min-h-screen pb-20 md:pb-0"> 
       
-      {/* Dynamic Hero Section */}
+      {/* Hero Section */}
       <div 
         className="relative h-[85vh] bg-cover bg-center flex items-center justify-center transition-all duration-1000"
         style={{ 
@@ -161,16 +152,12 @@ const Home = () => {
             <Palmtree className="text-green-300 mr-2" />
             <span className="text-green-100 font-medium tracking-wide uppercase text-sm">Pure Nature Living</span>
           </div>
-          
           <h1 className="text-4xl md:text-6xl font-serif font-bold text-white mb-6 shadow-sm leading-tight">
             {settings.siteTitle || "Vinaya Vana"}: <br className="hidden md:block" /> Serenity Among the Palms
           </h1>
-
           <p className="text-xl md:text-2xl text-nature-50 mb-10 font-light leading-relaxed">
             {settings.siteDescription || "Experience tranquility in our beautiful bungalow surrounded by 1 acre of lush coconut and betelnut trees."}
           </p>
-          
-          {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link 
               to="/accommodation" 
@@ -178,7 +165,6 @@ const Home = () => {
             >
               Check Availability <ArrowRight size={20} />
             </Link>
-            
             <a 
               href={whatsappLink}
               target="_blank"
@@ -188,8 +174,6 @@ const Home = () => {
               Chat on WhatsApp <MessageCircle size={20} />
             </a>
           </div>
-          
-          {/* Weather Widget */}
           {settings.weatherApiKey && (
               <div className="mt-8 flex justify-center">
                   {weatherLoading ? (
@@ -220,7 +204,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Features/Intro */}
+      {/* Features */}
       <div className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-serif font-bold text-nature-900 mb-16 relative inline-block">
@@ -253,7 +237,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* YouTube Video Section */}
+      {/* Video */}
       {videoEmbedUrl && (
           <div className="py-16 bg-nature-900">
               <div className="max-w-5xl mx-auto px-4 text-center">
@@ -262,11 +246,13 @@ const Home = () => {
                       <span className="text-nature-200 text-sm uppercase tracking-widest">Experience Vinaya Vana</span>
                   </div>
                   <div className="aspect-w-16 aspect-h-9 rounded-2xl overflow-hidden shadow-2xl border-4 border-nature-800 bg-black">
+                      {/* 🚀 SEO FIX: Added Lazy Loading to Iframe */}
                       <iframe 
                           className="w-full h-[500px]"
                           src={videoEmbedUrl} 
                           title="Vinaya Vana Video" 
                           frameBorder="0" 
+                          loading="lazy"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                           allowFullScreen
                       ></iframe>
@@ -275,14 +261,13 @@ const Home = () => {
           </div>
       )}
 
-      {/* Guest Reviews */}
+      {/* Reviews */}
       <div className="py-20 bg-earth-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
                 <h2 className="text-3xl md:text-4xl font-serif font-bold text-nature-900 mb-4">What Our Guests Say</h2>
                 <p className="text-gray-600 text-lg">Experiences shared by those who've stayed with us.</p>
             </div>
-            
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {reviews.length > 0 ? (
                     reviews.slice(0, 3).map((review) => (
@@ -315,15 +300,17 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Featured Accommodation Teaser */}
+      {/* Featured Room */}
       {featuredRoom && (
         <div className="py-20 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row items-center gap-12 bg-nature-50 rounded-3xl overflow-hidden shadow-xl">
               <div className="md:w-1/2 h-64 md:h-auto self-stretch relative">
+                {/* 🚀 SEO FIX: Added Alt Tag & Lazy Loading */}
                 <img 
                   src={featuredRoom.images[0]} 
-                  alt={featuredRoom.name} 
+                  alt={`Luxury stay at Vinaya Vana: ${featuredRoom.name}`}
+                  loading="lazy"
                   className="absolute inset-0 w-full h-full object-cover"
                 />
               </div>
@@ -353,7 +340,7 @@ const Home = () => {
         </div>
       )}
 
-      {/* Sticky Mobile/Desktop Booking Bar */}
+      {/* Sticky Bar */}
       <div 
         className={`fixed bottom-0 left-0 right-0 z-50 p-4 bg-white/95 backdrop-blur-md border-t border-nature-100 shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] transition-transform duration-500 ease-in-out ${
             showStickyNav ? 'translate-y-0' : 'translate-y-[150%]'
@@ -362,14 +349,12 @@ const Home = () => {
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
             <div className="hidden md:block">
                 <p className="font-serif font-bold text-nature-900 text-lg">{settings.siteTitle || "Vinaya Vana"}</p>
-                {/* ✅ FIX: Correctly displays the minimum starting price */}
                 {rooms.length > 0 && (
                     <p className="text-sm text-gray-500">
                         Starts from <span className="font-bold text-nature-700">₹{minPrice.toLocaleString()}</span> / night
                     </p>
                 )}
             </div>
-            
             <div className="flex gap-3 w-full md:w-auto">
                  <a 
                   href={whatsappLink}
@@ -381,7 +366,6 @@ const Home = () => {
                   <span className="hidden sm:inline">WhatsApp</span>
                   <span className="sm:hidden">Chat</span>
                 </a>
-                
                 <Link 
                   to="/accommodation" 
                   className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-nature-800 hover:bg-nature-900 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md"
@@ -392,7 +376,6 @@ const Home = () => {
             </div>
         </div>
       </div>
-
     </div>
   );
 };

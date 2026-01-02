@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { CabLocation, Driver, SiteSettings, CabVehicle } from '../../types';
-import { MapPin, Phone, MessageCircle, Navigation, Car, ShieldCheck, Music, Wind, Briefcase, Users, Fuel, Star, Check, Plane, Train, Map } from 'lucide-react';
+import { MapPin, MessageCircle, Car, Map, Plane } from 'lucide-react';
 
 const Cabs = () => {
   const [locations, setLocations] = useState<CabLocation[]>([]);
@@ -9,11 +9,17 @@ const Cabs = () => {
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
   const [vehicles, setVehicles] = useState<CabVehicle[]>([]); 
   const [loading, setLoading] = useState(true);
-
-  // Track active image for each vehicle card (for mini-gallery)
   const [activeImages, setActiveImages] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    // 🚀 SEO: Set Meta Tags for Cabs Page
+    document.title = "Taxi Services in Gokarna | Airport Pickup & Sightseeing - Vinaya Vana";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+        metaDesc.setAttribute('content', 'Book reliable cabs in Gokarna for sightseeing, airport transfers, and local drops. Premium fleet, verified drivers, and transparent pricing.');
+    }
+    window.scrollTo(0, 0);
+
     const fetchData = async () => {
         try {
             const [fetchedLocs, fetchedDrivers, fetchedSettings, fetchedVehicles] = await Promise.all([
@@ -35,27 +41,20 @@ const Cabs = () => {
     fetchData();
   }, []);
 
-  // --- SMART GROUPING & CATEGORIZATION ---
+  // --- SMART GROUPING (Preserved Logic) ---
   const { sightseeing, transfers, localDrops } = useMemo(() => {
       const groups: Record<string, CabLocation[]> = {};
-      
-      // 1. Group by Name
       locations.forEach(loc => {
           const trimmedName = loc.name.trim();
           if (!groups[trimmedName]) groups[trimmedName] = [];
           groups[trimmedName].push(loc);
       });
-
-      // 2. Sort variants by price
       Object.keys(groups).forEach(key => {
           groups[key].sort((a, b) => (a.price || 0) - (b.price || 0));
       });
-
       const sightseeing: Record<string, CabLocation[]> = {};
       const transfers: Record<string, CabLocation[]> = {};
       const localDrops: Record<string, CabLocation[]> = {};
-
-      // 3. Categorize based on keywords
       Object.keys(groups).forEach(name => {
           const lowerName = name.toLowerCase();
           if (lowerName.includes('sightseeing') || lowerName.includes('tour') || lowerName.includes('package')) {
@@ -66,18 +65,14 @@ const Cabs = () => {
               localDrops[name] = groups[name];
           }
       });
-
       return { sightseeing, transfers, localDrops };
   }, [locations]);
 
-  // Helpers
   const defaultDriver = drivers.find(d => d.isDefault) || drivers[0];
-  
   const getDriverForLocation = (loc: CabLocation) => {
       if (loc.driverId) return drivers.find(d => d.id === loc.driverId);
       return defaultDriver;
   };
-
   const getVehicleForLocation = (loc: CabLocation) => {
       const driver = getDriverForLocation(loc);
       if (!driver || !driver.assignedVehicleId) return null;
@@ -97,11 +92,9 @@ const Cabs = () => {
       const vehicle = getVehicleForLocation(loc);
       const rawNumber = driver?.whatsapp || settings.whatsappNumber;
       const cleanNumber = rawNumber?.replace(/[^0-9]/g, '');
-
       let text = `Hello, I would like to book the *${loc.name}*. Price mentioned is ₹${loc.price}.`;
       if (vehicleName) text += ` Preferred Vehicle: ${vehicleName}.`;
       else if (vehicle) text += ` Vehicle: ${vehicle.name} (${vehicle.capacity} Seater).`;
-
       window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -144,14 +137,28 @@ const Cabs = () => {
                              return (
                                  <div key={v.id} className="border rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-gray-50 group">
                                      <div className="h-40 overflow-hidden relative">
-                                         <img src={activeImg} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                                         {/* 🚀 SEO FIX: Added Alt Tag & Lazy Loading */}
+                                         <img 
+                                            src={activeImg} 
+                                            alt={`${v.name} - ${v.vehicleType} Taxi in Gokarna`}
+                                            loading="lazy"
+                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                                         />
                                          <div className="absolute bottom-0 left-0 bg-black/60 text-white text-xs px-2 py-1">{v.vehicleType}</div>
                                      </div>
                                      {/* Mini Gallery */}
                                      {v.images && v.images.length > 1 && (
                                           <div className="flex gap-1 p-1 bg-white overflow-x-auto">
                                               {v.images.map((img, i) => (
-                                                  <img key={i} src={img} className={`w-8 h-8 rounded cursor-pointer border ${activeImg === img ? 'border-nature-600' : 'border-gray-200'}`} onClick={() => handleImageClick(v.id, img)} />
+                                                  // 🚀 SEO FIX: Added Alt Tag to Thumbnails
+                                                  <img 
+                                                    key={i} 
+                                                    src={img} 
+                                                    alt={`${v.name} view ${i + 1}`}
+                                                    loading="lazy"
+                                                    className={`w-8 h-8 rounded cursor-pointer border ${activeImg === img ? 'border-nature-600' : 'border-gray-200'}`} 
+                                                    onClick={() => handleImageClick(v.id, img)} 
+                                                  />
                                               ))}
                                           </div>
                                       )}
@@ -173,7 +180,7 @@ const Cabs = () => {
               </div>
           )}
 
-          {/* 3. SIGHTSEEING PACKAGES (3D HOVER ADDED) */}
+          {/* 3. SIGHTSEEING PACKAGES */}
           {Object.keys(sightseeing).length > 0 && (
               <div className="animate-fade-in">
                   <div className="flex items-center gap-3 mb-8">
@@ -191,15 +198,19 @@ const Cabs = () => {
                           
                           return (
                               <div key={name} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 flex flex-col md:flex-row group hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                                  {/* Image Section */}
                                   <div className="md:w-1/3 h-56 md:h-auto relative overflow-hidden">
-                                      <img src={variants[0].imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                                      {/* 🚀 SEO FIX: Added Alt Tag for Packages */}
+                                      <img 
+                                        src={variants[0].imageUrl} 
+                                        alt={`Sightseeing Package: ${name} in Gokarna`}
+                                        loading="lazy"
+                                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                                      />
                                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-6">
                                           <h3 className="text-white font-bold text-2xl">{name}</h3>
                                       </div>
                                   </div>
 
-                                  {/* Info Section */}
                                   <div className="p-6 md:w-2/3 flex flex-col">
                                       <div className="mb-6">
                                           <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-2">Places Covered</h4>
@@ -207,8 +218,6 @@ const Cabs = () => {
                                               {mainDesc || 'Contact us for a detailed itinerary of this package.'}
                                           </p>
                                       </div>
-
-                                      {/* Pricing Grid */}
                                       <div className="mt-auto">
                                           <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-3">Tariff Chart</h4>
                                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -239,7 +248,7 @@ const Cabs = () => {
               </div>
           )}
 
-          {/* 4. AIRPORT & TRANSFERS (3D HOVER ADDED) */}
+          {/* 4. AIRPORT & TRANSFERS */}
           {Object.keys(transfers).length > 0 && (
               <div className="animate-fade-in">
                   <div className="flex items-center gap-3 mb-8">
@@ -257,15 +266,19 @@ const Cabs = () => {
                           
                           return (
                               <div key={name} className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 flex flex-col md:flex-row group hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                                  {/* Image Section */}
                                   <div className="md:w-1/3 h-56 md:h-auto relative overflow-hidden">
-                                      <img src={variants[0].imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                                      {/* 🚀 SEO FIX: Added Alt Tag for Transfers */}
+                                      <img 
+                                        src={variants[0].imageUrl} 
+                                        alt={`Transfer Service: ${name}`}
+                                        loading="lazy"
+                                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                                      />
                                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-6">
                                           <h3 className="text-white font-bold text-2xl">{name}</h3>
                                       </div>
                                   </div>
 
-                                  {/* Info Section */}
                                   <div className="p-6 md:w-2/3 flex flex-col">
                                       <div className="mb-6">
                                           <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-2">Service Details</h4>
@@ -273,8 +286,6 @@ const Cabs = () => {
                                               {mainDesc || 'One-way drop or pickup. Tolls and parking included.'}
                                           </p>
                                       </div>
-
-                                      {/* Pricing Grid */}
                                       <div className="mt-auto">
                                           <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-3">Vehicle Options & Rates</h4>
                                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -305,7 +316,7 @@ const Cabs = () => {
               </div>
           )}
 
-          {/* 5. LOCAL DROPS (Standard Grid) */}
+          {/* 5. LOCAL DROPS */}
           {Object.keys(localDrops).length > 0 && (
               <div className="animate-fade-in">
                   <div className="flex items-center gap-3 mb-6">
@@ -319,7 +330,6 @@ const Cabs = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       {Object.keys(localDrops).map(name => {
                           const variants = localDrops[name];
-                          // Simple drop logic: Show starting price
                           const startPrice = variants[0].price;
                           
                           return (
