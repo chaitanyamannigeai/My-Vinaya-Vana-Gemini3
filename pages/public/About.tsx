@@ -1,26 +1,45 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { Palmtree, Wind, MapPin, Bird, Sun, ShieldCheck, Heart } from 'lucide-react';
+import { api, DEFAULT_SETTINGS } from '../../services/api'; // ✅ Import API
+import { SiteSettings } from '../../types'; // ✅ Import Types
 
 // ✅ SAFE PATTERN: Preserved from your working code
 const { Link } = ReactRouterDOM as any;
 
 const About = () => {
+  // 1. Setup State for Admin Settings
+  const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
+
   useEffect(() => {
     document.title = "Our Story | Vinaya Vana Farmhouse";
     window.scrollTo(0, 0);
+
+    // 2. Fetch Settings from Backend (Admin Dashboard Data)
+    const fetchSettings = async () => {
+        try {
+            const data = await api.settings.get();
+            setSettings(data);
+        } catch (e) {
+            console.error("Failed to load settings for About page", e);
+        }
+    };
+    fetchSettings();
   }, []);
+
+  // 3. Define the Hero Image (Admin Variable -> Fallback Image)
+  const heroImage = settings.heroImageUrl || "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&q=80&w=1920";
 
   return (
     <div className="bg-white min-h-screen">
       
-      {/* 1. HERO SECTION (Synced with Accommodation Page Style) */}
-      {/* Custom Image: A lush coconut grove to match 'Vinaya Vana' theme */}
+      {/* HERO SECTION */}
       <div 
-        className="relative py-32 px-6 text-center text-white overflow-hidden bg-cover bg-center flex items-center justify-center min-h-[50vh]"
+        className="relative py-32 px-6 text-center text-white overflow-hidden bg-nature-900 bg-cover bg-center flex items-center justify-center min-h-[50vh]"
         style={{ 
-          backgroundImage: "url('https://dtbhbovaairwroilxcqc.supabase.co/storage/v1/object/public/farmhouse/Property%20Vinaya%20Vana/ChatGPT%20Image%20Dec%2020,%202025,%2001_57_26%20PM.png)",
-          backgroundPosition: 'center 40%' 
+          // ✅ DYNAMIC: Uses the variable from your Admin Dashboard
+          backgroundImage: `url('${heroImage}')`,
+          backgroundPosition: 'center center' 
         }}
       >
         {/* Dark Overlay for Text Readability */}
@@ -29,12 +48,12 @@ const About = () => {
         <div className="relative z-10 max-w-4xl mx-auto animate-fade-in-up">
           <h1 className="text-4xl md:text-6xl font-serif font-bold mb-4 drop-shadow-lg">Our Story</h1>
           <p className="text-lg md:text-2xl font-light text-gray-100 max-w-2xl mx-auto drop-shadow-md">
-            "Vinaya Vana" translates to <span className="italic font-serif text-white">The Modest Grove</span>
+            "{settings.siteTitle || 'Vinaya Vana'}" translates to <span className="italic font-serif text-white">The Modest Forest</span>
           </p>
         </div>
       </div>
 
-      {/* 2. THE EXPERIENCE */}
+      {/* THE EXPERIENCE */}
       <div className="max-w-7xl mx-auto px-6 py-20 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
         <div>
            <div className="flex items-center gap-2 mb-4">
@@ -45,7 +64,7 @@ const About = () => {
              More Than Just A Stay,<br/> It's A Private Sanctuary.
            </h2>
            <p className="text-gray-600 text-lg leading-relaxed mb-6">
-             Located near the heart of <strong>Gokarna</strong>, Vinaya Vana is a rare gem offering exclusive access to a <strong>private 1-acre estate</strong>. Unlike crowded hotels, here you wake up to the rustling of coconut palms and the songs of over 20 species of native birds.
+             Located in the heart of <strong>Gokarna</strong>, Vinaya Vana is a rare gem offering exclusive access to a <strong>private 1-acre estate</strong>. Unlike crowded hotels, here you wake up to the rustling of coconut palms and the songs of over 20 species of native birds.
            </p>
            <p className="text-gray-600 text-lg leading-relaxed mb-8">
              We built this space as a tribute to nature—a place where modern luxury meets the raw, untouched beauty of the Konkan coast.
@@ -88,7 +107,7 @@ const About = () => {
         </div>
       </div>
 
-      {/* 3. LOCATION HIGHLIGHTS (Styled as Cards) */}
+      {/* LOCATION HIGHLIGHTS */}
       <div className="bg-nature-50 py-24">
          <div className="max-w-7xl mx-auto px-6 text-center">
             <h2 className="text-3xl font-serif font-bold text-gray-900 mb-12">Peaceful, Yet Connected</h2>
@@ -112,7 +131,7 @@ const About = () => {
          </div>
       </div>
 
-      {/* 4. CTA */}
+      {/* CTA */}
       <div className="py-24 text-center px-6 bg-white relative overflow-hidden">
           <div className="relative z-10">
             <Heart className="w-12 h-12 text-nature-600 mx-auto mb-6 animate-pulse" />
