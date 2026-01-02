@@ -9,7 +9,6 @@ export default defineConfig({
   // ✅ CRITICAL: Explicitly tells Vite files are in the root directory
   root: '.', 
   server: {
-    // ✅ PRESERVED: Your existing API proxy settings
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
