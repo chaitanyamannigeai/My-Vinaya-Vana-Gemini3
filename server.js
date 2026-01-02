@@ -28,12 +28,13 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-            "img-src": ["'self'", "data:", "https:", "http:"], // Whitelists external images (Pichwai art/External URLs)
-            "script-src": ["'self'", "'unsafe-inline'", "https://translate.google.com"], // Whitelists Google Translate
-            "connect-src": ["'self'", "https://api.openweathermap.org", "http://ip-api.com"] // Whitelists API calls
+            "img-src": ["'self'", "data:", "https:", "http:"],
+            "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://translate.google.com"],
+            "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"], // ✅ Allows Tailwind/React styles
+            "connect-src": ["'self'", "https://api.openweathermap.org", "http://ip-api.com"] 
         },
     },
-    crossOriginEmbedderPolicy: false, // Set to false to allow external image loading if needed
+    crossOriginEmbedderPolicy: false,
 }));
 
 app.use(cors());

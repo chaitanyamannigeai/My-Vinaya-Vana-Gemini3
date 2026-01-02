@@ -4,7 +4,9 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // ✅ CRITICAL ADDITION: Explicitly tells Vite files are in the root directory
+  // ✅ FIX: Ensures all assets (CSS/JS) are linked from the root directory
+  base: '/', 
+  // ✅ CRITICAL: Explicitly tells Vite files are in the root directory
   root: '.', 
   server: {
     // ✅ PRESERVED: Your existing API proxy settings
