@@ -110,12 +110,13 @@ const Cabs = () => {
   return (
     <div className="bg-gray-50 min-h-screen pb-20">
       
-      {/* 1. HERO SECTION (Fixed: Added Background Image) */}
+      {/* 1. HERO SECTION (Fixed: Uses Admin Hero Image for Consistency) */}
       <div 
-        className="bg-nature-900 text-white py-32 px-4 text-center relative overflow-hidden bg-cover bg-center"
+        className="relative py-32 px-6 text-center text-white overflow-hidden bg-nature-900 bg-cover bg-center flex items-center justify-center min-h-[50vh]"
         style={{ 
-            backgroundImage: "url('https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=1920')",
-            backgroundAttachment: 'fixed'
+            // ✅ NOW USES YOUR ADMIN SETTING (Matches Home/About)
+            backgroundImage: `url('${settings.heroImageUrl || "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&q=80&w=1920"}')`,
+            backgroundPosition: 'center 40%' 
         }}
       >
         <div className="absolute inset-0 bg-black/50 z-0"></div>
