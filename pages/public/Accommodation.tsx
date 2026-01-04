@@ -12,7 +12,6 @@ declare global {
   }
 }
 
-// --- HELPER: Safe Local Date Formatting ---
 const formatDateLocal = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -20,19 +19,14 @@ const formatDateLocal = (date: Date) => {
     return `${year}-${month}-${day}`;
 };
 
-// --- HELPER: Normalize Date Strings (FIXES THE BUG) ---
 const normalizeDate = (dateInput: any) => {
     if (!dateInput) return '';
-    
-    // FIX 1: Handle Date objects using LOCAL time (prevents timezone shifts)
     if (dateInput instanceof Date) {
         const year = dateInput.getFullYear();
         const month = String(dateInput.getMonth() + 1).padStart(2, '0');
         const day = String(dateInput.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
     }
-    
-    // FIX 2: Regex to extract YYYY-MM-DD from ANY string format (handles "T" and " " separators)
     const str = String(dateInput);
     const match = str.match(/^(\d{4}-\d{2}-\d{2})/);
     return match ? match[1] : '';
@@ -51,6 +45,7 @@ const getAmenityIcon = (amenity: string) => {
     return <CheckCircle size={16} />;
 };
 
+// 🚀 SEO FIX: Added Lazy Loading & Better Alt Tags to Carousel
 const RoomCarousel = ({ images, name }: { images: string[], name: string }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -68,7 +63,8 @@ const RoomCarousel = ({ images, name }: { images: string[], name: string }) => {
         <div className="relative h-64 sm:h-72 overflow-hidden group">
             <img 
                 src={images[currentIndex]} 
-                alt={`${name} view ${currentIndex + 1}`} 
+                alt={`Accommodation in Gokarna - ${name} - View ${currentIndex + 1}`} 
+                loading="lazy"
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
             />
             {images.length > 1 && (
@@ -118,6 +114,13 @@ const Accommodation = () => {
   const location = useLocation();
 
   useEffect(() => {
+    // 🚀 SEO: Set Meta Tags for Accommodation Page
+    document.title = "Luxury Accommodation in Gokarna | 2BHK Farmhouse Suites - Vinaya Vana";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+        metaDesc.setAttribute('content', 'Book your stay at Vinaya Vana. Spacious 2BHK suites with private balconies, kitchen, and AC. Perfect for families and couples visiting Gokarna.');
+    }
+
     const fetchData = async () => {
       try {
         const [fetchedRooms, fetchedSettings, fetchedRules, fetchedBookings] = await Promise.all([
@@ -161,22 +164,14 @@ const Accommodation = () => {
       document.getElementById('booking-sidebar')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
-  // ✅ FIXED: Robust Type Checking for Room ID and Status
   const checkAvailability = (roomId: string, checkIn: string, checkOut: string): boolean => {
       const reqStart = checkIn;
       const reqEnd = checkOut;
-      
-      // FIX: Convert IDs to String() to handle mismatched types (Number vs String) from API
-      const roomBookings = bookings.filter(b => 
-          String(b.roomId) === String(roomId) && 
-          b.status !== PaymentStatus.FAILED
-      );
+      const roomBookings = bookings.filter(b => String(b.roomId) === String(roomId) && b.status !== PaymentStatus.FAILED);
 
       for (const b of roomBookings) {
           const bookedStart = normalizeDate(b.checkIn);
           const bookedEnd = normalizeDate(b.checkOut);
-          
-          // Logic: (StartA < EndB) and (EndA > StartB) means overlap
           if (reqStart < bookedEnd && reqEnd > bookedStart) return false; 
       }
       return true;
@@ -195,7 +190,6 @@ const Accommodation = () => {
         return maxMultiplier;
   };
 
-  // --- CORE: Price Calculation ---
   useEffect(() => {
     setAvailabilityError(null);
     setPricingBreakdown(null);
@@ -241,7 +235,6 @@ const Accommodation = () => {
         const total = Math.round(calculatedTotal);
         setTotalPrice(total);
         
-        // Calculate Advance
         const percent = settings.advancePaymentPercentage || 20;
         setAdvanceAmount(Math.round(total * (percent / 100)));
 
@@ -346,22 +339,17 @@ const Accommodation = () => {
       return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
   };
 
-// ✅ FIXED: Aggressive ID Matching
   const isDateBooked = (dateStr: string) => {
-    // 1. Filter bookings for this room (Aggressive Match)
     const currentRoomBookings = bookings.filter(b => {
         const bId = String(b.roomId).trim();
         const formId = String(bookingForm.roomId).trim();
         const status = String(b.status).toUpperCase();
-        
         return bId === formId && status !== 'FAILED';
     });
     
-    // 2. Check if date falls in range
     return currentRoomBookings.some(b => {
       const checkInStr = normalizeDate(b.checkIn);
       const checkOutStr = normalizeDate(b.checkOut);
-      
       return dateStr >= checkInStr && dateStr < checkOutStr;
     });
   };
@@ -434,7 +422,7 @@ const Accommodation = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Hero */}
+      {/* Hero (Synced with Admin Settings) */}
       <div 
         className="relative h-[40vh] bg-cover bg-center flex items-center justify-center"
         style={{ backgroundImage: `url("${settings.heroImageUrl}")`, backgroundColor: '#1a2e1a' }}
@@ -594,7 +582,6 @@ const Accommodation = () => {
         </div>
       </div>
 
-      {/* Simulated Payment Modal */}
       {showSimulatedPayment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur-sm p-4">
           <div className="bg-white p-8 rounded-2xl max-w-sm w-full text-center relative shadow-2xl transform scale-100">
