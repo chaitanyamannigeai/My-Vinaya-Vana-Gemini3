@@ -15,7 +15,7 @@ const Home = () => {
   
   const [showStickyNav, setShowStickyNav] = useState(false);
 
-  // ✅ PRICE FIX: Automatically find the lowest price
+  // ✅ PRICE FIX: Automatically find the lowest price across all rooms
   const minPrice = rooms.length > 0 
     ? Math.min(...rooms.map(r => r.basePrice)) 
     : 0;
