@@ -7,13 +7,18 @@ const Gallery = () => {
   const [images, setImages] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('All');
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS); // Added for Hero Image
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS); 
   
-  // LIGHTBOX STATE: Store the INDEX (number) to enable Next/Prev navigation
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
-  // 1. Fetch Data (Live Sync from Admin -> DB -> Here)
   useEffect(() => {
+    // 🚀 SEO: Dynamic Title & Meta
+    document.title = "Photo Gallery | Vinaya Vana Farmhouse Gokarna";
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+        metaDesc.setAttribute('content', 'Explore photos of Vinaya Vana: A luxury 1-acre farmhouse in Gokarna. View our lush gardens, spacious rooms, and serene surroundings.');
+    }
+
     const fetchGallery = async () => {
         try {
             const [galleryData, settingsData] = await Promise.all([
@@ -31,14 +36,12 @@ const Gallery = () => {
     fetchGallery();
   }, []);
 
-  // 2. Extract Categories & Filter Images
   const categories = ['All', ...Array.from(new Set(images.map(img => img.category || 'General')))];
   
   const filteredImages = filter === 'All' 
     ? images 
     : images.filter(img => (img.category || 'General') === filter);
 
-  // 3. Lightbox Logic (Next/Prev)
   const handleNext = useCallback((e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (selectedIndex !== null && selectedIndex < filteredImages.length - 1) {
@@ -53,7 +56,6 @@ const Gallery = () => {
     }
   }, [selectedIndex]);
 
-  // Keyboard support for Lightbox
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
         if (selectedIndex === null) return;
@@ -72,7 +74,7 @@ const Gallery = () => {
   return (
     <div className="flex flex-col min-h-screen">
       
-      {/* 1. MINI HERO SECTION (Matches Home/Tariff Vibe) */}
+      {/* HERO SECTION */}
       <div 
         className="relative h-[40vh] bg-cover bg-center flex items-center justify-center"
         style={{ 
@@ -86,7 +88,7 @@ const Gallery = () => {
                 Photo Gallery
             </h1>
             <p className="text-lg text-nature-100 font-light max-w-xl mx-auto">
-                Glimpses of our green paradise.
+                Glimpses of our green paradise in Gokarna.
             </p>
         </div>
       </div>
@@ -111,21 +113,21 @@ const Gallery = () => {
             ))}
             </div>
 
-            {/* MASONRY LAYOUT (CSS Columns) */}
+            {/* MASONRY LAYOUT */}
             {filteredImages.length > 0 ? (
             <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6">
                 {filteredImages.map((img, index) => (
                 <div 
                     key={img.id} 
-                    // 'break-inside-avoid' is CRITICAL for Masonry
                     className="break-inside-avoid relative group rounded-xl overflow-hidden cursor-pointer shadow-md hover:shadow-2xl transition-all bg-nature-100"
                     onClick={() => setSelectedIndex(index)}
                 >
+                    {/* 🚀 SEO FIX: Rich Alt Text & Lazy Loading */}
                     <img 
-                    src={img.url} 
-                    alt={img.caption || img.category} 
-                    loading="lazy"
-                    className="w-full h-auto object-cover transform transition-transform duration-700 group-hover:scale-105"
+                        src={img.url} 
+                        alt={img.caption ? `Vinaya Vana Gokarna - ${img.caption}` : `Vinaya Vana Farmhouse Stay - ${img.category} View ${index + 1}`}
+                        loading="lazy"
+                        className="w-full h-auto object-cover transform transition-transform duration-700 group-hover:scale-105"
                     />
                     
                     {/* Hover Overlay */}
@@ -135,7 +137,7 @@ const Gallery = () => {
                         </div>
                     </div>
 
-                    {/* Caption (if exists) */}
+                    {/* Caption */}
                     {img.caption && (
                     <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                         <p className="text-white text-sm font-medium truncate">{img.caption}</p>
@@ -151,18 +153,16 @@ const Gallery = () => {
                 </div>
             )}
 
-            {/* SMART LIGHTBOX */}
+            {/* LIGHTBOX */}
             {selectedIndex !== null && filteredImages[selectedIndex] && (
             <div 
                 className="fixed inset-0 z-50 bg-nature-950/95 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
                 onClick={() => setSelectedIndex(null)}
             >
-                {/* Close */}
                 <button className="absolute top-6 right-6 text-white/70 hover:text-white p-2 z-50 hover:bg-white/10 rounded-full transition-colors">
                     <X size={32} />
                 </button>
 
-                {/* Prev Button */}
                 {selectedIndex > 0 && (
                     <button 
                         onClick={handlePrev}
@@ -172,11 +172,10 @@ const Gallery = () => {
                     </button>
                 )}
 
-                {/* Main Image */}
                 <div className="max-w-6xl max-h-[90vh] relative flex flex-col items-center" onClick={e => e.stopPropagation()}>
                     <img 
                         src={filteredImages[selectedIndex].url} 
-                        alt="Gallery Fullscreen" 
+                        alt="Vinaya Vana Fullscreen View" 
                         className="max-h-[80vh] w-auto max-w-full rounded-lg shadow-2xl border border-white/10"
                     />
                     <div className="mt-6 text-center">
@@ -189,7 +188,6 @@ const Gallery = () => {
                     </div>
                 </div>
 
-                {/* Next Button */}
                 {selectedIndex < filteredImages.length - 1 && (
                     <button 
                         onClick={handleNext}
