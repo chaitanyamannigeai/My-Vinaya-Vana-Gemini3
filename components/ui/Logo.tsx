@@ -2,7 +2,7 @@ import React from 'react';
 
 interface LogoProps {
   className?: string;
-  light?: boolean; // If true, optimizes colors for dark backgrounds
+  light?: boolean;
 }
 
 const Logo: React.FC<LogoProps> = ({ className = "h-12 w-auto", light = false }) => {
@@ -12,7 +12,13 @@ const Logo: React.FC<LogoProps> = ({ className = "h-12 w-auto", light = false })
       viewBox="0 0 300 100" 
       className={className}
       fill="none"
+      // 🚀 SEO FIXES START HERE
+      role="img" 
+      aria-label="Vinaya Vana Farmhouse Logo"
+      // 🚀 SEO FIXES END HERE
     >
+      <title>Vinaya Vana Farmhouse Logo</title> {/* 🚀 Extra SEO Help */}
+      
       {/* Palm Tree Trunk */}
       <path 
         d="M165 25 C 165 25, 168 50, 150 90 L 135 90 C 150 60, 158 40, 158 25 Z" 
