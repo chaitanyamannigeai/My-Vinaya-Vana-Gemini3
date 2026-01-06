@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc && vite build",
     "preview": "vite preview",
     "start": "node server.js"
   },
@@ -20,12 +20,15 @@
     "cors": "^2.8.5",
     "axios": "^1.6.8",
     "compression": "^1.7.4",
-    "helmet": "^7.1.0"
+    "helmet": "^7.1.0",
+    "leaflet": "^1.9.4",
+    "react-leaflet": "^4.2.1"
   },
   "devDependencies": {
     "@types/node": "^20.5.1",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
+    "@types/leaflet": "^1.9.8",
     "@vitejs/plugin-react": "^4.0.3",
     "autoprefixer": "^10.4.14",
     "postcss": "^8.4.27",
