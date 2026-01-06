@@ -24,7 +24,6 @@ console.log('📂 Static Dist Path:', DIST_PATH);
 app.set('trust proxy', true); 
 
 // ✅ SEO FIX: Force Non-WWW Redirect
-// This redirects www.vinayavana.com -> vinayavana.com to fix "Duplicate Content" SEO errors
 app.use((req, res, next) => {
   if (req.headers.host && req.headers.host.slice(0, 4) === 'www.') {
     const newHost = req.headers.host.slice(4);
@@ -75,8 +74,14 @@ const fixDatabaseSchema = async () => {
         
         await connection.query(`CREATE TABLE IF NOT EXISTS site_settings (key_name VARCHAR(255) PRIMARY KEY, value TEXT)`);
         await connection.query(`CREATE TABLE IF NOT EXISTS visit_logs (id INT AUTO_INCREMENT PRIMARY KEY, ip_address VARCHAR(50), city VARCHAR(100), country VARCHAR(100), visit_date DATETIME DEFAULT CURRENT_TIMESTAMP, device_type VARCHAR(50))`);
+        
+        // Schema Updates
         try { await connection.query("ALTER TABLE visit_logs ADD COLUMN city VARCHAR(100)"); } catch (e) {}
         try { await connection.query("ALTER TABLE visit_logs ADD COLUMN country VARCHAR(100)"); } catch (e) {}
+        
+        // 🚀 ANALYTICS UPDATE: Add Geo-Coordinates
+        try { await connection.query("ALTER TABLE visit_logs ADD COLUMN latitude DECIMAL(10, 8)"); } catch (e) {}
+        try { await connection.query("ALTER TABLE visit_logs ADD COLUMN longitude DECIMAL(11, 8)"); } catch (e) {}
 
         await connection.query(`CREATE TABLE IF NOT EXISTS cab_vehicles (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255), vehicle_type VARCHAR(100), capacity INT, images TEXT, features TEXT, base_rate DECIMAL(10,2), active BOOLEAN DEFAULT 1)`);
         try { await connection.query("ALTER TABLE drivers ADD COLUMN assigned_vehicle_id VARCHAR(255) NULL"); } catch (e) {}
@@ -169,19 +174,59 @@ app.post('/api/analytics/track-hit', async (req, res) => {
         if (ip.includes(',')) ip = ip.split(',')[0].trim();
 
         let city = 'Unknown', country = 'Unknown';
+        let lat = null, lon = null; // New Geo fields
+
         if (ip && ip.length > 7) { 
             try {
                 const geoRes = await axios.get(`http://ip-api.com/json/${ip}`);
-                if (geoRes.data?.status === 'success') { city = geoRes.data.city || 'Unknown'; country = geoRes.data.country || 'Unknown'; }
+                if (geoRes.data?.status === 'success') { 
+                    city = geoRes.data.city || 'Unknown'; 
+                    country = geoRes.data.country || 'Unknown'; 
+                    // 🚀 ANALYTICS FIX: Capture Coordinates
+                    lat = geoRes.data.lat || null;
+                    lon = geoRes.data.lon || null;
+                }
             } catch (geoError) { console.error("GeoIP Fetch Error:", geoError.message); }
         }
-        await pool.query('INSERT INTO visit_logs (ip_address, city, country, device_type) VALUES (?, ?, ?, ?)', [ip, city, country, isMobile ? 'Mobile' : 'Desktop']); 
+        
+        // 🚀 ANALYTICS FIX: Save Coordinates to DB
+        await pool.query('INSERT INTO visit_logs (ip_address, city, country, device_type, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?)', 
+            [ip, city, country, isMobile ? 'Mobile' : 'Desktop', lat, lon]); 
+            
         res.json({ success: true, newHits: settings.websiteHits }); 
     } catch (err) { res.json({ success: false }); } 
 });
 
 app.get('/api/analytics/traffic', async (req, res) => { try { const [rows] = await pool.query(`SELECT DATE_FORMAT(visit_date, '%b %y') as month, COUNT(*) as count FROM visit_logs WHERE visit_date >= DATE_SUB(NOW(), INTERVAL 6 MONTH) GROUP BY DATE_FORMAT(visit_date, '%Y-%m'), month ORDER BY DATE_FORMAT(visit_date, '%Y-%m') ASC`); res.json(rows); } catch (e) { res.json([]); } });
 app.get('/api/analytics/devices', async (req, res) => { try { const [rows] = await pool.query(`SELECT device_type, COUNT(*) as count FROM visit_logs GROUP BY device_type`); res.json(rows); } catch (e) { res.json([]); } });
+
+// 🚀 NEW ENDPOINT: Geo-Analytics for Map
+app.get('/api/analytics/geo', async (req, res) => {
+    try {
+        const { range } = req.query; // '24h', '7d', '30d', '6m'
+        let dateCondition = "visit_date >= DATE_SUB(NOW(), INTERVAL 24 HOUR)";
+        
+        if (range === '7d') dateCondition = "visit_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+        else if (range === '30d') dateCondition = "visit_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+        else if (range === '6m') dateCondition = "visit_date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)";
+
+        const [rows] = await pool.query(`
+            SELECT 
+                city, 
+                country, 
+                latitude as lat, 
+                longitude as lng, 
+                COUNT(*) as visits 
+            FROM visit_logs 
+            WHERE ${dateCondition} AND latitude IS NOT NULL 
+            GROUP BY latitude, longitude, city, country
+        `);
+        res.json(rows);
+    } catch (e) {
+        console.error("Geo Analytics Error:", e);
+        res.json([]);
+    }
+});
 
 // --- 6. STATIC FILE SERVING ---
 if (fs.existsSync(DIST_PATH)) {
