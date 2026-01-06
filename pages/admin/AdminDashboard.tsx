@@ -16,7 +16,7 @@ const AdminDashboard = () => {
   const [authLoading, setAuthLoading] = useState(true); 
   const [activeTab, setActiveTab] = useState('bookings');
   const [loading, setLoading] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // 📱 NEW: Mobile Menu State
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Data States
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -31,7 +31,7 @@ const AdminDashboard = () => {
   const [deviceStats, setDeviceStats] = useState<{device_type: string, count: number}[]>([]);
   const [vehicles, setVehicles] = useState<CabVehicle[]>([]);
   
-  // 🚀 ANALYTICS STATE
+  // Analytics Map State
   const [geoData, setGeoData] = useState<{lat: number, lng: number, city: string, country: string, visits: number}[]>([]);
   const [geoRange, setGeoRange] = useState('24h');
 
@@ -56,9 +56,6 @@ const AdminDashboard = () => {
   // Data Loading
   const loadTab = async (tab: string) => {
       setLoading(true);
-      // Close mobile menu when a tab is selected
-      setIsMobileMenuOpen(false); 
-      
       try {
           if (tab === 'bookings') setBookings(await api.bookings.getAll());
           else if (tab === 'rooms') setRooms(await api.rooms.getAll());
@@ -102,7 +99,9 @@ const AdminDashboard = () => {
       } catch (e) { console.error("Geo fetch failed", e); }
   };
 
+  // ✅ FIXED: This useEffect ensures that whenever 'activeTab' changes (clicked from menu), data is loaded.
   useEffect(() => { if (!authLoading) loadTab(activeTab); }, [activeTab, authLoading]);
+  
   const handleLogout = () => { sessionStorage.removeItem('vv_admin_auth'); navigate('/'); };
 
   // Analytics & Actions
@@ -724,7 +723,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row relative">
-      {/* 📱 MOBILE HEADER (NEW) */}
+      {/* 📱 MOBILE HEADER (UNCHANGED) */}
       <div className="md:hidden bg-nature-900 text-white p-4 flex justify-between items-center shadow-md z-40 sticky top-0">
           <div className="font-serif font-bold text-xl">Admin Panel</div>
           <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 hover:bg-nature-800 rounded">
@@ -732,7 +731,7 @@ const AdminDashboard = () => {
           </button>
       </div>
 
-      {/* 📱 MOBILE SIDEBAR OVERLAY (NEW) */}
+      {/* 📱 MOBILE SIDEBAR OVERLAY (FIXED NAVIGATION) */}
       {isMobileMenuOpen && (
           <div className="fixed inset-0 z-50 bg-black/50 md:hidden" onClick={() => setIsMobileMenuOpen(false)}>
               <div className="w-64 bg-nature-900 h-full p-4 flex flex-col shadow-2xl animate-fade-in-left" onClick={e => e.stopPropagation()}>
@@ -744,7 +743,8 @@ const AdminDashboard = () => {
                       {['bookings', 'rooms', 'locations', 'fleet', 'drivers', 'pricing', 'gallery', 'reviews', 'analytics-map', 'home-content', 'settings'].map(tab => (
                           <button 
                               key={tab} 
-                              onClick={() => loadTab(tab)} 
+                              // 🚀 FIX: This line now correctly updates the active tab AND closes the menu
+                              onClick={() => { setActiveTab(tab); setIsMobileMenuOpen(false); }} 
                               className={`w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-nature-800 text-white rounded-lg transition-colors capitalize ${activeTab === tab ? 'bg-nature-800 border-l-4 border-green-400' : ''}`}
                           >
                               {tab === 'bookings' && <Calendar size={18}/>}
