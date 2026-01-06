@@ -12,7 +12,13 @@ const Logo: React.FC<LogoProps> = ({ className = "h-12 w-auto", light = false })
       viewBox="0 0 300 100" 
       className={className}
       fill="none"
+      // 🚀 SEO FIX: Added Role and Aria-Label so Google reads this as an image with description
+      role="img" 
+      aria-label="Vinaya Vana Farmhouse Logo"
     >
+      {/* 🚀 SEO FIX: Title tag for screen readers and bots */}
+      <title>Vinaya Vana Farmhouse Logo</title>
+
       {/* Palm Tree Trunk */}
       <path 
         d="M165 25 C 165 25, 168 50, 150 90 L 135 90 C 150 60, 158 40, 158 25 Z" 
