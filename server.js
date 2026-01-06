@@ -13,27 +13,37 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- 1. NORTHFLANK PATH FIX (CRITICAL) ---
-// We keep this because it fixed the "Giant Logo" issue.
+// --- 1. NORTHFLANK PATH FIX ---
 const ROOT_DIR = process.cwd(); 
 const DIST_PATH = path.join(ROOT_DIR, 'dist');
 
 console.log('📂 Server Root:', ROOT_DIR);
 console.log('📂 Static Dist Path:', DIST_PATH);
 
-// --- 2. MIDDLEWARE (From your Original Code) ---
+// --- 2. SEO & MIDDLEWARE ---
 app.set('trust proxy', true); 
+
+// ✅ SEO FIX: Force Non-WWW Redirect
+// This redirects www.vinayavana.com -> vinayavana.com to fix "Duplicate Content" SEO errors
+app.use((req, res, next) => {
+  if (req.headers.host && req.headers.host.slice(0, 4) === 'www.') {
+    const newHost = req.headers.host.slice(4);
+    return res.redirect(301, req.protocol + '://' + newHost + req.originalUrl);
+  }
+  next();
+});
+
 app.use(cors());
 app.use(compression()); 
 app.use(express.json({ limit: '50mb' })); 
 
-// Prevent browser caching for APIs (Kept this as it's useful for Admin)
+// Prevent browser caching for APIs
 app.use('/api', (req, res, next) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     next();
 });
 
-// --- 3. DATABASE CONNECTION (Your Original Logic) ---
+// --- 3. DATABASE CONNECTION ---
 const pool = mysql.createPool(process.env.DATABASE_URL || '');
 
 const parseJSON = (data) => {
@@ -46,32 +56,28 @@ const parseJSON = (data) => {
     return data;
 };
 
-// --- 4. STARTUP CHECKS (Your Original Logic) ---
+// --- 4. STARTUP CHECKS ---
 const fixDatabaseSchema = async () => {
     try {
         const connection = await pool.getConnection();
         console.log('🔧 Running Database Startup Checks...');
 
-        // Core Tables
         await connection.query(`CREATE TABLE IF NOT EXISTS rooms (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255), description TEXT, base_price INT, capacity INT, amenities TEXT, images TEXT)`);
         await connection.query(`CREATE TABLE IF NOT EXISTS drivers (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255), phone VARCHAR(50), whatsapp VARCHAR(50), is_default BOOLEAN DEFAULT 0, active BOOLEAN DEFAULT 1, vehicle_info VARCHAR(255))`);
         await connection.query(`CREATE TABLE IF NOT EXISTS cab_locations (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255), description TEXT, image_url TEXT, price INT, driver_id VARCHAR(255), active BOOLEAN DEFAULT 1)`);
         await connection.query(`CREATE TABLE IF NOT EXISTS gallery (id VARCHAR(255) PRIMARY KEY, url TEXT, category VARCHAR(100), caption VARCHAR(255))`);
         await connection.query(`CREATE TABLE IF NOT EXISTS bookings (id VARCHAR(255) PRIMARY KEY, room_id VARCHAR(255), guest_name VARCHAR(255), guest_phone VARCHAR(50), check_in VARCHAR(50), check_out VARCHAR(50), total_amount DECIMAL(10,2), amount_paid DECIMAL(10,2) DEFAULT 0, balance_amount DECIMAL(10,2) DEFAULT 0, status VARCHAR(50), created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
         
-        // Pricing & Reviews
         try { await connection.query("ALTER TABLE pricing_rules MODIFY id VARCHAR(255)"); } catch (e) {
             await connection.query(`CREATE TABLE IF NOT EXISTS pricing_rules (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255), start_date DATE, end_date DATE, multiplier DECIMAL(3,1))`);
         }
         await connection.query(`CREATE TABLE IF NOT EXISTS reviews (id VARCHAR(255) PRIMARY KEY, guest_name VARCHAR(255), location VARCHAR(255), rating INT, comment TEXT, date VARCHAR(50), show_on_home BOOLEAN DEFAULT 0)`);
         
-        // Settings & Logs
         await connection.query(`CREATE TABLE IF NOT EXISTS site_settings (key_name VARCHAR(255) PRIMARY KEY, value TEXT)`);
         await connection.query(`CREATE TABLE IF NOT EXISTS visit_logs (id INT AUTO_INCREMENT PRIMARY KEY, ip_address VARCHAR(50), city VARCHAR(100), country VARCHAR(100), visit_date DATETIME DEFAULT CURRENT_TIMESTAMP, device_type VARCHAR(50))`);
         try { await connection.query("ALTER TABLE visit_logs ADD COLUMN city VARCHAR(100)"); } catch (e) {}
         try { await connection.query("ALTER TABLE visit_logs ADD COLUMN country VARCHAR(100)"); } catch (e) {}
 
-        // Vehicles
         await connection.query(`CREATE TABLE IF NOT EXISTS cab_vehicles (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255), vehicle_type VARCHAR(100), capacity INT, images TEXT, features TEXT, base_rate DECIMAL(10,2), active BOOLEAN DEFAULT 1)`);
         try { await connection.query("ALTER TABLE drivers ADD COLUMN assigned_vehicle_id VARCHAR(255) NULL"); } catch (e) {}
 
@@ -83,7 +89,7 @@ const fixDatabaseSchema = async () => {
 };
 fixDatabaseSchema();
 
-// --- 5. AUTH & API ROUTES (Your Original Logic) ---
+// --- 5. AUTH & API ROUTES ---
 
 app.post('/api/auth/login', async (req, res) => {
     const { password } = req.body;
@@ -112,7 +118,6 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-// Standard Routes
 app.get('/api/vehicles', async(req,res)=>{ try{const[r]=await pool.query('SELECT * FROM cab_vehicles'); res.json(r.map(v=>({id:v.id, name:v.name, vehicleType:v.vehicle_type, capacity:v.capacity, images:parseJSON(v.images), features:parseJSON(v.features), baseRate:v.base_rate, active:!!v.active})));}catch(e){res.json([]);} });
 app.post('/api/vehicles', async(req,res)=>{ try{ const {id,name,vehicleType,capacity,baseRate,active}=req.body; const images = JSON.stringify(req.body.images || []); const features = JSON.stringify(req.body.features || []); await pool.query("INSERT INTO cab_vehicles (id,name,vehicle_type,capacity,images,features,base_rate,active) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name), vehicle_type=VALUES(vehicle_type), capacity=VALUES(capacity), images=VALUES(images), features=VALUES(features), base_rate=VALUES(base_rate), active=VALUES(active)",[id,name,vehicleType,capacity,images,features,baseRate,active]); res.json({success:true}); }catch(e){res.status(500).json({error:e.message})} });
 app.delete('/api/vehicles/:id', async (req, res) => { try { await pool.query('UPDATE drivers SET assigned_vehicle_id = NULL WHERE assigned_vehicle_id = ?', [req.params.id]); await pool.query('DELETE FROM cab_vehicles WHERE id = ?', [req.params.id]); res.json({success:true}); } catch(e){res.status(500).json({error:e.message});} });
@@ -178,23 +183,16 @@ app.post('/api/analytics/track-hit', async (req, res) => {
 app.get('/api/analytics/traffic', async (req, res) => { try { const [rows] = await pool.query(`SELECT DATE_FORMAT(visit_date, '%b %y') as month, COUNT(*) as count FROM visit_logs WHERE visit_date >= DATE_SUB(NOW(), INTERVAL 6 MONTH) GROUP BY DATE_FORMAT(visit_date, '%Y-%m'), month ORDER BY DATE_FORMAT(visit_date, '%Y-%m') ASC`); res.json(rows); } catch (e) { res.json([]); } });
 app.get('/api/analytics/devices', async (req, res) => { try { const [rows] = await pool.query(`SELECT device_type, COUNT(*) as count FROM visit_logs GROUP BY device_type`); res.json(rows); } catch (e) { res.json([]); } });
 
-// --- 6. STATIC FILE SERVING (PATH FIX APPLIED) ---
-// This is the ONLY major change from your original file.
-// It ensures Express finds the 'dist' folder correctly in Docker.
-
+// --- 6. STATIC FILE SERVING ---
 if (fs.existsSync(DIST_PATH)) {
-    // Explicitly serve assets to prevent "MIME Type" errors
     app.use('/assets', express.static(path.join(DIST_PATH, 'assets'), {
         maxAge: '1y',
         immutable: true, 
     }));
 
-    // Serve the rest of the app
     app.use(express.static(DIST_PATH));
 
-    // SPA Catch-All: Redirects all unknown routes to index.html
     app.get('*', (req, res) => {
-        // Optimization: If asking for a file (like .png or .css) that doesn't exist, return 404
         if (req.url.includes('.') && !req.url.includes('.html')) {
             return res.status(404).send('Not Found');
         }
