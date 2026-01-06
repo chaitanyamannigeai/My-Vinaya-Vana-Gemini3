@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
-import { ArrowRight, Coffee, Wifi, Palmtree, Star, Play, Quote, Sun, Cloud, CloudRain, CloudFog, CloudLightning, CloudDrizzle, Snowflake, Moon, Wind as WindIcon, MessageCircle, CalendarCheck } from 'lucide-react'; 
+import { ArrowRight, Coffee, Wifi, Palmtree, Star, Play, Quote, Sun, Cloud, CloudRain, CloudFog, CloudLightning, CloudDrizzle, Snowflake, Moon, Wind as WindIcon, MessageCircle, CalendarCheck, MapPin, Compass } from 'lucide-react'; 
 import { Review, Room, SiteSettings, WeatherData } from '../../types'; 
 
 const { Link } = ReactRouterDOM as any;
@@ -64,11 +64,10 @@ const Home = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // SEO ENGINE Logic (Preserved)
+  // SEO ENGINE Logic
   useEffect(() => {
     if (settings) {
-        // 🚀 SEO FIX: Ensure Title matches H1 keywords
-        document.title = settings.siteTitle ? `${settings.siteTitle} | Serenity Among the Palms - Luxury Stay` : "Vinaya Vana | Luxury Farmhouse in Gokarna";
+        document.title = settings.siteTitle ? `${settings.siteTitle} | Serenity Among the Palms - Luxury Stay in Gokarna` : "Vinaya Vana | Luxury Farmhouse & Homestay in Gokarna";
         
         let metaDescription = document.querySelector('meta[name="description"]');
         if (!metaDescription) {
@@ -76,8 +75,7 @@ const Home = () => {
             metaDescription.setAttribute('name', 'description');
             document.head.appendChild(metaDescription);
         }
-        // 🚀 SEO FIX: Expanded meta description
-        metaDescription.setAttribute('content', settings.siteDescription || "Find serenity among the palms at Vinaya Vana. A private 1-acre luxury farmhouse in Gokarna offering spacious 2BHK stays, nature views, and modern amenities.");
+        metaDescription.setAttribute('content', settings.siteDescription || "Find serenity among the palms at Vinaya Vana. A private 1-acre luxury farmhouse in Gokarna offering spacious 2BHK stays, nature views, birdwatching, and modern amenities near Om Beach.");
 
         if (settings.whatsappNumber) {
             const schemaData = {
@@ -91,7 +89,7 @@ const Home = () => {
                 "priceRange": "₹₹",
                 "address": {
                     "@type": "PostalAddress",
-                    "streetAddress": settings.address || "Gokarna",
+                    "streetAddress": settings.address || "Gokarna Road",
                     "addressLocality": "Gokarna",
                     "addressRegion": "Karnataka",
                     "postalCode": "581326",
@@ -142,9 +140,9 @@ const Home = () => {
   return (
     <div className="flex flex-col min-h-screen pb-20 md:pb-0"> 
       
-      {/* Hero Section */}
+      {/* 1. HERO SECTION */}
       <div 
-        className="relative h-[85vh] bg-cover bg-center flex items-center justify-center transition-all duration-1000"
+        className="relative h-[90vh] bg-cover bg-center flex items-center justify-center transition-all duration-1000"
         style={{ 
             backgroundImage: `url("${settings.heroImageUrl}")`,
             backgroundAttachment: 'fixed' 
@@ -154,15 +152,14 @@ const Home = () => {
         <div className="relative z-10 text-center px-4 animate-fade-in-up max-w-4xl mx-auto">
           <div className="inline-flex items-center justify-center p-3 bg-white/10 backdrop-blur-sm rounded-full mb-6 border border-white/20">
             <Palmtree className="text-green-300 mr-2" />
-            <span className="text-green-100 font-medium tracking-wide uppercase text-sm">Pure Nature Living</span>
+            <span className="text-green-100 font-medium tracking-wide uppercase text-sm">Eco-Luxury Living</span>
           </div>
           <h1 className="text-4xl md:text-6xl font-serif font-bold text-white mb-6 shadow-sm leading-tight">
             {settings.siteTitle || "Vinaya Vana"}: <br className="hidden md:block" /> Serenity Among the Palms
           </h1>
           
-          {/* 🚀 SEO FIX: Keyword rich description that matches H1 */}
-          <p className="text-xl md:text-2xl text-nature-50 mb-10 font-light leading-relaxed">
-             Find true <strong>serenity among the palms</strong> at Vinaya Vana. Experience distinct tranquility in our beautiful private bungalow, nestled in the heart of Gokarna and surrounded by a lush 1-acre plantation of towering coconut and betelnut trees. It is the perfect escape for nature lovers seeking peace.
+          <p className="text-xl md:text-2xl text-nature-50 mb-10 font-light leading-relaxed drop-shadow-md">
+             Escape to <strong>Vinaya Vana</strong>, a hidden gem where modern luxury meets the raw beauty of nature. Discover true <strong>serenity among the palms</strong> in our exclusive private bungalow, perfectly situated in the heart of Gokarna's lush coastal landscape.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -211,75 +208,101 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Features - 🚀 SEO FIX: Expanded Text for Word Count */}
+      {/* 2. NEW SEO CONTENT SECTION: "The Experience" */}
+      <div className="py-20 bg-nature-50">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+            <h2 className="text-3xl md:text-4xl font-serif font-bold text-nature-900 mb-8">
+                A Sanctuary for Nature Lovers
+            </h2>
+            <div className="prose prose-lg mx-auto text-gray-600 leading-relaxed space-y-6">
+                <p>
+                    Nestled within a sprawling <strong>1-acre organic plantation</strong>, Vinaya Vana is more than just a place to sleep—it is an immersion into the vibrant ecosystem of the Konkan coast. Our property is home to hundreds of towering coconut palms, areca nut (betelnut) trees, and banana groves that create a natural canopy, keeping the surroundings cool and breezy even during the summer months.
+                </p>
+                <p>
+                    Wake up to the melodious symphony of birdsong. We are a haven for birdwatchers, with frequent sightings of the majestic <strong>Great Indian Hornbill</strong>, colorful Kingfishers, and the rhythmic tapping of Woodpeckers right outside your window. Unlike crowded hotels, our private bungalow offers absolute seclusion, making it the perfect retreat for writers, artists, yoga enthusiasts, and families seeking to reconnect with nature without sacrificing modern comforts.
+                </p>
+                <p>
+                    Strategically located, we offer the best of both worlds: the quietude of a village farmhouse and easy access to Gokarna’s most famous attractions. A short drive takes you to the spiritual serenity of the <strong>Mahabaleshwar Temple</strong> or the golden sands of <strong>Kudle Beach</strong> and <strong>Om Beach</strong>. After a day of exploring cliffs and temples, return to your private sanctuary where the only noise is the rustling of leaves in the ocean breeze.
+                </p>
+            </div>
+        </div>
+      </div>
+
+      {/* 3. FEATURES SECTION (Expanded Text) */}
       <div className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-serif font-bold text-nature-900 mb-16 relative inline-block">
-            Why Stay With Us?
+            Why Choose Vinaya Vana?
             <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-24 h-1 bg-nature-500 mt-2 rounded-full"></span>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            <div className="p-8 bg-nature-50 rounded-2xl shadow-sm hover:shadow-md transition-all hover:-translate-y-1">
+            <div className="p-8 bg-nature-50 rounded-2xl shadow-sm hover:shadow-md transition-all hover:-translate-y-1 border border-nature-100">
               <div className="w-16 h-16 bg-nature-200 rounded-full flex items-center justify-center mx-auto mb-6">
                 <WindIcon className="text-nature-700 w-8 h-8" />
               </div>
               <h3 className="text-xl font-semibold mb-3 text-nature-900">Green Atmosphere</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Breathe fresh, unpolluted air while relaxing in our expansive garden. The property is a private 1-acre haven filled with native flora, offering a cool, shaded retreat from the coastal sun.
+              <p className="text-gray-600 leading-relaxed text-sm">
+                Immerse yourself in a pollution-free environment. Our property acts as a green lung, offering fresh, oxygen-rich air filtered by dense vegetation. It’s an ideal spot for meditation, morning yoga, or simply reading a book in the shade of a coconut tree. The natural microclimate here is noticeably cooler than the town center.
               </p>
             </div>
-            <div className="p-8 bg-nature-50 rounded-2xl shadow-sm hover:shadow-md transition-all hover:-translate-y-1">
+            <div className="p-8 bg-nature-50 rounded-2xl shadow-sm hover:shadow-md transition-all hover:-translate-y-1 border border-nature-100">
               <div className="w-16 h-16 bg-nature-200 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Coffee className="text-nature-700 w-8 h-8" />
               </div>
-              <h3 className="text-xl font-semibold mb-3 text-nature-900">Home Comforts</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Enjoy a spacious 2BHK layout designed for families. Includes a fully equipped kitchen for home-cooked meals, a large living area for gathering, and modern bathrooms with 24/7 hot water.
+              <h3 className="text-xl font-semibold mb-3 text-nature-900">Premium Home Comforts</h3>
+              <p className="text-gray-600 leading-relaxed text-sm">
+                Our spacious 2BHK layout is designed for extended stays and family vacations. You get a fully functional kitchen to cook fresh meals, a large living hall for family gatherings, and modern bathrooms with 24/7 hot water geysers. It’s your home away from home, far superior to a cramped hotel room.
               </p>
             </div>
-            <div className="p-8 bg-nature-50 rounded-2xl shadow-sm hover:shadow-md transition-all hover:-translate-y-1">
+            <div className="p-8 bg-nature-50 rounded-2xl shadow-sm hover:shadow-md transition-all hover:-translate-y-1 border border-nature-100">
               <div className="w-16 h-16 bg-nature-200 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Wifi className="text-nature-700 w-8 h-8" />
               </div>
               <h3 className="text-xl font-semibold mb-3 text-nature-900">Connected & Secure</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Stay connected with high-speed Wi-Fi suitable for workcations. We offer dedicated cab services for beach hopping and ensure a secure, fenced environment safe for children and pets.
+              <p className="text-gray-600 leading-relaxed text-sm">
+                Perfect for "workations," we provide reliable high-speed Wi-Fi so you can work with a view. The property is fully fenced and secure, offering ample parking space for your vehicles. We also provide dedicated cab services for hassle-free airport transfers and local sightseeing tours to Yana Caves and Murudeshwar.
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Video */}
+      {/* 4. VIDEO SECTION */}
       {videoEmbedUrl && (
           <div className="py-16 bg-nature-900">
               <div className="max-w-5xl mx-auto px-4 text-center">
                   <div className="inline-flex items-center justify-center p-2 mb-6 border border-nature-700 rounded-full px-4">
                       <Play size={16} className="text-nature-300 mr-2" fill="currentColor"/>
-                      <span className="text-nature-200 text-sm uppercase tracking-widest">Experience Vinaya Vana</span>
+                      <span className="text-nature-200 text-sm uppercase tracking-widest">Visual Tour</span>
                   </div>
+                  <h3 className="text-2xl font-serif text-white mb-8">Experience the Tranquility</h3>
                   <div className="aspect-w-16 aspect-h-9 rounded-2xl overflow-hidden shadow-2xl border-4 border-nature-800 bg-black">
                       {/* 🚀 SEO FIX: Added Lazy Loading to Iframe */}
                       <iframe 
                           className="w-full h-[500px]"
                           src={videoEmbedUrl} 
-                          title="Vinaya Vana Video" 
+                          title="Vinaya Vana Gokarna Farmhouse Tour Video" 
                           frameBorder="0" 
                           loading="lazy"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                           allowFullScreen
                       ></iframe>
                   </div>
+                  <p className="text-nature-300 mt-6 text-sm">
+                      Watch our walkthrough to see the spacious rooms, lush surroundings, and the peaceful ambiance that awaits you.
+                  </p>
               </div>
           </div>
       )}
 
-      {/* Reviews */}
+      {/* 5. GUEST REVIEWS */}
       <div className="py-20 bg-earth-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl font-serif font-bold text-nature-900 mb-4">What Our Guests Say</h2>
-                <p className="text-gray-600 text-lg">Experiences shared by those who've stayed with us.</p>
+                <h2 className="text-3xl md:text-4xl font-serif font-bold text-nature-900 mb-4">Guest Experiences</h2>
+                <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+                    Don't just take our word for it. Here is what families, couples, and solo travelers have to say about their stay at Vinaya Vana.
+                </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {reviews.length > 0 ? (
@@ -313,7 +336,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Featured Room */}
+      {/* 6. FEATURED ROOM & LOCATION */}
       {featuredRoom && (
         <div className="py-20 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -322,7 +345,7 @@ const Home = () => {
                 {/* 🚀 SEO FIX: Added Alt Tag & Lazy Loading */}
                 <img 
                   src={featuredRoom.images[0]} 
-                  alt={`Luxury stay at Vinaya Vana: ${featuredRoom.name}`}
+                  alt={`Luxury stay at Vinaya Vana: ${featuredRoom.name} in Gokarna`}
                   loading="lazy"
                   className="absolute inset-0 w-full h-full object-cover"
                 />
@@ -330,12 +353,18 @@ const Home = () => {
               <div className="md:w-1/2 p-8 md:p-12">
                 <div className="flex items-center gap-2 mb-2">
                    <div className="h-px w-8 bg-nature-500"></div>
-                   <span className="text-nature-600 font-bold uppercase tracking-wider text-xs">Recommended Stay</span>
+                   <span className="text-nature-600 font-bold uppercase tracking-wider text-xs">Featured Accommodation</span>
                 </div>
                 <h2 className="text-3xl font-serif font-bold text-nature-900 mb-6">{featuredRoom.name}</h2>
                 <p className="text-gray-600 mb-8 leading-relaxed text-lg">
                   {featuredRoom.description}
                 </p>
+                <div className="mb-8">
+                    <h4 className="font-bold text-nature-900 mb-2 flex items-center gap-2"><MapPin size={18}/> Location Highlights</h4>
+                    <p className="text-sm text-gray-600">
+                        Conveniently located near the main road, offering easy access to the market while remaining peaceful. We are just a 10-15 minute ride from the major beaches and temples.
+                    </p>
+                </div>
                 <ul className="grid grid-cols-2 gap-y-3 gap-x-4 mb-10">
                   {featuredRoom.amenities.slice(0,6).map((am, idx) => (
                      <li key={idx} className="flex items-center text-gray-700 font-medium">
@@ -353,7 +382,7 @@ const Home = () => {
         </div>
       )}
 
-      {/* Sticky Bar */}
+      {/* 7. Sticky Footer Bar */}
       <div 
         className={`fixed bottom-0 left-0 right-0 z-50 p-4 bg-white/95 backdrop-blur-md border-t border-nature-100 shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)] transition-transform duration-500 ease-in-out ${
             showStickyNav ? 'translate-y-0' : 'translate-y-[150%]'
