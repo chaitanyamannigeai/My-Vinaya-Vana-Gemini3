@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { Room, Booking, Driver, CabLocation, SiteSettings, PaymentStatus, PricingRule, GalleryItem, Review, CabVehicle } from '../../types';
-import { Settings, Calendar, Truck, Map as MapIcon, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent, Download, MessageCircle, CheckCircle, BarChart2, Activity, Loader, TrendingUp, DollarSign, Clock, Link as LinkIcon, Globe } from 'lucide-react';
+import { Settings, Calendar, Truck, Map as MapIcon, User, Home, LogOut, Plus, Trash2, Save, Banknote, X, Image as ImageIcon, MessageSquare, LayoutTemplate, FileText, Percent, Download, MessageCircle, CheckCircle, BarChart2, Activity, Loader, TrendingUp, DollarSign, Clock, Link as LinkIcon, Globe, Menu } from 'lucide-react';
 import ImageUploader from '../../components/ui/ImageUploader';
 
 // 🚀 ANALYTICS IMPORTS
@@ -16,6 +16,7 @@ const AdminDashboard = () => {
   const [authLoading, setAuthLoading] = useState(true); 
   const [activeTab, setActiveTab] = useState('bookings');
   const [loading, setLoading] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // 📱 NEW: Mobile Menu State
   
   // Data States
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -30,7 +31,7 @@ const AdminDashboard = () => {
   const [deviceStats, setDeviceStats] = useState<{device_type: string, count: number}[]>([]);
   const [vehicles, setVehicles] = useState<CabVehicle[]>([]);
   
-  // 🚀 NEW: Analytics Map State
+  // 🚀 ANALYTICS STATE
   const [geoData, setGeoData] = useState<{lat: number, lng: number, city: string, country: string, visits: number}[]>([]);
   const [geoRange, setGeoRange] = useState('24h');
 
@@ -55,6 +56,9 @@ const AdminDashboard = () => {
   // Data Loading
   const loadTab = async (tab: string) => {
       setLoading(true);
+      // Close mobile menu when a tab is selected
+      setIsMobileMenuOpen(false); 
+      
       try {
           if (tab === 'bookings') setBookings(await api.bookings.getAll());
           else if (tab === 'rooms') setRooms(await api.rooms.getAll());
@@ -72,7 +76,6 @@ const AdminDashboard = () => {
           else if (tab === 'gallery') setGallery(await api.gallery.getAll());
           else if (tab === 'reviews') setReviews(await api.reviews.getAll());
           else if (tab === 'analytics-map') {
-              // 🚀 NEW: Fetch initial map data
               fetchGeoData('24h');
           }
           else if ((tab === 'settings' || tab === 'home-content')) {
@@ -91,7 +94,6 @@ const AdminDashboard = () => {
       finally { setLoading(false); }
   };
 
-  // 🚀 NEW: Fetch Map Data
   const fetchGeoData = async (range: string) => {
       setGeoRange(range);
       try {
@@ -457,6 +459,7 @@ const AdminDashboard = () => {
                              <label className="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" checked={d.active} onChange={(e) => updateDriverLocal(d.id, 'active', e.target.checked)} /> Active</label>
                         </div>
                     </div>
+                    
                     <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="text-xs text-gray-500 block">Vehicle Description (Manual Text)</label>
@@ -665,7 +668,6 @@ const AdminDashboard = () => {
     </div>
   );
 
-  // 🚀 NEW: Render Website Traffic Analytics Map (This is the new feature!)
   const renderTrafficAnalytics = () => (
       <div className="space-y-6">
           <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border border-gray-100">
@@ -721,8 +723,52 @@ const AdminDashboard = () => {
   if (authLoading) return <div className="flex h-screen items-center justify-center bg-gray-100"><Loader className="animate-spin text-nature-600" size={40} /></div>;
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
-      <div className="w-64 bg-nature-900 text-white flex flex-col hidden md:flex shrink-0">
+    <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row relative">
+      {/* 📱 MOBILE HEADER (NEW) */}
+      <div className="md:hidden bg-nature-900 text-white p-4 flex justify-between items-center shadow-md z-40 sticky top-0">
+          <div className="font-serif font-bold text-xl">Admin Panel</div>
+          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 hover:bg-nature-800 rounded">
+              {isMobileMenuOpen ? <X size={24}/> : <Menu size={24}/>}
+          </button>
+      </div>
+
+      {/* 📱 MOBILE SIDEBAR OVERLAY (NEW) */}
+      {isMobileMenuOpen && (
+          <div className="fixed inset-0 z-50 bg-black/50 md:hidden" onClick={() => setIsMobileMenuOpen(false)}>
+              <div className="w-64 bg-nature-900 h-full p-4 flex flex-col shadow-2xl animate-fade-in-left" onClick={e => e.stopPropagation()}>
+                  <div className="p-4 font-serif font-bold text-xl text-white border-b border-nature-800 mb-4 flex justify-between items-center">
+                      <span>Menu</span>
+                      <button onClick={() => setIsMobileMenuOpen(false)}><X size={20}/></button>
+                  </div>
+                  <nav className="flex-grow overflow-y-auto space-y-1">
+                      {['bookings', 'rooms', 'locations', 'fleet', 'drivers', 'pricing', 'gallery', 'reviews', 'analytics-map', 'home-content', 'settings'].map(tab => (
+                          <button 
+                              key={tab} 
+                              onClick={() => loadTab(tab)} 
+                              className={`w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-nature-800 text-white rounded-lg transition-colors capitalize ${activeTab === tab ? 'bg-nature-800 border-l-4 border-green-400' : ''}`}
+                          >
+                              {tab === 'bookings' && <Calendar size={18}/>}
+                              {tab === 'rooms' && <Home size={18}/>}
+                              {tab === 'locations' && <MapIcon size={18}/>}
+                              {tab === 'fleet' && <Truck size={18}/>}
+                              {tab === 'drivers' && <User size={18}/>}
+                              {tab === 'pricing' && <DollarSign size={18}/>}
+                              {tab === 'gallery' && <ImageIcon size={18}/>}
+                              {tab === 'reviews' && <MessageSquare size={18}/>}
+                              {tab === 'analytics-map' && <Globe size={18}/>}
+                              {tab === 'home-content' && <LayoutTemplate size={18}/>}
+                              {tab === 'settings' && <Settings size={18}/>}
+                              <span className="capitalize">{tab.replace('-', ' ').replace('analytics map', 'Traffic Analytics')}</span>
+                          </button>
+                      ))}
+                  </nav>
+                  <button onClick={handleLogout} className="p-4 flex items-center gap-2 text-red-300 hover:text-white border-t border-nature-800 mt-auto"><LogOut size={18}/> Logout</button>
+              </div>
+          </div>
+      )}
+
+      {/* DESKTOP SIDEBAR (UNCHANGED) */}
+      <div className="w-64 bg-nature-900 text-white flex-col hidden md:flex shrink-0 h-screen sticky top-0">
         <div className="p-6 font-serif font-bold text-xl border-b border-nature-800">Admin Panel</div>
         <nav className="flex-grow py-4 overflow-y-auto">
           {['bookings', 'rooms', 'locations', 'fleet', 'drivers', 'pricing', 'gallery', 'reviews', 'analytics-map', 'home-content', 'settings'].map(tab => (
@@ -738,16 +784,17 @@ const AdminDashboard = () => {
                 {tab === 'analytics-map' && <Globe size={18}/>}
                 {tab === 'home-content' && <LayoutTemplate size={18}/>}
                 {tab === 'settings' && <Settings size={18}/>}
-                <span className="capitalize">{tab.replace('-', ' ').replace('analytics map', 'Website Traffic Analytics')}</span>
+                <span className="capitalize">{tab.replace('-', ' ').replace('analytics map', 'Traffic Analytics')}</span>
             </button>
           ))}
         </nav>
         <button onClick={handleLogout} className="p-6 flex items-center gap-2 text-red-300 hover:text-white border-t border-nature-800"><LogOut size={18}/> Logout</button>
       </div>
 
-      <div className="flex-grow p-8 h-screen overflow-auto">
-        <h1 className="text-2xl font-bold text-gray-800 capitalize mb-8">{activeTab.replace('-', ' ').replace('analytics map', 'Website Traffic Analytics')}</h1>
-        <div className="animate-fade-in max-w-6xl">
+      {/* MAIN CONTENT AREA */}
+      <div className="flex-grow p-4 md:p-8 h-full md:h-screen overflow-auto">
+        <h1 className="text-2xl font-bold text-gray-800 capitalize mb-8 hidden md:block">{activeTab.replace('-', ' ').replace('analytics map', 'Website Traffic Analytics')}</h1>
+        <div className="animate-fade-in max-w-6xl mx-auto pb-20 md:pb-0">
             {activeTab === 'bookings' && renderBookings()}
             {activeTab === 'rooms' && renderRooms()}
             {activeTab === 'locations' && renderLocations()}
@@ -762,10 +809,10 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Manual Booking Modal */}
+      {/* MODALS (Manual Booking & Payment) */}
       {showManualBooking && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-3">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-3 max-h-[90vh] overflow-y-auto">
                 <h3 className="text-lg font-bold mb-4">Manual Booking</h3>
                 <select value={manualBooking.roomId} onChange={(e) => setManualBooking({ ...manualBooking, roomId: e.target.value })} className="w-full border p-2 rounded">
                     <option value="">Select Room</option>
@@ -789,7 +836,6 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* Payment Modal */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 text-center">
