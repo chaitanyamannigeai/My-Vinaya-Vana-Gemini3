@@ -12,12 +12,11 @@ const Logo: React.FC<LogoProps> = ({ className = "h-12 w-auto", light = false })
       viewBox="0 0 300 100" 
       className={className}
       fill="none"
-      // 🚀 SEO FIXES START HERE
+      // 🚀 SEO FIX: Added Role and Aria-Label for Google
       role="img" 
       aria-label="Vinaya Vana Farmhouse Logo"
-      // 🚀 SEO FIXES END HERE
     >
-      <title>Vinaya Vana Farmhouse Logo</title> {/* 🚀 Extra SEO Help */}
+      <title>Vinaya Vana Farmhouse Logo</title>
       
       {/* Palm Tree Trunk */}
       <path 
@@ -25,7 +24,7 @@ const Logo: React.FC<LogoProps> = ({ className = "h-12 w-auto", light = false })
         fill={light ? "#8d7b68" : "#5e4b35"} 
       />
       
-      {/* Palm Leaves (Stylized) */}
+      {/* Palm Leaves */}
       <path d="M160 25 Q 140 10, 130 25 Q 145 28, 160 25" fill={light ? "#5fc08d" : "#266b4b"} />
       <path d="M160 25 Q 150 0, 165 5 Q 165 20, 160 25" fill={light ? "#5fc08d" : "#266b4b"} />
       <path d="M165 25 Q 180 5, 190 20 Q 175 25, 165 25" fill={light ? "#5fc08d" : "#266b4b"} />
@@ -35,9 +34,9 @@ const Logo: React.FC<LogoProps> = ({ className = "h-12 w-auto", light = false })
       {/* Woodpecker Bird */}
       <g transform="translate(138, 45) scale(0.15)">
         <path d="M50 0 L 70 10 L 70 30 L 50 60 L 40 50 Z" fill={light ? "#e0f7e9" : "#1d4634"} /> 
-        <path d="M50 0 L 30 10 L 40 20 Z" fill="#ef4444" /> {/* Red Crest */}
-        <path d="M70 10 L 90 12 L 70 15 Z" fill="#fbbf24" /> {/* Beak */}
-        <path d="M50 20 Q 30 30, 50 60" fill={light ? "#fff" : "#f2fbf5"} /> {/* Wing/Body accent */}
+        <path d="M50 0 L 30 10 L 40 20 Z" fill="#ef4444" />
+        <path d="M70 10 L 90 12 L 70 15 Z" fill="#fbbf24" />
+        <path d="M50 20 Q 30 30, 50 60" fill={light ? "#fff" : "#f2fbf5"} />
       </g>
 
       {/* Text "Vinaya Vana" */}

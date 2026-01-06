@@ -13,7 +13,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- 1. NORTHFLANK PATH FIX (CRITICAL) ---
+// --- 1. NORTHFLANK PATH FIX ---
 const ROOT_DIR = process.cwd(); 
 const DIST_PATH = path.join(ROOT_DIR, 'dist');
 
@@ -23,12 +23,11 @@ console.log('📂 Static Dist Path:', DIST_PATH);
 // --- 2. SEO & MIDDLEWARE ---
 app.set('trust proxy', true); 
 
-// ✅ SEO FIX: Force Non-WWW Redirect (Fixes "Duplicate Content" Error)
-// This code automatically sends anyone visiting www.vinayavana.com -> vinayavana.com
+// ✅ SEO FIX: Force Non-WWW Redirect
+// This redirects www.vinayavana.com -> vinayavana.com to fix "Duplicate Content" SEO errors
 app.use((req, res, next) => {
   if (req.headers.host && req.headers.host.slice(0, 4) === 'www.') {
     const newHost = req.headers.host.slice(4);
-    // 301 is a "Permanent Redirect" - tells Google to transfer ranking power
     return res.redirect(301, req.protocol + '://' + newHost + req.originalUrl);
   }
   next();
