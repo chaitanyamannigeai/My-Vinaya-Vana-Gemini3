@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 
 interface LogoProps {
   className?: string;
@@ -6,17 +6,20 @@ interface LogoProps {
 }
 
 const Logo: React.FC<LogoProps> = ({ className = "h-12 w-auto", light = false }) => {
+  // 🚀 SEO FIX: Generate a unique ID for this specific instance of the logo
+  // This ensures the aria-labelledby correctly links to the <title> tag below
+  const titleId = useId();
+
   return (
     <svg 
       xmlns="http://www.w3.org/2000/svg" 
       viewBox="0 0 300 100" 
       className={className}
       fill="none"
-      // 🚀 SEO FIX: Tells Google "This is an image" and "Here is its name"
       role="img" 
-      aria-label="Vinaya Vana Farmhouse Logo"
+      aria-labelledby={titleId} // Links the image role to the text description
     >
-      <title>Vinaya Vana Farmhouse Logo</title>
+      <title id={titleId}>Vinaya Vana Luxury Farmhouse Logo</title>
       
       {/* Palm Tree Trunk */}
       <path 
