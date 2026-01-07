@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
-import { ArrowRight, Coffee, Wifi, Palmtree, Star, Play, Quote, Sun, Cloud, CloudRain, CloudFog, CloudLightning, CloudDrizzle, Snowflake, Moon, Wind as WindIcon, MessageCircle, CalendarCheck, MapPin, Compass } from 'lucide-react'; 
+import { ArrowRight, Coffee, Wifi, Palmtree, Star, Play, Quote, Sun, Cloud, CloudRain, CloudFog, CloudLightning, CloudDrizzle, Snowflake, Moon, Wind as WindIcon, MessageCircle, CalendarCheck, MapPin } from 'lucide-react'; 
 import { Review, Room, SiteSettings, WeatherData } from '../../types'; 
 
 const { Link } = ReactRouterDOM as any;
@@ -15,7 +15,7 @@ const Home = () => {
   
   const [showStickyNav, setShowStickyNav] = useState(false);
 
-  // ✅ PRICE FIX: Automatically find the lowest price
+  // Price Calculation
   const minPrice = rooms.length > 0 
     ? Math.min(...rooms.map(r => r.basePrice)) 
     : 0;
@@ -77,6 +77,7 @@ const Home = () => {
         }
         metaDescription.setAttribute('content', settings.siteDescription || "Find serenity among the palms at Vinaya Vana. A private 1-acre luxury farmhouse in Gokarna offering spacious 2BHK stays, nature views, birdwatching, and modern amenities near Om Beach.");
 
+        // Schema Markup
         if (settings.whatsappNumber) {
             const schemaData = {
                 "@context": "https://schema.org",
@@ -121,6 +122,7 @@ const Home = () => {
     return id ? `https://www.youtube.com/embed/${id}` : null;
   };
   const videoEmbedUrl = getYoutubeEmbedUrl(settings.youtubeVideoUrl);
+
   const getWeatherIcon = (iconCode: string) => {
     if (!iconCode) return <Sun size={24} className="text-yellow-400" />;
     if (iconCode.startsWith('01d')) return <Sun size={24} className="text-yellow-400" />; 
@@ -140,16 +142,25 @@ const Home = () => {
   return (
     <div className="flex flex-col min-h-screen pb-20 md:pb-0"> 
       
-      {/* 1. HERO SECTION */}
-      <div 
-        className="relative h-[90vh] bg-cover bg-center flex items-center justify-center transition-all duration-1000"
-        style={{ 
-            backgroundImage: `url("${settings.heroImageUrl}")`,
-            backgroundAttachment: 'fixed' 
-        }}
-      >
-        <div className="absolute inset-0 bg-black bg-opacity-40"></div>
-        <div className="relative z-10 text-center px-4 animate-fade-in-up max-w-4xl mx-auto">
+      {/* 🚀 PERFORMANCE FIX: LCP OPTIMIZATION 
+         Replaced 'bg-image' with a real <img> tag using fetchPriority="high".
+         This forces the browser to load this image instantly, fixing the 4.1s delay.
+      */}
+      <div className="relative h-[90vh] flex items-center justify-center overflow-hidden bg-nature-900">
+        {settings.heroImageUrl && (
+          <img 
+            src={settings.heroImageUrl}
+            alt="Vinaya Vana Luxury Farmhouse in Gokarna"
+            className="absolute inset-0 w-full h-full object-cover z-0 opacity-90"
+            // @ts-ignore
+            fetchpriority="high" 
+            loading="eager"
+            decoding="sync"
+          />
+        )}
+        <div className="absolute inset-0 bg-black/40 z-10"></div>
+
+        <div className="relative z-20 text-center px-4 animate-fade-in-up max-w-4xl mx-auto">
           <div className="inline-flex items-center justify-center p-3 bg-white/10 backdrop-blur-sm rounded-full mb-6 border border-white/20">
             <Palmtree className="text-green-300 mr-2" />
             <span className="text-green-100 font-medium tracking-wide uppercase text-sm">Eco-Luxury Living</span>
@@ -178,6 +189,8 @@ const Home = () => {
               Chat on WhatsApp <MessageCircle size={20} />
             </a>
           </div>
+          
+          {/* Weather Widget */}
           {settings.weatherApiKey && (
               <div className="mt-8 flex justify-center">
                   {weatherLoading ? (
@@ -208,7 +221,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* 2. NEW SEO CONTENT SECTION: "The Experience" */}
+      {/* 2. "The Experience" Section */}
       <div className="py-20 bg-nature-50">
         <div className="max-w-4xl mx-auto px-6 text-center">
             <h2 className="text-3xl md:text-4xl font-serif font-bold text-nature-900 mb-8">
@@ -228,7 +241,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* 3. FEATURES SECTION (Expanded Text) */}
+      {/* 3. FEATURES SECTION */}
       <div className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-serif font-bold text-nature-900 mb-16 relative inline-block">
@@ -277,7 +290,6 @@ const Home = () => {
                   </div>
                   <h3 className="text-2xl font-serif text-white mb-8">Experience the Tranquility</h3>
                   <div className="aspect-w-16 aspect-h-9 rounded-2xl overflow-hidden shadow-2xl border-4 border-nature-800 bg-black">
-                      {/* 🚀 SEO FIX: Added Lazy Loading to Iframe */}
                       <iframe 
                           className="w-full h-[500px]"
                           src={videoEmbedUrl} 
@@ -342,7 +354,6 @@ const Home = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row items-center gap-12 bg-nature-50 rounded-3xl overflow-hidden shadow-xl">
               <div className="md:w-1/2 h-64 md:h-auto self-stretch relative">
-                {/* 🚀 SEO FIX: Added Alt Tag & Lazy Loading */}
                 <img 
                   src={featuredRoom.images[0]} 
                   alt={`Luxury stay at Vinaya Vana: ${featuredRoom.name} in Gokarna`}
@@ -391,7 +402,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
             <div className="hidden md:block">
                 <p className="font-serif font-bold text-nature-900 text-lg">{settings.siteTitle || "Vinaya Vana"}</p>
-                {/* ✅ PRICE FIX: Displays lowest starting price correctly */}
+                {/* Lowest Starting Price Display */}
                 {rooms.length > 0 && (
                     <p className="text-sm text-gray-500">
                         Starts from <span className="font-bold text-nature-700">₹{minPrice.toLocaleString()}</span> / night
