@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import ErrorBoundary from './components/ui/ErrorBoundary';
-import './index.css'; // <--- 🚀 THIS IS CRITICAL
+import './index.css';  // <--- IF THIS IS MISSING, ADD IT NOW
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
