@@ -1,12 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import viteCompression from 'vite-plugin-compression';
 
+// 🚀 SAFEMODE: Removed compression for now to fix the build crash
 export default defineConfig({
   plugins: [
-    react(),
-    // 🚀 COMPRESSION: Gzip assets for smaller download sizes
-    viteCompression({ algorithm: 'gzip' }) 
+    react()
   ],
   base: '/', 
   root: '.', 
@@ -26,15 +24,8 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        // 🚀 SMART SPLITTING: Breaks the monolith into smaller chunks
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('react')) return 'react-vendor';
-            if (id.includes('lucide')) return 'ui-icons';
-            if (id.includes('leaflet')) return 'maps';
-            return 'vendor';
-          }
-        }
+        // Simple manual chunks to prevent errors
+        manualChunks: undefined, 
       },
     },
   },
