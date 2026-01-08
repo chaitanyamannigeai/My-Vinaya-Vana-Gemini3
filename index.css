@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans bg-nature-50 text-nature-900 antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+}
+
+/* Google Translate Widget Optimization */
+.goog-te-banner-frame.skiptranslate { display: none !important; } 
+body { top: 0px !important; }
