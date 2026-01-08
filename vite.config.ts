@@ -20,11 +20,25 @@ export default defineConfig({
     assetsDir: 'assets',
     rollupOptions: {
       output: {
-        // 🚀 AGGRESSIVE SEO FIX: Force everything into a single "app.js" file
-        manualChunks: () => 'app', 
-        entryFileNames: 'assets/[name].js',
-        chunkFileNames: 'assets/[name].js',
-        assetFileNames: 'assets/[name].[ext]',
+        // 🚀 PHASE 1: SMART CHUNKING
+        // Instead of forcing 1 giant file (which slows down load),
+        // we separate the heavy Admin/Map libraries from the Public site.
+        manualChunks: (id) => {
+          // Put Leaflet (Maps) and React-Leaflet in a separate chunk
+          // This saves ~200KB from the Homepage load
+          if (id.includes('leaflet') || id.includes('react-leaflet')) {
+            return 'maps-vendor';
+          }
+          // Put Admin Dashboard specific libs in their own chunk
+          if (id.includes('recharts') || id.includes('chart')) {
+            return 'admin-vendor';
+          }
+          // Everything else (React, Router) goes into the main bundle
+          return null; 
+        },
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
       },
     },
   },
