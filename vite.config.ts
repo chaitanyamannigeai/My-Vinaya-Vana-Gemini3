@@ -1,10 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// 🚀 SAFEMODE: Removed compression for now to fix the build crash
+// 🛑 SAFEMODE: NO Compression Plugin
 export default defineConfig({
   plugins: [
-    react()
+    react() 
   ],
   base: '/', 
   root: '.', 
@@ -24,7 +24,6 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        // Simple manual chunks to prevent errors
         manualChunks: undefined, 
       },
     },
