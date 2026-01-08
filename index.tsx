@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import ErrorBoundary from './components/ui/ErrorBoundary';
 
-// 🚀 CRITICAL FIX: Import CSS so Vite bundles it
+// 🚀 CRITICAL: This import ensures your CSS is bundled
 import './index.css'; 
 
 const rootElement = document.getElementById('root');
