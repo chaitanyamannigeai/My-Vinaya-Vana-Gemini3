@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// 🛑 SAFEMODE: NO Compression Plugin
 export default defineConfig({
   plugins: [
     react() 
@@ -22,10 +21,7 @@ export default defineConfig({
     emptyOutDir: true,
     assetsDir: 'assets',
     sourcemap: false,
-    rollupOptions: {
-      output: {
-        manualChunks: undefined, 
-      },
-    },
+    // 🛑 REMOVED rollupOptions entirely. 
+    // This allows Vite to use its default (working) splitting strategy.
   },
 });
