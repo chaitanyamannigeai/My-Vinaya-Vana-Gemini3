@@ -20,21 +20,18 @@ export default defineConfig({
     assetsDir: 'assets',
     rollupOptions: {
       output: {
-        // 🚀 PHASE 1: SMART CHUNKING
-        // Instead of forcing 1 giant file (which slows down load),
-        // we separate the heavy Admin/Map libraries from the Public site.
+        // 🚀 PERFORMANCE FIX: Split code into smart chunks
+        // This ensures the Homepage doesn't download Admin/Map code
         manualChunks: (id) => {
-          // Put Leaflet (Maps) and React-Leaflet in a separate chunk
-          // This saves ~200KB from the Homepage load
           if (id.includes('leaflet') || id.includes('react-leaflet')) {
-            return 'maps-vendor';
+            return 'maps'; // Heavy map libraries go here
           }
-          // Put Admin Dashboard specific libs in their own chunk
-          if (id.includes('recharts') || id.includes('chart')) {
-            return 'admin-vendor';
+          if (id.includes('lucide-react')) {
+            return 'icons'; // Icons go here
           }
-          // Everything else (React, Router) goes into the main bundle
-          return null; 
+          if (id.includes('node_modules')) {
+            return 'vendor'; // Core libraries (React, etc) go here
+          }
         },
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
