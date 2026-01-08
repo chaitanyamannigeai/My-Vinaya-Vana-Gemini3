@@ -2,9 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  plugins: [
-    react() 
-  ],
+  plugins: [react()],
   base: '/', 
   root: '.', 
   server: {
@@ -20,8 +18,14 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     assetsDir: 'assets',
-    sourcemap: false,
-    // 🛑 REMOVED rollupOptions entirely. 
-    // This allows Vite to use its default (working) splitting strategy.
+    rollupOptions: {
+      output: {
+        // 🚀 AGGRESSIVE SEO FIX: Force everything into a single "app.js" file
+        manualChunks: () => 'app', 
+        entryFileNames: 'assets/[name].js',
+        chunkFileNames: 'assets/[name].js',
+        assetFileNames: 'assets/[name].[ext]',
+      },
+    },
   },
 });
