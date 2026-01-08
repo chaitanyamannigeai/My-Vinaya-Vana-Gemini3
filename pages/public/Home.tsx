@@ -3,6 +3,8 @@ import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { ArrowRight, Coffee, Wifi, Palmtree, Star, Play, Quote, Sun, Cloud, CloudRain, CloudFog, CloudLightning, CloudDrizzle, Snowflake, Moon, Wind as WindIcon, MessageCircle, CalendarCheck, MapPin } from 'lucide-react'; 
 import { Review, Room, SiteSettings, WeatherData } from '../../types'; 
+// 🚀 PHASE 3 IMPORT: Adjusted path for your architecture (No 'src')
+import { getOptimizedImageUrl, preloadImage } from '../../utils/imageUtils';
 
 const { Link } = ReactRouterDOM as any;
 
@@ -33,6 +35,11 @@ const Home = () => {
         setRooms(fetchedRooms);
         setReviews(fetchedReviews.filter(r => r.showOnHome));
         setSettings(fetchedSettings);
+
+        // 🚀 LCP OPTIMIZATION: Preload the Hero Image immediately
+        if (fetchedSettings.heroImageUrl) {
+            preloadImage(fetchedSettings.heroImageUrl);
+        }
 
         if (fetchedSettings.weatherApiKey) {
             setWeatherLoading(true);
@@ -77,7 +84,6 @@ const Home = () => {
         }
         metaDescription.setAttribute('content', settings.siteDescription || "Find serenity among the palms at Vinaya Vana. A private 1-acre luxury farmhouse in Gokarna offering spacious 2BHK stays, nature views, birdwatching, and modern amenities near Om Beach.");
 
-        // Schema Markup
         if (settings.whatsappNumber) {
             const schemaData = {
                 "@context": "https://schema.org",
@@ -122,6 +128,8 @@ const Home = () => {
     return id ? `https://www.youtube.com/embed/${id}` : null;
   };
   const videoEmbedUrl = getYoutubeEmbedUrl(settings.youtubeVideoUrl);
+  
+  const whatsappLink = `https://wa.me/${settings.whatsappNumber || '919999999999'}?text=Hi, I am interested in booking a stay at Vinaya Vana.`;
 
   const getWeatherIcon = (iconCode: string) => {
     if (!iconCode) return <Sun size={24} className="text-yellow-400" />;
@@ -137,19 +145,16 @@ const Home = () => {
     if (iconCode.startsWith('50')) return <CloudFog size={24} className="text-gray-400" />; 
     return <Sun size={24} className="text-yellow-400" />; 
   }
-  const whatsappLink = `https://wa.me/${settings.whatsappNumber || '919999999999'}?text=Hi, I am interested in booking a stay at Vinaya Vana.`;
 
   return (
     <div className="flex flex-col min-h-screen pb-20 md:pb-0"> 
       
-      {/* 🚀 PERFORMANCE FIX: LCP OPTIMIZATION 
-         Replaced 'bg-image' with a real <img> tag using fetchPriority="high".
-         This forces the browser to load this image instantly, fixing the 4.1s delay.
-      */}
+      {/* 1. HERO SECTION */}
       <div className="relative h-[90vh] flex items-center justify-center overflow-hidden bg-nature-900">
         {settings.heroImageUrl && (
           <img 
-            src={settings.heroImageUrl}
+            // 🚀 PHASE 3 OPTIMIZATION: Request Optimized Hero Image (1920px width)
+            src={getOptimizedImageUrl(settings.heroImageUrl, 1920)}
             alt="Vinaya Vana Luxury Farmhouse in Gokarna"
             className="absolute inset-0 w-full h-full object-cover z-0 opacity-90"
             // @ts-ignore
@@ -221,7 +226,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* 2. "The Experience" Section */}
+      {/* 2. Experience Section */}
       <div className="py-20 bg-nature-50">
         <div className="max-w-4xl mx-auto px-6 text-center">
             <h2 className="text-3xl md:text-4xl font-serif font-bold text-nature-900 mb-8">
@@ -355,7 +360,8 @@ const Home = () => {
             <div className="flex flex-col md:flex-row items-center gap-12 bg-nature-50 rounded-3xl overflow-hidden shadow-xl">
               <div className="md:w-1/2 h-64 md:h-auto self-stretch relative">
                 <img 
-                  src={featuredRoom.images[0]} 
+                  // 🚀 PHASE 3 OPTIMIZATION: Request Optimized Room Image (800px width)
+                  src={getOptimizedImageUrl(featuredRoom.images[0], 800)}
                   alt={`Luxury stay at Vinaya Vana: ${featuredRoom.name} in Gokarna`}
                   loading="lazy"
                   className="absolute inset-0 w-full h-full object-cover"

@@ -35,13 +35,12 @@ app.use((req, res, next) => {
 app.use(cors());
 
 // 🚀 PHASE 2: PERFORMANCE COMPRESSION
-// Compresses all text responses (HTML, JS, CSS) to reduce transfer size by ~70%
 app.use(compression({
   filter: (req, res) => {
     if (req.headers['x-no-compression']) return false;
     return compression.filter(req, res);
   },
-  level: 6 // Balanced compression level (Speed vs Size)
+  level: 6 
 }));
 
 app.use(express.json({ limit: '50mb' })); 
@@ -217,15 +216,16 @@ app.get('/api/analytics/geo', async (req, res) => {
 
 // --- 6. STATIC FILE SERVING ---
 if (fs.existsSync(DIST_PATH)) {
-    // 🚀 PHASE 2: CACHE CONTROL FOR ASSETS
-    // Serve assets (JS/CSS/Images) with long cache expiry (1 year)
-    // This tells the browser: "Don't download this again!"
-    app.use('/assets', express.static(path.join(DIST_PATH, 'assets'), {
+    // 🚀 PHASE 3 FIX: Aggressive Caching for ALL Static Assets
+    const cacheOptions = {
         maxAge: '1y',
-        immutable: true, 
-    }));
+        immutable: true,
+        etag: true,
+        lastModified: true
+    };
 
-    app.use(express.static(DIST_PATH));
+    app.use('/assets', express.static(path.join(DIST_PATH, 'assets'), cacheOptions));
+    app.use(express.static(DIST_PATH, cacheOptions));
 
     app.get('*', (req, res) => {
         if (req.url.includes('.') && !req.url.includes('.html')) {
