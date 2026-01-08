@@ -11,6 +11,6 @@
   }
 }
 
-/* Google Translate Widget Optimization */
+/* Optimize Google Translate to prevent layout shifts */
 .goog-te-banner-frame.skiptranslate { display: none !important; } 
 body { top: 0px !important; }
