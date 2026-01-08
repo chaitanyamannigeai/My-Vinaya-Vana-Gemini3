@@ -1,16 +1,32 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+// import viteCompression from 'vite-plugin-compression'; <--- COMMENT THIS OUT
 
-@layer base {
-  body {
-    @apply font-sans bg-nature-50 text-nature-900 antialiased;
-  }
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-serif;
-  }
-}
-
-/* Optimize Google Translate to prevent layout shifts */
-.goog-te-banner-frame.skiptranslate { display: none !important; } 
-body { top: 0px !important; }
+export default defineConfig({
+  plugins: [
+    react(),
+    // viteCompression({ algorithm: 'gzip' }) <--- COMMENT THIS OUT
+  ],
+  base: '/', 
+  root: '.', 
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    assetsDir: 'assets',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: undefined, // <--- RESET CHUNKS TO DEFAULT FOR SAFETY
+      },
+    },
+  },
+});
