@@ -3,7 +3,7 @@ import * as ReactRouterDOM from 'react-router-dom';
 import { api, DEFAULT_SETTINGS } from '../../services/api';
 import { ArrowRight, Coffee, Wifi, Palmtree, Star, Play, Quote, Sun, Cloud, CloudRain, CloudFog, CloudLightning, CloudDrizzle, Snowflake, Moon, Wind as WindIcon, MessageCircle, CalendarCheck, MapPin } from 'lucide-react'; 
 import { Review, Room, SiteSettings, WeatherData } from '../../types'; 
-// 🚀 PHASE 3 IMPORT: Adjusted path for your architecture (No 'src')
+// 🚀 PHASE 3 IMPORT: Adjusted path for your architecture
 import { getOptimizedImageUrl, preloadImage } from '../../utils/imageUtils';
 
 const { Link } = ReactRouterDOM as any;
@@ -86,12 +86,12 @@ const Home = () => {
 
         if (settings.whatsappNumber) {
             const schemaData = {
-                "@context": "https://schema.org",
+                "@context": "[https://schema.org](https://schema.org)",
                 "@type": "LodgingBusiness",
                 "name": settings.siteTitle || "Vinaya Vana Farmhouse",
-                "image": "https://vinayavana.com/social-preview.jpg",
-                "@id": "https://vinayavana.com",
-                "url": "https://vinayavana.com",
+                "image": "[https://vinayavana.com/social-preview.jpg](https://vinayavana.com/social-preview.jpg)",
+                "@id": "[https://vinayavana.com](https://vinayavana.com)",
+                "url": "[https://vinayavana.com](https://vinayavana.com)",
                 "telephone": `+91${settings.whatsappNumber}`,
                 "priceRange": "₹₹",
                 "address": {
