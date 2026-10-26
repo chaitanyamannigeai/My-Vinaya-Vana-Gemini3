@@ -76,6 +76,8 @@ export interface SiteSettings {
   houseRules: string;
   weatherApiKey?: string;
   websiteHits?: number;
+  trafficMapUrl?: string;
+  trafficMapApiKey?: string;
 }
 
 export interface GalleryItem {
