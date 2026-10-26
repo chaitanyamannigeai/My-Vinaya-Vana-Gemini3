@@ -29,6 +29,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   houseRules: "Check-in time: 12:00 PM | Check-out time: 11:00 AM.\nGovt ID proof is mandatory for all guests.\nQuiet hours start from 10:00 PM.\nSmoking is not allowed inside the rooms.\nPets are not allowed.\nCancellation: 50% refund if cancelled 7 days prior.",
   weatherApiKey: '',
   websiteHits: 0,
+  trafficMapUrl: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  trafficMapApiKey: '',
 };
 
 
