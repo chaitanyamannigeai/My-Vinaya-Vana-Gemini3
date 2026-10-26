@@ -73,6 +73,7 @@ const AdminDashboard = () => {
           else if (tab === 'gallery') setGallery(await api.gallery.getAll());
           else if (tab === 'reviews') setReviews(await api.reviews.getAll());
           else if (tab === 'analytics-map') {
+              try { const s = await api.settings.get(); setSettings(s); } catch (e) {}
               fetchGeoData('24h');
           }
           else if ((tab === 'settings' || tab === 'home-content')) {
@@ -663,9 +664,51 @@ const AdminDashboard = () => {
                 <div><label className="block text-sm font-medium text-gray-700">OpenWeatherMap API Key</label><input type="text" value={settings.weatherApiKey || ''} onChange={(e) => setSettings({...settings, weatherApiKey: e.target.value})} className="mt-1 block w-full border p-2 rounded"/></div>
             </div>
         </div>
+        <div className="border border-blue-200 rounded-lg p-6 bg-blue-50/40">
+            <h3 className="text-lg font-bold mb-4 border-b border-blue-200 pb-2 flex items-center gap-2 text-gray-900"><Globe size={20} className="text-blue-600"/> Traffic Analytics Map Configuration</h3>
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Map Tile Layer URL</label>
+                    <input 
+                        type="text" 
+                        value={settings.trafficMapUrl || ''} 
+                        onChange={(e) => setSettings({...settings, trafficMapUrl: e.target.value})} 
+                        placeholder="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                        className="mt-1 block w-full border p-2 rounded bg-white text-sm"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">CARTO, OpenStreetMap, or custom tile provider URL template.</p>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Traffic Analytics Map API Key</label>
+                    <input 
+                        type="text" 
+                        value={settings.trafficMapApiKey || ''} 
+                        onChange={(e) => setSettings({...settings, trafficMapApiKey: e.target.value})} 
+                        placeholder="Paste your CARTO API Key here"
+                        className="mt-1 block w-full border p-2 rounded bg-white text-sm"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">If using CARTO basemaps, entering your API key will automatically attach it to remove the watermark.</p>
+                </div>
+            </div>
+        </div>
         <button onClick={async () => { await api.settings.save(settings); alert("Settings Saved!"); }} className="flex items-center gap-2 bg-nature-600 text-white px-6 py-2 rounded-md hover:bg-nature-700 w-full justify-center"><Save size={18} /> Save Settings</button>
     </div>
   );
+
+  const getTrafficTileUrl = () => {
+      let url = (settings.trafficMapUrl || '').trim();
+      if (!url) {
+          url = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+      }
+      const apiKey = (settings.trafficMapApiKey || '').trim();
+      if (apiKey) {
+          if (!url.includes('api_key=') && !url.includes('access_token=')) {
+              const separator = url.includes('?') ? '&' : '?';
+              url = `${url}${separator}api_key=${apiKey}`;
+          }
+      }
+      return url;
+  };
 
   const renderTrafficAnalytics = () => (
       <div className="space-y-6">
@@ -687,7 +730,8 @@ const AdminDashboard = () => {
           <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden relative" style={{ height: '500px' }}>
               <MapContainer center={[20, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
                   <TileLayer
-                      url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                      key={getTrafficTileUrl()}
+                      url={getTrafficTileUrl()}
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                   />
                   {geoData.map((point, idx) => (
